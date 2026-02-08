@@ -1,0 +1,449 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WCDMR 2026 - Registration Admin</title>
+    <link rel="stylesheet" href="styles.css">
+    <style>
+        .admin-container {
+            max-width: 1400px;
+            margin: 2rem auto;
+            padding: 2rem;
+        }
+        .admin-header {
+            background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%);
+            color: white;
+            padding: 2rem;
+            border-radius: 0.75rem;
+            margin-bottom: 2rem;
+            text-align: center;
+        }
+        .admin-header h1 {
+            margin: 0 0 0.5rem 0;
+            font-size: 2rem;
+        }
+        .admin-stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+            margin-bottom: 2rem;
+        }
+        .stat-card {
+            background: white;
+            padding: 1.5rem;
+            border-radius: 0.5rem;
+            box-shadow: var(--shadow-md);
+            text-align: center;
+        }
+        .stat-card h3 {
+            margin: 0 0 0.5rem 0;
+            color: var(--text-light);
+            font-size: 0.875rem;
+            text-transform: uppercase;
+        }
+        .stat-card .number {
+            font-size: 2rem;
+            font-weight: 700;
+            color: var(--primary-color);
+        }
+        .controls {
+            display: flex;
+            gap: 1rem;
+            margin-bottom: 2rem;
+            flex-wrap: wrap;
+        }
+        .btn {
+            padding: 0.75rem 1.5rem;
+            border: none;
+            border-radius: 0.5rem;
+            font-size: 1rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        .btn-primary {
+            background: var(--primary-color);
+            color: white;
+        }
+        .btn-primary:hover {
+            background: var(--primary-dark);
+        }
+        .btn-danger {
+            background: var(--error-color);
+            color: white;
+        }
+        .btn-danger:hover {
+            background: #dc2626;
+        }
+        .btn-outline {
+            background: transparent;
+            color: var(--primary-color);
+            border: 2px solid var(--primary-color);
+        }
+        .btn-outline:hover {
+            background: var(--primary-color);
+            color: white;
+        }
+        .registrations-table {
+            background: white;
+            border-radius: 0.75rem;
+            box-shadow: var(--shadow-lg);
+            overflow: hidden;
+        }
+        .table-header {
+            background: var(--bg-light);
+            padding: 1rem;
+            font-weight: 600;
+            border-bottom: 2px solid var(--border-color);
+        }
+        .table-container {
+            overflow-x: auto;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        th {
+            background: var(--bg-light);
+            padding: 1rem;
+            text-align: left;
+            font-weight: 600;
+            color: var(--text-dark);
+            border-bottom: 2px solid var(--border-color);
+            position: sticky;
+            top: 0;
+        }
+        td {
+            padding: 1rem;
+            border-bottom: 1px solid var(--border-color);
+            color: var(--text-dark);
+        }
+        tr:hover {
+            background: var(--bg-light);
+        }
+        .status-badge {
+            display: inline-block;
+            padding: 0.25rem 0.75rem;
+            border-radius: 1rem;
+            font-size: 0.875rem;
+            font-weight: 500;
+        }
+        .status-completed {
+            background: #d1fae5;
+            color: #065f46;
+        }
+        .status-pending {
+            background: #fef3c7;
+            color: #92400e;
+        }
+        .empty-state {
+            text-align: center;
+            padding: 4rem 2rem;
+            color: var(--text-light);
+        }
+        .empty-state-icon {
+            font-size: 4rem;
+            margin-bottom: 1rem;
+        }
+        .export-section {
+            background: white;
+            padding: 1.5rem;
+            border-radius: 0.75rem;
+            box-shadow: var(--shadow-md);
+            margin-bottom: 2rem;
+        }
+        .search-box {
+            width: 100%;
+            padding: 0.75rem;
+            border: 2px solid var(--border-color);
+            border-radius: 0.5rem;
+            font-size: 1rem;
+            margin-bottom: 1rem;
+        }
+        .search-box:focus {
+            outline: none;
+            border-color: var(--primary-color);
+        }
+    </style>
+</head>
+<body>
+    <div class="admin-container">
+        <div class="admin-header">
+            <h1>WCDMR 2026 Registration Admin</h1>
+            <p>View and manage all registrations</p>
+        </div>
+
+        <div class="admin-stats" id="stats">
+            <div class="stat-card">
+                <h3>Total Registrations</h3>
+                <div class="number" id="total-count">0</div>
+            </div>
+            <div class="stat-card">
+                <h3>Completed</h3>
+                <div class="number" id="completed-count">0</div>
+            </div>
+            <div class="stat-card">
+                <h3>Pending</h3>
+                <div class="number" id="pending-count">0</div>
+            </div>
+            <div class="stat-card">
+                <h3>Total Revenue</h3>
+                <div class="number" id="total-revenue">$0.00</div>
+            </div>
+        </div>
+
+        <div class="export-section">
+            <div class="controls">
+                <input type="text" id="search-box" class="search-box" placeholder="Search by name, email, or church...">
+                <button class="btn btn-primary" onclick="refreshData()">Refresh</button>
+                <button class="btn btn-outline" onclick="exportToCSV()">Export to CSV</button>
+                <button class="btn btn-outline" onclick="exportToJSON()">Export to JSON</button>
+                <a href="email-preview.html" target="_blank" class="btn btn-outline" style="text-decoration: none; display: inline-block;">Preview Email</a>
+                <button class="btn btn-danger" onclick="clearAllData()">Clear All Data</button>
+            </div>
+        </div>
+
+        <div class="registrations-table">
+            <div class="table-header">
+                <h2>All Registrations</h2>
+            </div>
+            <div class="table-container">
+                <table id="registrations-table">
+                    <thead>
+                        <tr>
+                            <th>Date</th>
+                            <th>Name</th>
+                            <th>Email</th>
+                            <th>Phone</th>
+                            <th>Church</th>
+                            <th>Amount</th>
+                            <th>Payment ID</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody id="registrations-tbody">
+                        <tr>
+                            <td colspan="8" class="empty-state">
+                                <div class="empty-state-icon">📋</div>
+                                <p>No registrations yet. Registrations will appear here after someone completes the form.</p>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let allRegistrations = [];
+
+        // Load registrations from localStorage
+        function loadRegistrations() {
+            const stored = localStorage.getItem('wcdmr_registrations');
+            allRegistrations = stored ? JSON.parse(stored) : [];
+            allRegistrations.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+            displayRegistrations();
+            updateStats();
+        }
+
+        // Display registrations in table
+        function displayRegistrations(filtered = null) {
+            const tbody = document.getElementById('registrations-tbody');
+            const registrations = filtered || allRegistrations;
+
+            if (registrations.length === 0) {
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="8" class="empty-state">
+                            <div class="empty-state-icon">📋</div>
+                            <p>No registrations found.</p>
+                        </td>
+                    </tr>
+                `;
+                return;
+            }
+
+            tbody.innerHTML = registrations.map(reg => {
+                const date = new Date(reg.timestamp).toLocaleDateString('en-US', {
+                    year: 'numeric',
+                    month: 'short',
+                    day: 'numeric',
+                    hour: '2-digit',
+                    minute: '2-digit'
+                });
+                const amount = typeof reg.amount === 'number' ? (reg.amount / 100).toFixed(2) : parseFloat(reg.amount).toFixed(2);
+                const statusClass = reg.status === 'completed' ? 'status-completed' : 'status-pending';
+                const statusText = reg.status === 'completed' ? 'Completed' : 'Pending';
+
+                return `
+                    <tr onclick="showDetails('${reg.timestamp}')" style="cursor: pointer;">
+                        <td>${date}</td>
+                        <td><strong>${reg.fullName || `${reg.firstName || ''} ${reg.lastName || ''}`.trim()}</strong></td>
+                        <td>${reg.email}</td>
+                        <td>${reg.phone || '-'}</td>
+                        <td>${reg.churchName || '-'}</td>
+                        <td>$${amount}</td>
+                        <td><code style="font-size: 0.75rem;">${reg.paymentId || '-'}</code></td>
+                        <td><span class="status-badge ${statusClass}">${statusText}</span></td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        // Show registration details
+        function showDetails(timestamp) {
+            const reg = allRegistrations.find(r => r.timestamp === timestamp);
+            if (!reg) return;
+
+            const details = `
+Registration Details
+===================
+Date: ${new Date(reg.timestamp).toLocaleString()}
+Status: ${reg.status}
+
+Personal Information:
+- Name: ${reg.fullName || `${reg.firstName || ''} ${reg.lastName || ''}`.trim()}
+- Email: ${reg.email}
+- Phone: ${reg.phone || '-'}
+- Videophone: ${reg.videophone || '-'}
+- Address: ${reg.fullAddress || '-'}
+- Church: ${reg.churchName || '-'}
+
+Emergency Contact:
+- Name: ${reg.emergencyName || '-'}
+- Phone: ${reg.emergencyPhone || '-'}
+
+Accommodation:
+- Bunk Selection: ${reg.bunkSelection || '-'}
+- Youth Info: ${reg.youthInfo || 'N/A'}
+
+Payment:
+- Amount: $${typeof reg.amount === 'number' ? (reg.amount / 100).toFixed(2) : parseFloat(reg.amount).toFixed(2)}
+- Payment ID: ${reg.paymentId || '-'}
+            `;
+
+            alert(details);
+        }
+
+        // Update statistics
+        function updateStats() {
+            const total = allRegistrations.length;
+            const completed = allRegistrations.filter(r => r.status === 'completed').length;
+            const pending = allRegistrations.filter(r => r.status === 'pending').length;
+            const revenue = allRegistrations
+                .filter(r => r.status === 'completed')
+                .reduce((sum, r) => {
+                    const amount = typeof r.amount === 'number' ? r.amount / 100 : parseFloat(r.amount);
+                    return sum + amount;
+                }, 0);
+
+            document.getElementById('total-count').textContent = total;
+            document.getElementById('completed-count').textContent = completed;
+            document.getElementById('pending-count').textContent = pending;
+            document.getElementById('total-revenue').textContent = `$${revenue.toFixed(2)}`;
+        }
+
+        // Search functionality
+        document.getElementById('search-box').addEventListener('input', (e) => {
+            const searchTerm = e.target.value.toLowerCase();
+            if (!searchTerm) {
+                displayRegistrations();
+                return;
+            }
+
+            const filtered = allRegistrations.filter(reg => {
+                const fullName = (reg.fullName || `${reg.firstName || ''} ${reg.lastName || ''}`).toLowerCase();
+                const email = (reg.email || '').toLowerCase();
+                const church = (reg.churchName || '').toLowerCase();
+                return fullName.includes(searchTerm) || email.includes(searchTerm) || church.includes(searchTerm);
+            });
+
+            displayRegistrations(filtered);
+        });
+
+        // Export to CSV
+        function exportToCSV() {
+            if (allRegistrations.length === 0) {
+                alert('No registrations to export');
+                return;
+            }
+
+            const headers = ['Date', 'First Name', 'Last Name', 'Email', 'Phone', 'Videophone', 'Address', 'Church', 'Emergency Name', 'Emergency Phone', 'Bunk Selection', 'Youth Info', 'Amount', 'Payment ID', 'Status'];
+            const rows = allRegistrations.map(reg => {
+                const date = new Date(reg.timestamp).toLocaleString();
+                const amount = typeof reg.amount === 'number' ? (reg.amount / 100).toFixed(2) : parseFloat(reg.amount).toFixed(2);
+                return [
+                    date,
+                    reg.firstName || '',
+                    reg.lastName || '',
+                    reg.email || '',
+                    reg.phone || '',
+                    reg.videophone || '',
+                    reg.fullAddress || '',
+                    reg.churchName || '',
+                    reg.emergencyName || '',
+                    reg.emergencyPhone || '',
+                    reg.bunkSelection || '',
+                    reg.youthInfo || '',
+                    amount,
+                    reg.paymentId || '',
+                    reg.status || ''
+                ];
+            });
+
+            const csv = [headers, ...rows].map(row => 
+                row.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(',')
+            ).join('\n');
+
+            const blob = new Blob([csv], { type: 'text/csv' });
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `wcdmr-registrations-${new Date().toISOString().split('T')[0]}.csv`;
+            a.click();
+            window.URL.revokeObjectURL(url);
+        }
+
+        // Export to JSON
+        function exportToJSON() {
+            if (allRegistrations.length === 0) {
+                alert('No registrations to export');
+                return;
+            }
+
+            const json = JSON.stringify(allRegistrations, null, 2);
+            const blob = new Blob([json], { type: 'application/json' });
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `wcdmr-registrations-${new Date().toISOString().split('T')[0]}.json`;
+            a.click();
+            window.URL.revokeObjectURL(url);
+        }
+
+        // Clear all data
+        function clearAllData() {
+            if (confirm('Are you sure you want to delete ALL registration data? This cannot be undone!')) {
+                localStorage.removeItem('wcdmr_registrations');
+                allRegistrations = [];
+                displayRegistrations();
+                updateStats();
+                alert('All registration data has been cleared.');
+            }
+        }
+
+        // Refresh data
+        function refreshData() {
+            loadRegistrations();
+            alert('Data refreshed!');
+        }
+
+        // Load on page load
+        loadRegistrations();
+
+        // Auto-refresh every 30 seconds
+        setInterval(loadRegistrations, 30000);
+    </script>
+</body>
+</html>

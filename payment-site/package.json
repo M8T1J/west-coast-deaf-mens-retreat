@@ -1,0 +1,21 @@
+{
+  "name": "wcdmr-2026",
+  "version": "1.0.0",
+  "description": "West Coast Deaf Men's Retreat 2026 website with payment and email automation",
+  "scripts": {
+    "dev": "npx serve .",
+    "build": "echo 'No build step required for static site'"
+  },
+  "dependencies": {
+    "@sendgrid/mail": "^8.1.0"
+  },
+  "devDependencies": {},
+  "keywords": [
+    "event",
+    "registration",
+    "payment",
+    "stripe"
+  ],
+  "author": "WCDMR 2026",
+  "license": "MIT"
+}
