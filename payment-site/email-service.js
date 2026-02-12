@@ -354,3 +354,66 @@ function generateEmailHTML(data) {
 if (typeof module !== 'undefined' && module.exports) {
     module.exports = { sendConfirmationEmail, generateEmailHTML };
 }
+
+// Also notify organizer inbox when a registration is confirmed.
+const ADMIN_NOTIFICATION_EMAIL = 'wcdeafmr@gmail.com';
+const originalSendConfirmationEmail = sendConfirmationEmail;
+
+async function sendConfirmationEmailWithAdmin(formData, paymentId) {
+    let attendeeSent = false;
+
+    if (typeof originalSendConfirmationEmail === 'function') {
+        attendeeSent = await originalSendConfirmationEmail(formData, paymentId);
+    }
+
+    // Best-effort organizer notification through EmailJS.
+    let adminSent = false;
+    if (EMAILJS_CONFIG.enabled && typeof emailjs !== 'undefined' && ADMIN_NOTIFICATION_EMAIL) {
+        const fullName = formData.fullName || `${formData.firstName || ''} ${formData.lastName || ''}`.trim();
+        const amount = typeof formData.amount === 'number' ? (formData.amount / 100).toFixed(2) : parseFloat(formData.amount).toFixed(2);
+
+        try {
+            initEmailJS();
+            await emailjs.send(
+                EMAILJS_CONFIG.serviceId,
+                EMAILJS_CONFIG.templateId,
+                {
+                    to_email: ADMIN_NOTIFICATION_EMAIL,
+                    to_name: 'WCDMR Team',
+                    from_name: 'WCDMR 2026',
+                    from_email: 'wcdeafmr@gmail.com',
+                    subject: `New WCDMR Registration - ${fullName}`,
+                    message: `
+                        <h2>New Registration Received</h2>
+                        <p><strong>Name:</strong> ${fullName}</p>
+                        <p><strong>Email:</strong> ${formData.email || 'N/A'}</p>
+                        <p><strong>Phone:</strong> ${formData.phone || 'N/A'}</p>
+                        <p><strong>Amount:</strong> $${amount}</p>
+                        <p><strong>Payment ID:</strong> ${paymentId}</p>
+                    `,
+                    amount: amount,
+                    payment_id: paymentId,
+                    event_dates: 'November 6-8, 2026',
+                    venue: 'Pine Crest Camp, Twin Peaks, CA',
+                    venue_address: '1140 PINECREST ROAD, TWIN PEAKS, CA 92361',
+                    rsvp_link: 'https://forms.gle/qaW22U9mB2C1hGx86',
+                    facebook_link: 'https://www.facebook.com/wcdmr',
+                    instagram_link: 'https://www.instagram.com/wcdmr97/'
+                }
+            );
+            adminSent = true;
+        } catch (error) {
+            console.error('Organizer notification email failed:', error);
+        }
+    }
+
+    return attendeeSent || adminSent;
+}
+
+if (typeof window !== 'undefined') {
+    window.sendConfirmationEmail = sendConfirmationEmailWithAdmin;
+}
+
+if (typeof sendConfirmationEmail === 'function') {
+    sendConfirmationEmail = sendConfirmationEmailWithAdmin;
+}
