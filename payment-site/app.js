@@ -196,14 +196,18 @@ function checkPayPalReturn() {
                 }
             }
             
-            // Send confirmation email
-            sendConfirmationEmail(emailFormData, paymentId).then(emailSent => {
-                if (emailSent) {
-                    console.log('Confirmation email sent successfully');
-                }
-            }).catch(error => {
-                console.error('Error sending email:', error);
-            });
+            // Send confirmation email if service script is loaded
+            if (typeof sendConfirmationEmail === 'function') {
+                sendConfirmationEmail(emailFormData, paymentId).then(emailSent => {
+                    if (emailSent) {
+                        console.log('Confirmation email sent successfully');
+                    }
+                }).catch(error => {
+                    console.error('Error sending email:', error);
+                });
+            } else {
+                console.warn('Email service unavailable: sendConfirmationEmail is not defined');
+            }
             
             // Show success message
             showPaymentSuccess(emailFormData, paymentId);
