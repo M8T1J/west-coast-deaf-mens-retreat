@@ -33,6 +33,129 @@ const PAYPAL_BASE_LINK = 'https://www.paypal.com/ncp/payment/LNMQ6S8HZWP5C';
 const DEFAULT_AMOUNT = 245.00; // Default registration fee
 const ZELLE_CONTACT = 'wcdmrpayments@gmail.com'; // Zelle email for payments
 const ZELLE_RECIPIENT = 'WEST COAST DEAF MEN\'S RETREAT'; // Zelle recipient name
+const DIRECT_CONTACT_EMAIL = 'wcdeafmr@gmail.com'; // Organizer email for manual contact
+
+function formatPaymentAmount(amountValue) {
+    const numericAmount = typeof amountValue === 'number' ? amountValue : parseFloat(amountValue || '0');
+    if (Number.isNaN(numericAmount)) return '0.00';
+    return numericAmount > 1000 ? (numericAmount / 100).toFixed(2) : numericAmount.toFixed(2);
+}
+
+function buildRegistrationContactDetails(formData, paymentId) {
+    const fullName = formData.fullName || `${formData.firstName || ''} ${formData.lastName || ''}`.trim();
+    const amount = formatPaymentAmount(formData.amount);
+
+    return `
+WCDMR 2026 Registration Details
+Transaction ID: ${paymentId || 'N/A'}
+Name: ${fullName || 'N/A'}
+Email: ${formData.email || 'N/A'}
+Phone: ${formData.phone || 'N/A'}
+Videophone: ${formData.videophone || 'N/A'}
+Address: ${formData.fullAddress || 'N/A'}
+Church: ${formData.churchName || 'N/A'}
+Emergency Contact: ${formData.emergencyName || 'N/A'}
+Emergency Phone: ${formData.emergencyPhone || 'N/A'}
+Bunk Selection: ${formData.bunkSelection || 'N/A'}
+Youth Info: ${formData.youthInfo || 'N/A'}
+Amount Paid: $${amount}
+Payment Method: ${(formData.paymentMethod || 'PayPal').toUpperCase()}
+    `.trim();
+}
+
+function createDirectContactMailto(formData, paymentId) {
+    const fullName = formData.fullName || `${formData.firstName || ''} ${formData.lastName || ''}`.trim();
+    const subject = encodeURIComponent(`WCDMR Registration - ${fullName || 'Registrant'} - ${paymentId || 'N/A'}`);
+    const body = encodeURIComponent(buildRegistrationContactDetails(formData, paymentId));
+    return `mailto:${DIRECT_CONTACT_EMAIL}?subject=${subject}&body=${body}`;
+}
+
+function copyLatestRegistrationDetails() {
+    const details = window.latestRegistrationDetails;
+    const copyBtn = document.getElementById('copy-registration-details-btn');
+    if (!details) return;
+
+    const setCopiedState = () => {
+        if (!copyBtn) return;
+        const originalText = copyBtn.textContent;
+        copyBtn.textContent = 'Copied!';
+        setTimeout(() => {
+            copyBtn.textContent = originalText;
+        }, 2000);
+    };
+
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(details).then(() => {
+            setCopiedState();
+            if (typeof announceToScreenReader === 'function') {
+                announceToScreenReader('Registration details copied. Please email them to the organizer.');
+            }
+        }).catch(() => {
+            if (typeof fallbackCopyTextToClipboard === 'function') {
+                fallbackCopyTextToClipboard(details);
+                setCopiedState();
+            }
+        });
+        return;
+    }
+
+    if (typeof fallbackCopyTextToClipboard === 'function') {
+        fallbackCopyTextToClipboard(details);
+        setCopiedState();
+    }
+}
+
+if (typeof window !== 'undefined') {
+    window.copyLatestRegistrationDetails = copyLatestRegistrationDetails;
+}
+
+// Two-step flow: registration must be submitted before payment.
+let registrationSubmitted = false;
+let submittedRegistrationData = null;
+
+function collectRegistrationFormData(paymentMethod = 'paypal') {
+    const amount = parseFloat(document.getElementById('amount').value) || DEFAULT_AMOUNT;
+    const firstName = document.getElementById('first-name').value.trim();
+    const lastName = document.getElementById('last-name').value.trim();
+    const bunkSelections = [];
+
+    document.querySelectorAll('input[name^="bunk-"]:checked').forEach((cb) => {
+        bunkSelections.push(cb.value);
+    });
+
+    return {
+        firstName,
+        lastName,
+        fullName: `${firstName} ${lastName}`.trim(),
+        email: document.getElementById('email').value.trim(),
+        phone: document.getElementById('phone').value.trim(),
+        videophone: document.getElementById('videophone').value.trim(),
+        fullAddress: document.getElementById('full-address').value.trim(),
+        churchName: document.getElementById('church-name').value.trim(),
+        emergencyName: document.getElementById('emergency-name').value.trim(),
+        emergencyPhone: document.getElementById('emergency-phone').value.trim(),
+        bunkSelection: bunkSelections.join(', '),
+        youthInfo: document.getElementById('youth-info').value.trim(),
+        paymentUnderstanding: document.getElementById('payment-understanding').checked,
+        amount,
+        paymentMethod,
+        timestamp: submittedRegistrationData?.timestamp || Date.now()
+    };
+}
+
+function persistPendingRegistration(formData) {
+    if (typeof storeRegistrationData === 'function') {
+        storeRegistrationData(formData, 'PENDING');
+    }
+    sessionStorage.setItem('wcdmr_registration', JSON.stringify(formData));
+    registrationSubmitted = true;
+    submittedRegistrationData = formData;
+}
+
+function clearRegistrationStepState() {
+    registrationSubmitted = false;
+    submittedRegistrationData = null;
+}
 
 // Generate PayPal payment link with amount
 function generatePayPalLink(amount) {
@@ -63,6 +186,12 @@ function updatePayPalButton() {
     if (!amountInput || !container) return;
     
     const amount = parseFloat(amountInput.value) || DEFAULT_AMOUNT;
+    const buttonText = registrationSubmitted
+        ? `Step 2: Pay $${amount.toFixed(2)} with PayPal`
+        : 'Step 1: Submit Registration';
+    const helperText = registrationSubmitted
+        ? 'Registration submitted. Click this button to continue to PayPal payment.'
+        : 'Submit registration details first, then click again to pay.';
     
     container.innerHTML = `
         <button
@@ -87,8 +216,11 @@ function updatePayPalButton() {
             onmouseover="this.style.background='#005ea6'"
             onmouseout="this.style.background='#0070ba'"
         >
-            Complete Registration & Pay $${amount.toFixed(2)} with PayPal
+            ${buttonText}
         </button>
+        <p style="margin-top: 0.75rem; font-size: 0.9rem; color: var(--text-light); text-align: center;">
+            ${helperText}
+        </p>
     `;
 }
 
@@ -114,42 +246,26 @@ function handlePayPalClick(event) {
         return false;
     }
     
-    // Get form data
-    const amount = parseFloat(document.getElementById('amount').value) || DEFAULT_AMOUNT;
-    const firstName = document.getElementById('first-name').value.trim();
-    const lastName = document.getElementById('last-name').value.trim();
-    
-    // Get bunk selections
-    const bunkSelections = [];
-    document.querySelectorAll('input[name^="bunk-"]:checked').forEach(cb => {
-        bunkSelections.push(cb.value);
-    });
-    
-    const formData = {
-        firstName: firstName,
-        lastName: lastName,
-        fullName: `${firstName} ${lastName}`,
-        email: document.getElementById('email').value.trim(),
-        phone: document.getElementById('phone').value.trim(),
-        videophone: document.getElementById('videophone').value.trim(),
-        fullAddress: document.getElementById('full-address').value.trim(),
-        churchName: document.getElementById('church-name').value.trim(),
-        emergencyName: document.getElementById('emergency-name').value.trim(),
-        emergencyPhone: document.getElementById('emergency-phone').value.trim(),
-        bunkSelection: bunkSelections.join(', '),
-        youthInfo: document.getElementById('youth-info').value.trim(),
-        paymentUnderstanding: document.getElementById('payment-understanding').checked,
-        amount: amount,
-        timestamp: Date.now()
-    };
-    
-    // Store registration data immediately (before payment)
-    if (typeof storeRegistrationData === 'function') {
-        storeRegistrationData(formData, 'PENDING');
+    const formData = collectRegistrationFormData('paypal');
+
+    // Step 1: submit registration first.
+    if (!registrationSubmitted) {
+        persistPendingRegistration(formData);
+
+        const infoDiv = document.getElementById('payment-errors');
+        if (infoDiv) {
+            infoDiv.textContent = 'Step 1 complete: registration submitted. Click the button again for Step 2 PayPal payment.';
+            infoDiv.style.display = 'block';
+            infoDiv.style.color = 'var(--success-color)';
+        }
+
+        updatePayPalButton();
+        announceToScreenReader('Registration submitted. Click PayPal button again to complete payment.');
+        return false;
     }
-    
-    // Store in sessionStorage for PayPal return
-    sessionStorage.setItem('wcdmr_registration', JSON.stringify(formData));
+
+    // Step 2: pay after registration is already submitted.
+    sessionStorage.setItem('wcdmr_registration', JSON.stringify(submittedRegistrationData || formData));
     
     // Show loading state
     const container = document.getElementById('paypal-link-container');
@@ -196,22 +312,10 @@ async function checkPayPalReturn() {
                 }
             }
             
-            let emailSent = false;
-            if (typeof sendConfirmationEmail === 'function') {
-                try {
-                    emailSent = await sendConfirmationEmail(emailFormData, paymentId);
-                    if (emailSent) {
-                        console.log('Confirmation email sent successfully');
-                    }
-                } catch (error) {
-                    console.error('Error sending email:', error);
-                }
-            } else {
-                console.warn('Email service unavailable: sendConfirmationEmail is not defined');
-            }
-            
             // Show success message
-            showPaymentSuccess(emailFormData, paymentId, emailSent);
+            showPaymentSuccess(emailFormData, paymentId);
+            clearRegistrationStepState();
+            updatePayPalButton();
             
             // Clear session storage
             sessionStorage.removeItem('wcdmr_registration');
@@ -242,72 +346,49 @@ async function handleZellePayment() {
         return false;
     }
     
-    // Get form data
-    const amount = parseFloat(document.getElementById('amount').value) || DEFAULT_AMOUNT;
-    const firstName = document.getElementById('first-name').value.trim();
-    const lastName = document.getElementById('last-name').value.trim();
-    
-    // Get bunk selections
-    const bunkSelections = [];
-    document.querySelectorAll('input[name^="bunk-"]:checked').forEach(cb => {
-        bunkSelections.push(cb.value);
-    });
-    
-    const formData = {
-        firstName: firstName,
-        lastName: lastName,
-        fullName: `${firstName} ${lastName}`,
-        email: document.getElementById('email').value.trim(),
-        phone: document.getElementById('phone').value.trim(),
-        videophone: document.getElementById('videophone').value.trim(),
-        fullAddress: document.getElementById('full-address').value.trim(),
-        churchName: document.getElementById('church-name').value.trim(),
-        emergencyName: document.getElementById('emergency-name').value.trim(),
-        emergencyPhone: document.getElementById('emergency-phone').value.trim(),
-        bunkSelection: bunkSelections.join(', '),
-        youthInfo: document.getElementById('youth-info').value.trim(),
-        paymentUnderstanding: document.getElementById('payment-understanding').checked,
-        amount: amount,
-        paymentMethod: 'zelle',
-        timestamp: Date.now()
-    };
+    const formData = collectRegistrationFormData('zelle');
+
+    if (!registrationSubmitted) {
+        persistPendingRegistration(formData);
+
+        const infoDiv = document.getElementById('zelle-payment-errors');
+        if (infoDiv) {
+            infoDiv.textContent = 'Step 1 complete: registration submitted. Send Zelle payment, then click again to finish.';
+            infoDiv.style.display = 'block';
+            infoDiv.style.color = 'var(--success-color)';
+        }
+
+        announceToScreenReader('Registration submitted. After sending Zelle payment, click complete registration again.');
+        return false;
+    }
+
+    const finalData = submittedRegistrationData || formData;
     
     // Generate payment ID for Zelle
-    const paymentId = `ZELLE-${formData.timestamp}`;
+    const paymentId = `ZELLE-${finalData.timestamp}`;
     
     // Store registration data
     if (typeof storeRegistrationData === 'function') {
-        storeRegistrationData(formData, paymentId);
+        storeRegistrationData(finalData, paymentId);
     }
     
     // Convert amount to cents for email service
     const emailFormData = {
-        ...formData,
-        amount: formData.amount * 100,
-        name: formData.fullName,
+        ...finalData,
+        amount: finalData.amount * 100,
+        name: finalData.fullName,
         zip: ''
     };
     
     // Complete registration
     if (typeof completeRegistration === 'function') {
-        completeRegistration(formData, paymentId);
-    }
-    
-    // Send confirmation email
-    let emailSent = false;
-    if (typeof sendConfirmationEmail === 'function') {
-        try {
-            emailSent = await sendConfirmationEmail(emailFormData, paymentId);
-            if (emailSent) {
-                console.log('Confirmation email sent successfully');
-            }
-        } catch (error) {
-            console.error('Error sending email:', error);
-        }
+        completeRegistration(finalData, paymentId);
     }
     
     // Show success message
-    showPaymentSuccess(emailFormData, paymentId, emailSent);
+    showPaymentSuccess(emailFormData, paymentId);
+    clearRegistrationStepState();
+    updatePayPalButton();
     
     return false;
 }
@@ -432,6 +513,7 @@ document.addEventListener('DOMContentLoaded', function() {
     // Handle payment method selection
     const paypalMethod = document.getElementById('payment-method-paypal');
     const zelleMethod = document.getElementById('payment-method-zelle');
+    const registrationForm = document.getElementById('registration-form');
     
     if (paypalMethod) {
         paypalMethod.addEventListener('change', handlePaymentMethodChange);
@@ -442,6 +524,22 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Initialize payment method display
     handlePaymentMethodChange();
+
+    // If the user edits the form after step 1, require step 1 again.
+    if (registrationForm) {
+        registrationForm.addEventListener('input', () => {
+            if (!registrationSubmitted) return;
+            clearRegistrationStepState();
+            updatePayPalButton();
+
+            const infoDiv = document.getElementById('payment-errors');
+            if (infoDiv) {
+                infoDiv.textContent = 'Form changed. Please submit registration again before payment.';
+                infoDiv.style.display = 'block';
+                infoDiv.style.color = 'var(--text-light)';
+            }
+        });
+    }
     
     // Initialize Zelle contact info
     initializeZelleInfo();
@@ -605,7 +703,7 @@ function validateForm() {
 
 // Payment success is now handled in PayPal's onApprove callback
 
-function showPaymentSuccess(formData, paymentId, emailSent = null) {
+function showPaymentSuccess(formData, paymentId) {
     const paymentForm = document.getElementById('registration-form');
     const paymentSuccess = document.getElementById('payment-success');
     const successMessage = document.getElementById('success-message');
@@ -613,16 +711,18 @@ function showPaymentSuccess(formData, paymentId, emailSent = null) {
     if (paymentForm) paymentForm.classList.add('hidden');
     if (paymentSuccess) paymentSuccess.classList.remove('hidden');
     
-    const emailStatus = emailSent === true
-        ? 'A confirmation email has been sent to your email address.'
-        : emailSent === false
-            ? 'Registration was saved, but email delivery is still pending. Please contact wcdeafmr@gmail.com if you do not receive an email shortly.'
-            : 'Please check your email for confirmation (if email service is configured).';
+    const directContactMailto = createDirectContactMailto(formData, paymentId);
+    const amountPaid = formatPaymentAmount(formData.amount);
+    window.latestRegistrationDetails = buildRegistrationContactDetails(formData, paymentId);
     
     if (successMessage) {
         successMessage.innerHTML = `
-            <p>Your payment of <strong>$${(formData.amount / 100).toFixed(2)}</strong> has been processed successfully.</p>
-            <p>${emailStatus}</p>
+            <p>Your payment of <strong>$${amountPaid}</strong> has been processed successfully.</p>
+            <p><strong>Direct Contact Required:</strong> Please send your registration details to <strong>${DIRECT_CONTACT_EMAIL}</strong>.</p>
+            <div style="display:flex; flex-wrap:wrap; gap:0.75rem; justify-content:center; margin-top:1rem;">
+                <a class="btn btn-primary" href="${directContactMailto}">Email Registration Details</a>
+                <button type="button" class="btn btn-outline" id="copy-registration-details-btn" onclick="copyLatestRegistrationDetails()">Copy Registration Details</button>
+            </div>
             <p style="margin-top: 1rem; font-size: 0.9rem; color: #6b7280;">
                 Transaction ID: <code style="background: #f3f4f6; padding: 2px 6px; border-radius: 4px;">${paymentId || 'N/A'}</code>
             </p>
@@ -630,7 +730,7 @@ function showPaymentSuccess(formData, paymentId, emailSent = null) {
     }
     
     // Announce success to screen readers
-    announceToScreenReader(`Registration successful! Payment of $${(formData.amount / 100).toFixed(2)} processed. Transaction ID: ${paymentId || 'N/A'}`);
+    announceToScreenReader(`Registration successful! Payment of $${amountPaid} processed. Use the email button to contact the organizer with your registration details.`);
     
     // Focus success message for screen readers
     if (paymentSuccess) {
@@ -650,6 +750,7 @@ function resetForm() {
         paymentForm.classList.remove('loading');
         paymentForm.reset();
     }
+    clearRegistrationStepState();
     
     if (paymentSuccess) {
         paymentSuccess.classList.add('hidden');
