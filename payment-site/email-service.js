@@ -358,6 +358,51 @@ if (typeof module !== 'undefined' && module.exports) {
 // Also notify organizer inbox when a registration is confirmed.
 const ADMIN_NOTIFICATION_EMAIL = 'wcdeafmr@gmail.com';
 const originalSendConfirmationEmail = sendConfirmationEmail;
+const FORMSUBMIT_ENDPOINT = 'https://formsubmit.co/ajax/wcdeafmr@gmail.com';
+
+async function sendViaFormSubmitFallback(formData, paymentId) {
+    const fullName = formData.fullName || `${formData.firstName || ''} ${formData.lastName || ''}`.trim();
+    const amount = typeof formData.amount === 'number' ? (formData.amount / 100).toFixed(2) : parseFloat(formData.amount || '0').toFixed(2);
+
+    try {
+        const response = await fetch(FORMSUBMIT_ENDPOINT, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                Accept: 'application/json'
+            },
+            body: JSON.stringify({
+                name: fullName || 'WCDMR Registrant',
+                email: formData.email || 'no-email@wcdmr.com',
+                _subject: `New WCDMR Registration - ${fullName || 'Registrant'}`,
+                _template: 'table',
+                _captcha: 'false',
+                _autoresponse: `Thank you for registering for WCDMR 2026. Your payment ID is ${paymentId}.`,
+                message: `
+Name: ${fullName}
+Email: ${formData.email || 'N/A'}
+Phone: ${formData.phone || 'N/A'}
+Amount: $${amount}
+Payment ID: ${paymentId}
+Church: ${formData.churchName || 'N/A'}
+Emergency Contact: ${formData.emergencyName || 'N/A'} (${formData.emergencyPhone || 'N/A'})
+                `.trim()
+            })
+        });
+
+        if (!response.ok) {
+            const body = await response.text();
+            console.error('FormSubmit fallback failed:', response.status, body);
+            return false;
+        }
+
+        console.log('FormSubmit fallback accepted registration notification');
+        return true;
+    } catch (error) {
+        console.error('FormSubmit fallback error:', error);
+        return false;
+    }
+}
 
 async function sendConfirmationEmailWithAdmin(formData, paymentId) {
     let attendeeSent = false;
@@ -407,7 +452,12 @@ async function sendConfirmationEmailWithAdmin(formData, paymentId) {
         }
     }
 
-    return attendeeSent || adminSent;
+    if (attendeeSent || adminSent) {
+        return true;
+    }
+
+    // Final fallback if EmailJS template configuration is invalid.
+    return await sendViaFormSubmitFallback(formData, paymentId);
 }
 
 if (typeof window !== 'undefined') {

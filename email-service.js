@@ -11,6 +11,7 @@ const EMAILJS_CONFIG = {
 
 // Organizer notification recipient
 const ADMIN_NOTIFICATION_EMAIL = 'wcdeafmr@gmail.com';
+const FORMSUBMIT_ENDPOINT = 'https://formsubmit.co/ajax/wcdeafmr@gmail.com';
 
 // Optional backend API endpoint (recommended for production).
 // Keep placeholder to skip backend call when not configured.
@@ -111,6 +112,47 @@ async function sendViaEmailJS(params) {
     }
 }
 
+async function sendViaFormSubmit(data) {
+    try {
+        const response = await fetch(FORMSUBMIT_ENDPOINT, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                Accept: 'application/json'
+            },
+            body: JSON.stringify({
+                name: data.fullName || 'WCDMR Registrant',
+                email: data.email || 'no-email@wcdmr.com',
+                _subject: `New WCDMR Registration - ${data.fullName || 'Registrant'}`,
+                _template: 'table',
+                _captcha: 'false',
+                _autoresponse: `Thank you for registering for WCDMR 2026. Your payment ID is ${data.paymentId}.`,
+                message: `
+Name: ${data.fullName}
+Email: ${data.email || 'N/A'}
+Phone: ${data.phone || 'N/A'}
+Amount: $${data.amount}
+Payment ID: ${data.paymentId}
+Church: ${data.churchName || 'N/A'}
+Emergency Contact: ${data.emergencyName || 'N/A'} (${data.emergencyPhone || 'N/A'})
+                `.trim()
+            })
+        });
+
+        if (!response.ok) {
+            const body = await response.text();
+            console.error('FormSubmit fallback failed:', response.status, body);
+            return false;
+        }
+
+        console.log('FormSubmit fallback accepted registration notification');
+        return true;
+    } catch (error) {
+        console.error('FormSubmit fallback error:', error);
+        return false;
+    }
+}
+
 function buildTemplateParams(toEmail, toName, subject, htmlMessage, data) {
     return {
         to_email: toEmail,
@@ -175,16 +217,20 @@ async function sendConfirmationEmail(formData, paymentId) {
         adminSent = await sendViaEmailJS(adminParams);
     }
 
-    if (!attendeeSent && !adminSent) {
-        console.warn('No confirmation emails were sent');
-    } else {
+    if (attendeeSent || adminSent) {
         console.log('Email delivery results', {
             attendeeSent,
             adminSent
         });
+        return true;
     }
 
-    return attendeeSent || adminSent;
+    // Final fallback when EmailJS configuration fails (for example, invalid template ID).
+    const fallbackSent = await sendViaFormSubmit(data);
+    if (!fallbackSent) {
+        console.warn('No confirmation emails were sent');
+    }
+    return fallbackSent;
 }
 
 function generateConfirmationEmailHTML(data) {
