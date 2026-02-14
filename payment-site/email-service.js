@@ -9,7 +9,7 @@ let emailjsInitialized = false;
 
 // Option 1: EmailJS (Quick setup for development/testing)
 const EMAILJS_CONFIG = {
-    serviceId: 'soGYKG7KAhCNsybr2cRwf', // Your EmailJS Service ID
+    serviceId: 'YOUR_SERVICE_ID', // Your EmailJS Service ID (example: service_xxxxxxx)
     templateId: 'template_9yfskno', // Your EmailJS Template ID
     publicKey: 'huZucWYyGP5LmCwdC', // Your EmailJS Public Key
     enabled: true // Email automation is now enabled!
