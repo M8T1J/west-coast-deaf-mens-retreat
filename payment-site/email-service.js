@@ -119,7 +119,7 @@ async function sendConfirmationEmail(formData, paymentId) {
     const emailData = {
         to: formData.email,
         toName: fullName,
-        subject: 'WCDMR 2026 - Registration Confirmed!',
+        subject: 'Thank You for Registering - WCDMR 2026',
         template: 'confirmation',
         data: {
             fullName: fullName,
@@ -167,7 +167,7 @@ async function sendConfirmationEmail(formData, paymentId) {
                         to_email: formData.email,
                         to_name: formData.fullName,
                         from_name: 'WCDMR 2026',
-                        from_email: 'wcdeafmr@gmail.com',
+                        from_email: 'wcdmr97@icloud.com',
                         subject: emailData.subject,
                         message: generateEmailHTML(emailData.data),
                         amount: emailData.data.amount,
@@ -345,7 +345,8 @@ function generateEmailHTML(data) {
                 <div class="content">
                     <p>Dear ${data.fullName},</p>
                     
-                    <p>Thank you for registering for the West Coast Deaf Men's Retreat 2026! We're excited to have you join us for this three-day summit of Prayer, worship, and Fellowship.</p>
+                    <p>Thank you for registering for the West Coast Deaf Men's Retreat 2026! We are excited to have you with us.</p>
+                    <p>Friendly reminder: please make sure your registration payment is completed before <strong>October 23, 2026</strong>.</p>
                     
                     <div class="info-box">
                         <div class="info-row">
@@ -369,7 +370,7 @@ function generateEmailHTML(data) {
                     <ul>
                         <li>Please complete the RSVP form if you haven't already</li>
                         <li>Save this confirmation email for your records</li>
-                        <li>Follow us on social media for updates</li>
+                        <li>We will keep you updated with speakers and errands</li>
                     </ul>
                     
                     <div style="text-align: center;">
@@ -383,6 +384,7 @@ function generateEmailHTML(data) {
                     </div>
                     
                     <p>If you have any questions, please contact us through the RSVP form or our social media channels.</p>
+                    <p>We will keep you updated with speaker announcements and errands as the retreat date gets closer.</p>
                     
                     <p>We look forward to seeing you at Pine Crest Camp!</p>
                     

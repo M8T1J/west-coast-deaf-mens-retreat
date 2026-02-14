@@ -50,7 +50,8 @@ function generateEmailHTML(data) {
                 <div class="content">
                     <p>Dear ${data.fullName},</p>
                     
-                    <p>Thank you for registering for the West Coast Deaf Men's Retreat 2026! We're excited to have you join us for this three-day summit of Prayer, worship, and Fellowship.</p>
+                    <p>Thank you for registering for the West Coast Deaf Men's Retreat 2026! We are excited to have you with us.</p>
+                    <p>Friendly reminder: please make sure your registration payment is completed before <strong>October 23, 2026</strong>.</p>
                     
                     <div class="info-box">
                         <div class="info-row">
@@ -74,7 +75,7 @@ function generateEmailHTML(data) {
                     <ul>
                         <li>Please complete the RSVP form if you haven't already</li>
                         <li>Save this confirmation email for your records</li>
-                        <li>Follow us on social media for updates</li>
+                        <li>We will keep you updated with speakers and errands</li>
                     </ul>
                     
                     <div style="text-align: center;">
@@ -82,6 +83,7 @@ function generateEmailHTML(data) {
                     </div>
                     
                     <p>If you have any questions, please contact us through the RSVP form or our social media channels.</p>
+                    <p>We will keep you updated with speaker announcements and errands as the retreat date gets closer.</p>
                     
                     <p>We look forward to seeing you at Pine Crest Camp!</p>
                     
@@ -116,7 +118,7 @@ function parseRequestBody(req) {
 }
 
 function buildTextBody(toName, data) {
-    return `Dear ${toName},\n\nThank you for registering for WCDMR 2026!\n\nPayment Amount: $${data.amount}\nTransaction ID: ${data.paymentId}\nEvent Dates: ${data.eventDates}\nVenue: ${data.venue}\n\nWe look forward to seeing you!\n\nWCDMR 2026 Team`;
+    return `Dear ${toName},\n\nThank you for registering for WCDMR 2026!\nFriendly reminder: please make sure your registration payment is completed before October 23, 2026.\n\nPayment Amount: $${data.amount}\nTransaction ID: ${data.paymentId}\nEvent Dates: ${data.eventDates}\nVenue: ${data.venue}\n\nWe will keep you updated with speaker announcements and errands.\n\nWCDMR 2026 Team`;
 }
 
 function smtpIsConfigured() {
@@ -138,7 +140,7 @@ async function sendWithSmtp(to, toName, data) {
     await transporter.sendMail({
         from: `"${FROM_NAME}" <${FROM_EMAIL}>`,
         to,
-        subject: 'WCDMR 2026 - Registration Confirmed!',
+        subject: 'Thank You for Registering - WCDMR 2026',
         html: generateEmailHTML(data),
         text: buildTextBody(toName, data)
     });
@@ -154,7 +156,7 @@ async function sendWithSendGrid(to, toName, data) {
             email: FROM_EMAIL,
             name: FROM_NAME
         },
-        subject: 'WCDMR 2026 - Registration Confirmed!',
+        subject: 'Thank You for Registering - WCDMR 2026',
         html: generateEmailHTML(data),
         text: buildTextBody(toName, data)
     });
