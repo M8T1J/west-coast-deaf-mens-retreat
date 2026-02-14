@@ -144,6 +144,38 @@ If you prefer using your own SMTP server:
    SMTP_PASS=your-app-password
    ```
 
+### Gmail / Google Workspace SMTP
+
+You can use either a regular Gmail address or a Google Workspace mailbox.
+
+1. Turn on **2-Step Verification** for the Google account.
+2. Create an **App Password** (Google account security settings).
+3. Use:
+   ```
+   SMTP_HOST=smtp.gmail.com
+   SMTP_PORT=587
+   SMTP_SECURE=false
+   SMTP_USER=your-email@gmail.com
+   SMTP_PASS=your-google-app-password
+   FROM_EMAIL=your-email@gmail.com
+   ```
+
+### iCloud SMTP
+
+You can also use an iCloud mailbox (`@icloud.com`, `@me.com`, `@mac.com`).
+
+1. Turn on **Two-Factor Authentication** for your Apple ID.
+2. Generate an **App-Specific Password** at https://appleid.apple.com/.
+3. Use:
+   ```
+   SMTP_HOST=smtp.mail.me.com
+   SMTP_PORT=587
+   SMTP_SECURE=false
+   SMTP_USER=your-email@icloud.com
+   SMTP_PASS=your-apple-app-specific-password
+   FROM_EMAIL=your-email@icloud.com
+   ```
+
 ## Testing
 
 1. **Test EmailJS Setup**

@@ -165,62 +165,96 @@ function handlePayPalClick(event) {
     return false;
 }
 
-// Check for PayPal return (if user comes back from PayPal)
-function checkPayPalReturn() {
-    const urlParams = new URLSearchParams(window.location.search);
-    const paymentStatus = urlParams.get('payment');
-    const registrationData = sessionStorage.getItem('wcdmr_registration');
-    
-    if (paymentStatus === 'success' && registrationData) {
-        try {
-            const formData = JSON.parse(registrationData);
-            
-            // Generate payment ID
-            const paymentId = `PAYPAL-${formData.timestamp}`;
-            
-            // Convert amount to cents for email service
-            const emailFormData = {
-                ...formData,
-                amount: formData.amount * 100,
-                name: formData.fullName,
-                zip: ''
-            };
-            
-            // Complete registration (update status from PENDING to COMPLETED)
-            if (typeof completeRegistration === 'function') {
-                completeRegistration(formData, paymentId);
-            } else {
-                // Fallback: store registration data
-                if (typeof storeRegistrationData === 'function') {
-                    storeRegistrationData(formData, paymentId);
-                }
-            }
-            
-            // Send confirmation email
-            sendConfirmationEmail(emailFormData, paymentId).then(emailSent => {
-                if (emailSent) {
-                    console.log('Confirmation email sent successfully');
-                }
-            }).catch(error => {
-                console.error('Error sending email:', error);
-            });
-            
-            // Show success message
-            showPaymentSuccess(emailFormData, paymentId);
-            
-            // Clear session storage
-            sessionStorage.removeItem('wcdmr_registration');
-            
-            // Clean URL
-            window.history.replaceState({}, document.title, window.location.pathname);
-        } catch (error) {
-            console.error('Error processing PayPal return:', error);
+function getPayPalReturnStatus(urlParams) {
+    const paymentStatus = (urlParams.get('payment') || '').toLowerCase();
+    const checkoutStatus = (urlParams.get('st') || '').toLowerCase();
+    const genericStatus = (urlParams.get('status') || '').toLowerCase();
+    const payerId = urlParams.get('PayerID') || urlParams.get('payerId') || urlParams.get('payerid');
+    const txId = urlParams.get('tx') || urlParams.get('paymentId') || urlParams.get('paymentID');
+    const token = urlParams.get('token');
+
+    const explicitSuccess =
+        ['success', 'completed', 'complete', 'approved'].includes(paymentStatus) ||
+        ['completed', 'success'].includes(checkoutStatus) ||
+        ['success', 'completed', 'approved'].includes(genericStatus);
+
+    // PayPal often returns token + payer id without a custom "payment=success" query param.
+    const callbackLooksSuccessful = Boolean(token && (payerId || txId));
+
+    return {
+        isSuccess: explicitSuccess || callbackLooksSuccessful,
+        payerId,
+        txId
+    };
+}
+
+async function sendConfirmationEmailIfAvailable(formData, paymentId) {
+    if (typeof sendConfirmationEmail !== 'function') {
+        console.warn('Email service script is not loaded. Confirmation email skipped.');
+        return null;
+    }
+
+    try {
+        const emailSent = await sendConfirmationEmail(formData, paymentId);
+        if (!emailSent) {
+            console.warn('Confirmation email could not be delivered.');
         }
+        return emailSent;
+    } catch (error) {
+        console.error('Error sending email:', error);
+        return false;
+    }
+}
+
+// Check for PayPal return (if user comes back from PayPal)
+async function checkPayPalReturn() {
+    const urlParams = new URLSearchParams(window.location.search);
+    const registrationData = sessionStorage.getItem('wcdmr_registration');
+
+    if (!registrationData) return;
+
+    const paypalReturn = getPayPalReturnStatus(urlParams);
+    if (!paypalReturn.isSuccess) return;
+
+    try {
+        const formData = JSON.parse(registrationData);
+
+        // Generate payment ID using PayPal data when available.
+        const paymentId = paypalReturn.txId || paypalReturn.payerId || `PAYPAL-${formData.timestamp}`;
+
+        // Convert amount to cents for email service
+        const emailFormData = {
+            ...formData,
+            amount: formData.amount * 100,
+            name: formData.fullName,
+            zip: ''
+        };
+
+        // Complete registration (update status from PENDING to COMPLETED)
+        if (typeof completeRegistration === 'function') {
+            await completeRegistration(formData, paymentId);
+        } else if (typeof storeRegistrationData === 'function') {
+            // Fallback: store registration data
+            storeRegistrationData(formData, paymentId);
+        }
+
+        const emailSent = await sendConfirmationEmailIfAvailable(emailFormData, paymentId);
+
+        // Show success message
+        showPaymentSuccess(emailFormData, paymentId, emailSent);
+
+        // Clear session storage
+        sessionStorage.removeItem('wcdmr_registration');
+
+        // Clean URL
+        window.history.replaceState({}, document.title, window.location.pathname);
+    } catch (error) {
+        console.error('Error processing PayPal return:', error);
     }
 }
 
 // Zelle payment handler
-function handleZellePayment() {
+async function handleZellePayment() {
     // Validate form first
     if (!validateForm()) {
         const firstError = document.querySelector('[aria-invalid="true"]');
@@ -285,22 +319,13 @@ function handleZellePayment() {
     
     // Complete registration
     if (typeof completeRegistration === 'function') {
-        completeRegistration(formData, paymentId);
+        await completeRegistration(formData, paymentId);
     }
-    
-    // Send confirmation email
-    if (typeof sendConfirmationEmail === 'function') {
-        sendConfirmationEmail(emailFormData, paymentId).then(emailSent => {
-            if (emailSent) {
-                console.log('Confirmation email sent successfully');
-            }
-        }).catch(error => {
-            console.error('Error sending email:', error);
-        });
-    }
-    
+
+    const emailSent = await sendConfirmationEmailIfAvailable(emailFormData, paymentId);
+
     // Show success message
-    showPaymentSuccess(emailFormData, paymentId);
+    showPaymentSuccess(emailFormData, paymentId, emailSent);
     
     return false;
 }
@@ -598,7 +623,7 @@ function validateForm() {
 
 // Payment success is now handled in PayPal's onApprove callback
 
-function showPaymentSuccess(formData, paymentId) {
+function showPaymentSuccess(formData, paymentId, emailSent = null) {
     const paymentForm = document.getElementById('registration-form');
     const paymentSuccess = document.getElementById('payment-success');
     const successMessage = document.getElementById('success-message');
@@ -606,9 +631,16 @@ function showPaymentSuccess(formData, paymentId) {
     if (paymentForm) paymentForm.classList.add('hidden');
     if (paymentSuccess) paymentSuccess.classList.remove('hidden');
     
-    const emailStatus = typeof sendConfirmationEmail !== 'undefined' ? 
-        'A confirmation email has been sent to your email address.' : 
-        'Please check your email for confirmation (if email service is configured).';
+    let emailStatus = 'Registration completed successfully.';
+    if (emailSent === true) {
+        emailStatus = 'A confirmation email has been sent to your email address.';
+    } else if (emailSent === false) {
+        emailStatus = 'Registration is complete, but we could not send the confirmation email. Please contact the admin team.';
+    } else if (typeof sendConfirmationEmail === 'function') {
+        emailStatus = 'Registration is complete. A confirmation email will be sent if email service is available.';
+    } else {
+        emailStatus = 'Registration is complete. Email confirmation is not configured on this page yet.';
+    }
     
     if (successMessage) {
         successMessage.innerHTML = `
