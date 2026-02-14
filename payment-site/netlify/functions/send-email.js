@@ -1,16 +1,16 @@
 // Netlify Function for Sending Emails
-// This file should be placed in /netlify/functions/send-email.js
-//
-// Install dependencies: npm install @sendgrid/mail
-// Set environment variables in Netlify dashboard:
-// - SENDGRID_API_KEY
-// - FROM_EMAIL
-// - FROM_NAME
+// Supports SMTP (preferred, including iCloud) and SendGrid fallback.
 
 const sgMail = require('@sendgrid/mail');
+const nodemailer = require('nodemailer');
 
 const SENDGRID_API_KEY = process.env.SENDGRID_API_KEY;
-const FROM_EMAIL = process.env.FROM_EMAIL || 'noreply@wcdmr.com';
+const SMTP_HOST = process.env.SMTP_HOST || 'smtp.mail.me.com';
+const SMTP_PORT = Number(process.env.SMTP_PORT || 587);
+const SMTP_SECURE = process.env.SMTP_SECURE === 'true';
+const SMTP_USER = process.env.SMTP_USER || '';
+const SMTP_PASS = process.env.SMTP_PASS || '';
+const FROM_EMAIL = process.env.FROM_EMAIL || SMTP_USER || 'wcdmr97@icloud.com';
 const FROM_NAME = process.env.FROM_NAME || 'WCDMR 2026';
 
 /**
@@ -95,17 +95,65 @@ function generateEmailHTML(data) {
     `;
 }
 
+const CORS_HEADERS = {
+    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Headers': 'Content-Type',
+    'Access-Control-Allow-Methods': 'POST, OPTIONS',
+    'Content-Type': 'application/json'
+};
+
+function buildTextBody(toName, data) {
+    return `Dear ${toName},\n\nThank you for registering for WCDMR 2026!\n\nPayment Amount: $${data.amount}\nTransaction ID: ${data.paymentId}\nEvent Dates: ${data.eventDates}\nVenue: ${data.venue}\n\nWe look forward to seeing you!\n\nWCDMR 2026 Team`;
+}
+
+function smtpIsConfigured() {
+    return Boolean(SMTP_USER && SMTP_PASS);
+}
+
+async function sendWithSmtp(to, toName, data) {
+    const transporter = nodemailer.createTransport({
+        host: SMTP_HOST,
+        port: SMTP_PORT,
+        secure: SMTP_SECURE,
+        auth: {
+            user: SMTP_USER,
+            pass: SMTP_PASS
+        }
+    });
+
+    await transporter.sendMail({
+        from: `"${FROM_NAME}" <${FROM_EMAIL}>`,
+        to,
+        subject: 'WCDMR 2026 - Registration Confirmed!',
+        html: generateEmailHTML(data),
+        text: buildTextBody(toName, data)
+    });
+}
+
+async function sendWithSendGrid(to, toName, data) {
+    sgMail.setApiKey(SENDGRID_API_KEY);
+
+    const msg = {
+        to,
+        from: {
+            email: FROM_EMAIL,
+            name: FROM_NAME
+        },
+        subject: 'WCDMR 2026 - Registration Confirmed!',
+        html: generateEmailHTML(data),
+        text: buildTextBody(toName, data)
+    };
+
+    await sgMail.send(msg);
+}
+
 // Netlify Function Handler
 exports.handler = async (event, context) => {
     // Handle CORS preflight
     if (event.httpMethod === 'OPTIONS') {
         return {
             statusCode: 200,
-            headers: {
-                'Access-Control-Allow-Origin': '*',
-                'Access-Control-Allow-Headers': 'Content-Type',
-                'Access-Control-Allow-Methods': 'POST, OPTIONS'
-            },
+            headers: CORS_HEADERS,
             body: ''
         };
     }
@@ -114,10 +162,7 @@ exports.handler = async (event, context) => {
     if (event.httpMethod !== 'POST') {
         return {
             statusCode: 405,
-            headers: {
-                'Access-Control-Allow-Origin': '*',
-                'Content-Type': 'application/json'
-            },
+            headers: CORS_HEADERS,
             body: JSON.stringify({ error: 'Method not allowed' })
         };
     }
@@ -128,58 +173,42 @@ exports.handler = async (event, context) => {
         if (!to || !toName || !data) {
             return {
                 statusCode: 400,
-                headers: {
-                    'Access-Control-Allow-Origin': '*',
-                    'Content-Type': 'application/json'
-                },
+                headers: CORS_HEADERS,
                 body: JSON.stringify({ error: 'Missing required fields' })
             };
         }
 
-        // Check if SendGrid is configured
-        if (!SENDGRID_API_KEY) {
+        if (smtpIsConfigured()) {
+            await sendWithSmtp(to, toName, data);
             return {
-                statusCode: 500,
-                headers: {
-                    'Access-Control-Allow-Origin': '*',
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({ error: 'Email service not configured' })
+                statusCode: 200,
+                headers: CORS_HEADERS,
+                body: JSON.stringify({ success: true, provider: 'smtp' })
             };
         }
 
-        // Send email using SendGrid
-        sgMail.setApiKey(SENDGRID_API_KEY);
-
-        const msg = {
-            to: to,
-            from: {
-                email: FROM_EMAIL,
-                name: FROM_NAME
-            },
-            subject: 'WCDMR 2026 - Registration Confirmed!',
-            html: generateEmailHTML(data),
-            text: `Dear ${toName},\n\nThank you for registering for WCDMR 2026!\n\nPayment Amount: $${data.amount}\nTransaction ID: ${data.paymentId}\nEvent Dates: ${data.eventDates}\nVenue: ${data.venue}\n\nWe look forward to seeing you!\n\nWCDMR 2026 Team`
-        };
-
-        await sgMail.send(msg);
+        if (SENDGRID_API_KEY) {
+            await sendWithSendGrid(to, toName, data);
+            return {
+                statusCode: 200,
+                headers: CORS_HEADERS,
+                body: JSON.stringify({ success: true, provider: 'sendgrid' })
+            };
+        }
 
         return {
-            statusCode: 200,
-            headers: {
-                'Access-Control-Allow-Origin': '*',
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({ success: true, message: 'Email sent successfully' })
+            statusCode: 500,
+            headers: CORS_HEADERS,
+            body: JSON.stringify({
+                error: 'Email service not configured',
+                details: 'Set SMTP_USER + SMTP_PASS (preferred) or SENDGRID_API_KEY.'
+            })
         };
     } catch (error) {
         console.error('Error sending email:', error);
         return {
             statusCode: 500,
-            headers: {
-                'Access-Control-Allow-Origin': '*',
-                'Content-Type': 'application/json'
-            },
+            headers: CORS_HEADERS,
             body: JSON.stringify({ 
                 error: 'Failed to send email', 
                 details: error.message 

@@ -2,6 +2,12 @@
 
 This guide will help you set up email automation for registration and payment confirmations.
 
+## Important: SMTP requires a backend
+
+If your website is hosted on GitHub Pages, SMTP cannot run directly in browser code.
+You must deploy a backend endpoint (Vercel API route or Netlify Function) and point
+the frontend to that endpoint.
+
 ## Option 1: EmailJS (Quick Setup - Development/Testing)
 
 EmailJS is a client-side email service that's easy to set up and perfect for development.
@@ -49,17 +55,41 @@ EmailJS is a client-side email service that's easy to set up and perfect for dev
 
 For production use, set up a backend API endpoint to send emails securely.
 
+### Quick setup for `wcdmr97@icloud.com` (recommended)
+
+1. Enable **Two-Factor Authentication** on the Apple ID.
+2. Generate an **App-Specific Password** at https://appleid.apple.com/.
+3. Deploy this repo's backend function (Vercel or Netlify).
+4. Configure backend environment variables:
+   ```
+   SMTP_HOST=smtp.mail.me.com
+   SMTP_PORT=587
+   SMTP_SECURE=false
+   SMTP_USER=wcdmr97@icloud.com
+   SMTP_PASS=your-apple-app-specific-password
+   FROM_EMAIL=wcdmr97@icloud.com
+   FROM_NAME=WCDMR 2026
+   ```
+5. Set frontend backend URL in `email-service.js`:
+   ```javascript
+   const BACKEND_API_URL = 'https://your-backend-domain/api/send-email';
+   ```
+   Or set before scripts load:
+   ```html
+   <script>window.WCDMR_EMAIL_API_URL='https://your-backend-domain/api/send-email';</script>
+   ```
+
 ### Option 2A: Vercel Serverless Function
 
 1. **Install Dependencies**
    ```bash
-   npm install @sendgrid/mail
+   npm install nodemailer
    ```
 
-2. **Set Up SendGrid**
-   - Sign up at https://sendgrid.com/
-   - Get your API key
-   - Verify your sender email
+2. **Set Up SMTP Provider**
+   - iCloud: use app-specific password (recommended for your setup)
+   - Gmail: use app password
+   - Custom provider: use your SMTP credentials
 
 3. **Configure Environment Variables**
    Create `.env.local`:
@@ -85,7 +115,7 @@ For production use, set up a backend API endpoint to send emails securely.
 
 1. **Install Dependencies**
    ```bash
-   npm install @sendgrid/mail
+   npm install nodemailer
    ```
 
 2. **Move Function**
@@ -94,7 +124,7 @@ For production use, set up a backend API endpoint to send emails securely.
 
 3. **Configure Environment Variables**
    - In Netlify dashboard: Site settings > Environment variables
-   - Add: `SENDGRID_API_KEY`, `FROM_EMAIL`, `FROM_NAME`
+   - Add: `SMTP_HOST`, `SMTP_PORT`, `SMTP_SECURE`, `SMTP_USER`, `SMTP_PASS`, `FROM_EMAIL`, `FROM_NAME`
 
 4. **Update Frontend**
    ```javascript

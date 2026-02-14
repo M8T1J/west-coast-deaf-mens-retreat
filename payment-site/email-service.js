@@ -38,7 +38,69 @@ if (typeof window !== 'undefined') {
 }
 
 // Option 2: Backend API endpoint (Recommended for production)
-const BACKEND_API_URL = 'https://your-backend-url.com/api/send-email'; // Replace with your backend URL
+// If your frontend runs on GitHub Pages, set this to your deployed backend URL.
+// Example: const BACKEND_API_URL = 'https://your-vercel-backend.vercel.app/api/send-email';
+const BACKEND_API_URL = 'https://your-backend-url.com/api/send-email';
+
+function isPlaceholderBackendUrl(url) {
+    return !url || url === 'https://your-backend-url.com/api/send-email';
+}
+
+function shouldAutoDiscoverBackend(hostname) {
+    return hostname === 'localhost' ||
+        hostname === '127.0.0.1' ||
+        hostname.endsWith('.vercel.app') ||
+        hostname.endsWith('.netlify.app');
+}
+
+function getBackendApiCandidates() {
+    const candidates = [];
+
+    const explicitUrl = typeof window !== 'undefined' && window.WCDMR_EMAIL_API_URL
+        ? window.WCDMR_EMAIL_API_URL
+        : BACKEND_API_URL;
+
+    if (!isPlaceholderBackendUrl(explicitUrl)) {
+        candidates.push(explicitUrl);
+    }
+
+    if (typeof window !== 'undefined' && shouldAutoDiscoverBackend(window.location.hostname)) {
+        candidates.push(`${window.location.origin}/api/send-email`);
+        candidates.push(`${window.location.origin}/.netlify/functions/send-email`);
+    }
+
+    return [...new Set(candidates)];
+}
+
+async function sendViaBackendApi(emailData) {
+    const backendUrls = getBackendApiCandidates();
+    if (backendUrls.length === 0) {
+        return false;
+    }
+
+    for (const apiUrl of backendUrls) {
+        try {
+            const response = await fetch(apiUrl, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(emailData)
+            });
+
+            if (response.ok) {
+                console.log(`Confirmation email sent via backend API: ${apiUrl}`);
+                return true;
+            }
+
+            console.error(`Backend email API failed (${response.status}) at ${apiUrl}`);
+        } catch (error) {
+            console.error(`Backend email API error at ${apiUrl}:`, error);
+        }
+    }
+
+    return false;
+}
 
 /**
  * Send registration confirmation email
@@ -86,22 +148,10 @@ async function sendConfirmationEmail(formData, paymentId) {
     };
 
     try {
-        // Try backend API first (production)
-        if (BACKEND_API_URL && BACKEND_API_URL !== 'https://your-backend-url.com/api/send-email') {
-            const response = await fetch(BACKEND_API_URL, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify(emailData)
-            });
-
-            if (response.ok) {
-                console.log('Confirmation email sent via backend API');
-                return true;
-            } else {
-                console.error('Backend email API failed, trying EmailJS...');
-            }
+        // Try backend API first (SMTP/SendGrid via serverless)
+        const sentViaBackend = await sendViaBackendApi(emailData);
+        if (sentViaBackend) {
+            return true;
         }
 
         // Fallback to EmailJS (development/testing)

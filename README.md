@@ -133,6 +133,7 @@ git push -u origin main
 - **Email preview:** `email-preview.html` (redirects to `payment-site/email-preview.html`)
 - **Email service setup:** see `payment-site/EMAIL_SETUP.md`
 - **Google / iCloud custom email:** supported through SMTP configuration (App Password required)
+- **Important:** SMTP needs a backend endpoint (Vercel/Netlify). GitHub Pages alone cannot send SMTP directly.
 
 ### 4. Update Content
 

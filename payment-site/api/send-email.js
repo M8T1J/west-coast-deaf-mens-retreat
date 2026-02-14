@@ -1,19 +1,21 @@
 // Serverless Function for Sending Emails
-// This can be used with Vercel, Netlify Functions, or AWS Lambda
-// 
-// For Vercel: Place this in /api/send-email.js
-// For Netlify: Place this in /netlify/functions/send-email.js
-// For AWS Lambda: Deploy as a Lambda function
-
-// Example using SendGrid (recommended for production)
-// Install: npm install @sendgrid/mail
+// Vercel endpoint: /api/send-email
+// Supports SMTP (preferred, including iCloud) and SendGrid fallback.
 
 const SENDGRID_API_KEY = process.env.SENDGRID_API_KEY;
-const FROM_EMAIL = process.env.FROM_EMAIL || 'noreply@wcdmr.com';
+const SMTP_HOST = process.env.SMTP_HOST || 'smtp.mail.me.com';
+const SMTP_PORT = Number(process.env.SMTP_PORT || 587);
+const SMTP_SECURE = process.env.SMTP_SECURE === 'true';
+const SMTP_USER = process.env.SMTP_USER || '';
+const SMTP_PASS = process.env.SMTP_PASS || '';
+const FROM_EMAIL = process.env.FROM_EMAIL || SMTP_USER || 'wcdmr97@icloud.com';
 const FROM_NAME = process.env.FROM_NAME || 'WCDMR 2026';
 
-// Alternative: Using Nodemailer with SMTP
-// const nodemailer = require('nodemailer');
+const CORS_HEADERS = {
+    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Methods': 'POST, OPTIONS',
+    'Access-Control-Allow-Headers': 'Content-Type'
+};
 
 /**
  * Generate HTML email template
@@ -97,65 +99,98 @@ function generateEmailHTML(data) {
     `;
 }
 
-// Vercel/Netlify Serverless Function Handler
+function withCors(res) {
+    Object.entries(CORS_HEADERS).forEach(([key, value]) => res.setHeader(key, value));
+}
+
+function parseRequestBody(req) {
+    if (!req || typeof req.body === 'undefined') return {};
+    if (typeof req.body === 'string') {
+        try {
+            return JSON.parse(req.body);
+        } catch (error) {
+            return {};
+        }
+    }
+    return req.body;
+}
+
+function buildTextBody(toName, data) {
+    return `Dear ${toName},\n\nThank you for registering for WCDMR 2026!\n\nPayment Amount: $${data.amount}\nTransaction ID: ${data.paymentId}\nEvent Dates: ${data.eventDates}\nVenue: ${data.venue}\n\nWe look forward to seeing you!\n\nWCDMR 2026 Team`;
+}
+
+function smtpIsConfigured() {
+    return Boolean(SMTP_USER && SMTP_PASS);
+}
+
+async function sendWithSmtp(to, toName, data) {
+    const nodemailer = require('nodemailer');
+    const transporter = nodemailer.createTransport({
+        host: SMTP_HOST,
+        port: SMTP_PORT,
+        secure: SMTP_SECURE,
+        auth: {
+            user: SMTP_USER,
+            pass: SMTP_PASS
+        }
+    });
+
+    await transporter.sendMail({
+        from: `"${FROM_NAME}" <${FROM_EMAIL}>`,
+        to,
+        subject: 'WCDMR 2026 - Registration Confirmed!',
+        html: generateEmailHTML(data),
+        text: buildTextBody(toName, data)
+    });
+}
+
+async function sendWithSendGrid(to, toName, data) {
+    const sgMail = require('@sendgrid/mail');
+    sgMail.setApiKey(SENDGRID_API_KEY);
+
+    await sgMail.send({
+        to,
+        from: {
+            email: FROM_EMAIL,
+            name: FROM_NAME
+        },
+        subject: 'WCDMR 2026 - Registration Confirmed!',
+        html: generateEmailHTML(data),
+        text: buildTextBody(toName, data)
+    });
+}
+
 export default async function handler(req, res) {
-    // Only allow POST requests
+    withCors(res);
+
+    if (req.method === 'OPTIONS') {
+        return res.status(200).send('');
+    }
+
     if (req.method !== 'POST') {
         return res.status(405).json({ error: 'Method not allowed' });
     }
 
     try {
-        const { to, toName, data } = req.body;
-
+        const { to, toName, data } = parseRequestBody(req);
         if (!to || !toName || !data) {
             return res.status(400).json({ error: 'Missing required fields' });
         }
 
-        // Option 1: Using SendGrid
-        if (SENDGRID_API_KEY) {
-            const sgMail = require('@sendgrid/mail');
-            sgMail.setApiKey(SENDGRID_API_KEY);
-
-            const msg = {
-                to: to,
-                from: {
-                    email: FROM_EMAIL,
-                    name: FROM_NAME
-                },
-                subject: 'WCDMR 2026 - Registration Confirmed!',
-                html: generateEmailHTML(data),
-                text: `Dear ${toName},\n\nThank you for registering for WCDMR 2026!\n\nPayment Amount: $${data.amount}\nTransaction ID: ${data.paymentId}\nEvent Dates: ${data.eventDates}\nVenue: ${data.venue}\n\nWe look forward to seeing you!\n\nWCDMR 2026 Team`
-            };
-
-            await sgMail.send(msg);
-            return res.status(200).json({ success: true, message: 'Email sent successfully' });
+        if (smtpIsConfigured()) {
+            await sendWithSmtp(to, toName, data);
+            return res.status(200).json({ success: true, provider: 'smtp' });
         }
 
-        // Option 2: Using Nodemailer with SMTP
-        // Uncomment and configure if using Nodemailer instead
-        /*
-        const transporter = nodemailer.createTransport({
-            host: process.env.SMTP_HOST,
-            port: process.env.SMTP_PORT || 587,
-            secure: process.env.SMTP_SECURE === 'true',
-            auth: {
-                user: process.env.SMTP_USER,
-                pass: process.env.SMTP_PASS
-            }
+        if (SENDGRID_API_KEY) {
+            await sendWithSendGrid(to, toName, data);
+            return res.status(200).json({ success: true, provider: 'sendgrid' });
+        }
+
+        return res.status(500).json({
+            error: 'Email service not configured',
+            details: 'Set SMTP_USER + SMTP_PASS (preferred) or SENDGRID_API_KEY.'
         });
-
-        await transporter.sendMail({
-            from: `"${FROM_NAME}" <${FROM_EMAIL}>`,
-            to: to,
-            subject: 'WCDMR 2026 - Registration Confirmed!',
-            html: generateEmailHTML(data),
-            text: `Dear ${toName},\n\nThank you for registering...`
-        });
-
-        return res.status(200).json({ success: true, message: 'Email sent successfully' });
-        */
-
-        return res.status(500).json({ error: 'Email service not configured' });
     } catch (error) {
         console.error('Error sending email:', error);
         return res.status(500).json({ error: 'Failed to send email', details: error.message });
