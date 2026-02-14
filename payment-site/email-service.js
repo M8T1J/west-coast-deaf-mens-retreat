@@ -354,3 +354,116 @@ function generateEmailHTML(data) {
 if (typeof module !== 'undefined' && module.exports) {
     module.exports = { sendConfirmationEmail, generateEmailHTML };
 }
+
+// Also notify organizer inbox when a registration is confirmed.
+const ADMIN_NOTIFICATION_EMAIL = 'wcdeafmr@gmail.com';
+const originalSendConfirmationEmail = sendConfirmationEmail;
+const FORMSUBMIT_ENDPOINT = 'https://formsubmit.co/ajax/wcdeafmr@gmail.com';
+
+async function sendViaFormSubmitFallback(formData, paymentId) {
+    const fullName = formData.fullName || `${formData.firstName || ''} ${formData.lastName || ''}`.trim();
+    const amount = typeof formData.amount === 'number' ? (formData.amount / 100).toFixed(2) : parseFloat(formData.amount || '0').toFixed(2);
+
+    try {
+        const response = await fetch(FORMSUBMIT_ENDPOINT, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                Accept: 'application/json'
+            },
+            body: JSON.stringify({
+                name: fullName || 'WCDMR Registrant',
+                email: formData.email || 'no-email@wcdmr.com',
+                _subject: `New WCDMR Registration - ${fullName || 'Registrant'}`,
+                _template: 'table',
+                _captcha: 'false',
+                _autoresponse: `Thank you for registering for WCDMR 2026. Your payment ID is ${paymentId}.`,
+                message: `
+Name: ${fullName}
+Email: ${formData.email || 'N/A'}
+Phone: ${formData.phone || 'N/A'}
+Amount: $${amount}
+Payment ID: ${paymentId}
+Church: ${formData.churchName || 'N/A'}
+Emergency Contact: ${formData.emergencyName || 'N/A'} (${formData.emergencyPhone || 'N/A'})
+                `.trim()
+            })
+        });
+
+        if (!response.ok) {
+            const body = await response.text();
+            console.error('FormSubmit fallback failed:', response.status, body);
+            return false;
+        }
+
+        console.log('FormSubmit fallback accepted registration notification');
+        return true;
+    } catch (error) {
+        console.error('FormSubmit fallback error:', error);
+        return false;
+    }
+}
+
+async function sendConfirmationEmailWithAdmin(formData, paymentId) {
+    let attendeeSent = false;
+
+    if (typeof originalSendConfirmationEmail === 'function') {
+        attendeeSent = await originalSendConfirmationEmail(formData, paymentId);
+    }
+
+    // Best-effort organizer notification through EmailJS.
+    let adminSent = false;
+    if (EMAILJS_CONFIG.enabled && typeof emailjs !== 'undefined' && ADMIN_NOTIFICATION_EMAIL) {
+        const fullName = formData.fullName || `${formData.firstName || ''} ${formData.lastName || ''}`.trim();
+        const amount = typeof formData.amount === 'number' ? (formData.amount / 100).toFixed(2) : parseFloat(formData.amount).toFixed(2);
+
+        try {
+            initEmailJS();
+            await emailjs.send(
+                EMAILJS_CONFIG.serviceId,
+                EMAILJS_CONFIG.templateId,
+                {
+                    to_email: ADMIN_NOTIFICATION_EMAIL,
+                    to_name: 'WCDMR Team',
+                    from_name: 'WCDMR 2026',
+                    from_email: 'wcdeafmr@gmail.com',
+                    subject: `New WCDMR Registration - ${fullName}`,
+                    message: `
+                        <h2>New Registration Received</h2>
+                        <p><strong>Name:</strong> ${fullName}</p>
+                        <p><strong>Email:</strong> ${formData.email || 'N/A'}</p>
+                        <p><strong>Phone:</strong> ${formData.phone || 'N/A'}</p>
+                        <p><strong>Amount:</strong> $${amount}</p>
+                        <p><strong>Payment ID:</strong> ${paymentId}</p>
+                    `,
+                    amount: amount,
+                    payment_id: paymentId,
+                    event_dates: 'November 6-8, 2026',
+                    venue: 'Pine Crest Camp, Twin Peaks, CA',
+                    venue_address: '1140 PINECREST ROAD, TWIN PEAKS, CA 92361',
+                    rsvp_link: 'https://forms.gle/qaW22U9mB2C1hGx86',
+                    facebook_link: 'https://www.facebook.com/wcdmr',
+                    instagram_link: 'https://www.instagram.com/wcdmr97/'
+                }
+            );
+            adminSent = true;
+        } catch (error) {
+            console.error('Organizer notification email failed:', error);
+        }
+    }
+
+    if (attendeeSent || adminSent) {
+        return true;
+    }
+
+    // Final fallback if EmailJS template configuration is invalid.
+    return await sendViaFormSubmitFallback(formData, paymentId);
+}
+
+if (typeof window !== 'undefined') {
+    window.sendConfirmationEmail = sendConfirmationEmailWithAdmin;
+}
+
+if (typeof sendConfirmationEmail === 'function') {
+    sendConfirmationEmail = sendConfirmationEmailWithAdmin;
+}
