@@ -109,6 +109,12 @@ async function sendViaBackendApi(emailData) {
  * @returns {Promise<boolean>} - Success status
  */
 async function sendConfirmationEmail(formData, paymentId) {
+    const recipientEmail = (formData.email || '').trim();
+    if (!recipientEmail) {
+        console.error('Missing recipient email in registration data');
+        return false;
+    }
+
     const fullName = formData.fullName || `${formData.firstName || ''} ${formData.lastName || ''}`.trim();
     const amount = typeof formData.amount === 'number' ? (formData.amount / 100).toFixed(2) : parseFloat(formData.amount).toFixed(2);
     
@@ -117,7 +123,7 @@ async function sendConfirmationEmail(formData, paymentId) {
     const logoUrl = `${websiteUrl}/images/logo.JPG`;
     
     const emailData = {
-        to: formData.email,
+        to: recipientEmail,
         toName: fullName,
         subject: 'Thank You for Registering - WCDMR 2026',
         template: 'confirmation',
@@ -160,31 +166,62 @@ async function sendConfirmationEmail(formData, paymentId) {
                 // Initialize EmailJS if not already done
                 initEmailJS();
                 
+                const htmlMessage = generateEmailHTML(emailData.data);
+                const templateParams = {
+                    // Recipient aliases for different EmailJS template field names.
+                    to_email: recipientEmail,
+                    toEmail: recipientEmail,
+                    email: recipientEmail,
+                    to: recipientEmail,
+                    recipient: recipientEmail,
+                    user_email: recipientEmail,
+                    userEmail: recipientEmail,
+                    reply_to: recipientEmail,
+                    replyTo: recipientEmail,
+
+                    // Name aliases.
+                    to_name: fullName,
+                    name: fullName,
+                    full_name: fullName,
+                    fullName: fullName,
+                    first_name: emailData.data.firstName,
+                    firstName: emailData.data.firstName,
+                    last_name: emailData.data.lastName,
+                    lastName: emailData.data.lastName,
+
+                    // Core message fields.
+                    from_name: 'WCDMR 2026',
+                    from_email: 'wcdeafmr@gmail.com',
+                    subject: emailData.subject,
+                    message: htmlMessage,
+                    html: htmlMessage,
+                    email_html: htmlMessage,
+
+                    // Registration details aliases.
+                    amount: emailData.data.amount,
+                    payment_id: paymentId,
+                    paymentId: paymentId,
+                    transaction_id: paymentId,
+                    transactionId: paymentId,
+                    event_dates: emailData.data.eventDates,
+                    event_date: emailData.data.eventDates,
+                    eventDates: emailData.data.eventDates,
+                    eventDate: emailData.data.eventDates,
+                    venue: emailData.data.venue,
+                    venue_name: emailData.data.venue,
+                    venueName: emailData.data.venue,
+                    venue_address: emailData.data.venueAddress,
+                    venueAddress: emailData.data.venueAddress,
+                    address: emailData.data.venueAddress,
+                    rsvp_link: emailData.data.rsvpLink,
+                    facebook_link: emailData.data.facebookLink,
+                    instagram_link: emailData.data.instagramLink
+                };
+
                 await emailjs.send(
                     EMAILJS_CONFIG.serviceId,
                     EMAILJS_CONFIG.templateId,
-                    {
-                        // Provide common recipient aliases to support different EmailJS template variable names.
-                        to_email: formData.email,
-                        email: formData.email,
-                        to: formData.email,
-                        recipient: formData.email,
-                        user_email: formData.email,
-                        reply_to: formData.email,
-                        to_name: formData.fullName,
-                        from_name: 'WCDMR 2026',
-                        from_email: 'wcdeafmr@gmail.com',
-                        subject: emailData.subject,
-                        message: generateEmailHTML(emailData.data),
-                        amount: emailData.data.amount,
-                        payment_id: paymentId,
-                        event_dates: emailData.data.eventDates,
-                        venue: emailData.data.venue,
-                        venue_address: emailData.data.venueAddress,
-                        rsvp_link: emailData.data.rsvpLink,
-                        facebook_link: emailData.data.facebookLink,
-                        instagram_link: emailData.data.instagramLink
-                    }
+                    templateParams
                 );
                 console.log('Confirmation email sent via EmailJS');
                 return true;
