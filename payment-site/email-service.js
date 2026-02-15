@@ -121,12 +121,12 @@ async function sendConfirmationEmail(formData, paymentId) {
     
     // Get website URL for logo (you'll need to update this with your actual website URL)
     const websiteUrl = typeof window !== 'undefined' ? window.location.origin : 'https://your-website-url.com';
-    const logoUrl = `${websiteUrl}/images/logo.JPG`;
+    const logoUrl = `${websiteUrl}/images/logo-enhanced.JPG`;
     
     const emailData = {
         to: recipientEmail,
         toName: displayName,
-        subject: `Thank You for Registering, ${displayName} - WCDMR 2026`,
+        subject: `Welcome to West Coast Deaf Men's Retreat, ${displayName}`,
         template: 'confirmation',
         data: {
             fullName: displayName,
@@ -235,6 +235,11 @@ async function sendConfirmationEmail(formData, paymentId) {
                     message: htmlMessage,
                     html: htmlMessage,
                     email_html: htmlMessage,
+                    logo_url: emailData.data.logoUrl,
+                    logoUrl: emailData.data.logoUrl,
+                    logo: emailData.data.logoUrl,
+                    header_logo: emailData.data.logoUrl,
+                    headerLogo: emailData.data.logoUrl,
                     summary: summaryText,
                     summary_text: summaryText,
                     summaryText: summaryText,
@@ -333,38 +338,45 @@ function generateEmailHTML(data) {
                     padding: 0;
                     background: white;
                 }
-                .header { 
-                    background: linear-gradient(135deg, #0f1f35 0%, #1e3a5f 50%, #2d4a6b 100%); 
-                    color: white; 
-                    padding: 30px 20px 35px; 
-                    text-align: center; 
+                .header {
+                    background: linear-gradient(135deg, #f8fbff 0%, #e9f1ff 58%, #dbe9ff 100%);
+                    color: #12315a;
+                    padding: 28px 20px 32px;
+                    text-align: center;
+                    border-bottom: 2px solid #b8cdf1;
                 }
                 .email-logo {
-                    max-width: 350px;
+                    max-width: 280px;
                     width: auto;
                     height: auto;
                     max-height: none;
-                    margin: 0 auto 25px;
+                    margin: 0 auto 16px;
                     display: block;
                     border-radius: 4px;
+                    background: #ffffff;
+                    padding: 6px 10px;
+                    box-shadow: 0 1px 4px rgba(15, 31, 53, 0.14);
                 }
                 .success-icon { 
-                    font-size: 48px; 
-                    margin-bottom: 15px; 
+                    color: #2f855a;
+                    font-size: 46px; 
+                    margin-bottom: 10px; 
                     font-weight: 900;
                 }
                 .header h1 {
-                    font-size: 28px;
+                    color: #12315a;
+                    font-size: 27px;
                     font-weight: 800;
-                    text-transform: uppercase;
-                    letter-spacing: 0.1em;
+                    text-transform: none;
+                    letter-spacing: 0.01em;
                     margin: 0 0 10px 0;
                 }
                 .header p {
-                    font-size: 18px;
+                    color: #244b78;
+                    font-size: 17px;
                     font-weight: 600;
                     margin: 0;
-                    opacity: 0.95;
+                    opacity: 1;
                 }
                 .content { 
                     background: #ffffff; 
@@ -467,7 +479,7 @@ function generateEmailHTML(data) {
                 <div class="header">
                     ${data.logoUrl ? `<img src="${data.logoUrl}" alt="West Coast Deaf Men's Retreat Logo" class="email-logo" style="max-width: 350px; width: auto; height: auto; margin: 0 auto 25px; display: block; border-radius: 4px;">` : ''}
                     <div class="success-icon">✓</div>
-                    <h1>Registration Confirmed!</h1>
+                    <h1>Welcome to West Coast Deaf Men's Retreat</h1>
                     <p>West Coast Deaf Men's Retreat 2026</p>
                 </div>
                 <div class="content">

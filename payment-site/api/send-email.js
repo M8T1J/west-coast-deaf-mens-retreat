@@ -30,9 +30,10 @@ function generateEmailHTML(data) {
             <style>
                 body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; margin: 0; padding: 0; }
                 .container { max-width: 600px; margin: 0 auto; padding: 20px; }
-                .header { background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%); color: white; padding: 30px; text-align: center; border-radius: 10px 10px 0 0; }
+                .header { background: linear-gradient(135deg, #f8fbff 0%, #e9f1ff 58%, #dbe9ff 100%); color: #12315a; padding: 28px 20px 32px; text-align: center; border-radius: 10px 10px 0 0; border-bottom: 2px solid #b8cdf1; }
+                .email-logo { max-width: 280px; width: auto; height: auto; max-height: none; margin: 0 auto 16px; display: block; border-radius: 4px; background: #ffffff; padding: 6px 10px; box-shadow: 0 1px 4px rgba(15, 31, 53, 0.14); }
                 .content { background: #f9fafb; padding: 30px; border-radius: 0 0 10px 10px; }
-                .success-icon { font-size: 48px; margin-bottom: 20px; }
+                .success-icon { color: #2f855a; font-size: 46px; margin-bottom: 12px; }
                 .info-box { background: white; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #6366f1; }
                 .summary-table { width: 100%; border-collapse: collapse; table-layout: fixed; }
                 .summary-table tr { border-bottom: 1px solid #e5e7eb; }
@@ -49,8 +50,9 @@ function generateEmailHTML(data) {
         <body>
             <div class="container">
                 <div class="header">
+                    ${data.logoUrl ? `<img src="${data.logoUrl}" alt="West Coast Deaf Men's Retreat Logo" class="email-logo">` : ''}
                     <div class="success-icon">✓</div>
-                    <h1>Registration Confirmed!</h1>
+                    <h1>Welcome to West Coast Deaf Men's Retreat</h1>
                     <p>West Coast Deaf Men's Retreat 2026</p>
                 </div>
                 <div class="content">
@@ -144,7 +146,7 @@ function smtpIsConfigured() {
 
 async function sendWithSmtp(to, toName, data) {
     const nodemailer = require('nodemailer');
-    const subject = `Thank You for Registering, ${toName || 'Registrant'} - WCDMR 2026`;
+    const subject = `Welcome to West Coast Deaf Men's Retreat, ${toName || 'Registrant'}`;
     const transporter = nodemailer.createTransport({
         host: SMTP_HOST,
         port: SMTP_PORT,
@@ -166,7 +168,7 @@ async function sendWithSmtp(to, toName, data) {
 
 async function sendWithSendGrid(to, toName, data) {
     const sgMail = require('@sendgrid/mail');
-    const subject = `Thank You for Registering, ${toName || 'Registrant'} - WCDMR 2026`;
+    const subject = `Welcome to West Coast Deaf Men's Retreat, ${toName || 'Registrant'}`;
     sgMail.setApiKey(SENDGRID_API_KEY);
 
     await sgMail.send({
