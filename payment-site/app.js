@@ -123,7 +123,7 @@ function showPayPalRedirectState(message) {
 }
 
 // Handle PayPal link click - Integrated registration and payment
-function handlePayPalClick(event) {
+async function handlePayPalClick(event) {
     // Prevent default navigation
     if (event && typeof event.preventDefault === 'function') {
         event.preventDefault();
@@ -185,7 +185,33 @@ function handlePayPalClick(event) {
         return false;
     }
 
-    showPayPalRedirectState('Registration complete. Check your email for confirmation. Redirecting to PayPal payment...');
+    // Send registration email before redirecting to PayPal.
+    const pendingPaymentId = `PENDING-${formData.timestamp}`;
+    const emailFormData = {
+        ...formData,
+        amount: formData.amount * 100,
+        name: formData.fullName,
+        zip: ''
+    };
+
+    showPayPalRedirectState('Registration complete. Sending confirmation email...');
+    let prePaymentEmailSent = false;
+    try {
+        const emailResult = await Promise.race([
+            sendConfirmationEmailIfAvailable(emailFormData, pendingPaymentId),
+            new Promise((resolve) => setTimeout(() => resolve(null), 2500))
+        ]);
+        prePaymentEmailSent = emailResult === true;
+    } catch (error) {
+        console.error('Error while sending pre-payment confirmation email:', error);
+    }
+
+    if (prePaymentEmailSent) {
+        sessionStorage.setItem('wcdmr_registration_email_sent', '1');
+        showPayPalRedirectState('Registration complete. Check your email for confirmation. Redirecting to PayPal payment...');
+    } else {
+        showPayPalRedirectState('Registration complete. Redirecting to PayPal payment...');
+    }
     announceToScreenReader('Registration complete. Redirecting to PayPal payment now.');
     
     // Redirect to PayPal after a brief moment
@@ -269,13 +295,17 @@ async function checkPayPalReturn() {
             storeRegistrationData(formData, paymentId);
         }
 
-        const emailSent = await sendConfirmationEmailIfAvailable(emailFormData, paymentId);
+        const prePaymentEmailSent = sessionStorage.getItem('wcdmr_registration_email_sent') === '1';
+        const emailSent = prePaymentEmailSent
+            ? true
+            : await sendConfirmationEmailIfAvailable(emailFormData, paymentId);
 
         // Show success message
         showPaymentSuccess(emailFormData, paymentId, emailSent);
 
         // Clear session storage
         sessionStorage.removeItem('wcdmr_registration');
+        sessionStorage.removeItem('wcdmr_registration_email_sent');
 
         // Clean URL
         window.history.replaceState({}, document.title, window.location.pathname);
@@ -729,6 +759,7 @@ function resetForm() {
     
     // Clear session storage
     sessionStorage.removeItem('wcdmr_registration');
+    sessionStorage.removeItem('wcdmr_registration_email_sent');
     
     // Re-initialize PayPal button
     updatePayPalButton();
