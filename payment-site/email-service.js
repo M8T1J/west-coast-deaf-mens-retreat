@@ -119,9 +119,8 @@ async function sendConfirmationEmail(formData, paymentId) {
     const displayName = fullName || formData.firstName || recipientEmail.split('@')[0] || 'Registrant';
     const amount = typeof formData.amount === 'number' ? (formData.amount / 100).toFixed(2) : parseFloat(formData.amount).toFixed(2);
     
-    // Get website URL for logo (you'll need to update this with your actual website URL)
-    const websiteUrl = typeof window !== 'undefined' ? window.location.origin : 'https://your-website-url.com';
-    const logoUrl = `${websiteUrl}/images/logo-enhanced.JPG`;
+    // Use a public absolute URL so email clients can always load the logo.
+    const logoUrl = 'https://www.wcdmr.com/images/logo-enhanced.JPG';
     
     const emailData = {
         to: recipientEmail,
@@ -317,6 +316,7 @@ async function sendConfirmationEmail(formData, paymentId) {
  * @returns {string} - HTML email content
  */
 function generateEmailHTML(data) {
+    const resolvedLogoUrl = data.logoUrl || 'https://www.wcdmr.com/images/logo-enhanced.JPG';
     return `
         <!DOCTYPE html>
         <html>
@@ -477,7 +477,7 @@ function generateEmailHTML(data) {
         <body>
             <div class="container">
                 <div class="header">
-                    ${data.logoUrl ? `<img src="${data.logoUrl}" alt="West Coast Deaf Men's Retreat Logo" class="email-logo" style="max-width: 350px; width: auto; height: auto; margin: 0 auto 25px; display: block; border-radius: 4px;">` : ''}
+                    <img src="${resolvedLogoUrl}" alt="West Coast Deaf Men's Retreat Logo" class="email-logo" style="max-width: 280px; width: auto; height: auto; margin: 0 auto 16px; display: block; border-radius: 4px; background: #ffffff; padding: 6px 10px; box-shadow: 0 1px 4px rgba(15, 31, 53, 0.14);">
                     <div class="success-icon">✓</div>
                     <h1>Welcome to West Coast Deaf Men's Retreat</h1>
                     <p>West Coast Deaf Men's Retreat 2026</p>

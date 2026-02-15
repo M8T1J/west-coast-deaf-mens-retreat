@@ -67,7 +67,7 @@
             youthInfo: '',
             amount: '245.00',
             paymentId: 'PAYPAL-1234567890',
-            logoUrl: 'images/logo-enhanced.JPG',
+            logoUrl: 'https://www.wcdmr.com/images/logo-enhanced.JPG',
             eventName: 'West Coast Deaf Men\'s Retreat 2026',
             eventDates: 'November 6-8, 2026',
             venue: 'Pine Crest Camp',
@@ -79,6 +79,7 @@
         };
 
         function generateEmailHTML(data) {
+            const resolvedLogoUrl = data.logoUrl || 'https://www.wcdmr.com/images/logo-enhanced.JPG';
             return `
                 <!DOCTYPE html>
                 <html>
@@ -239,7 +240,7 @@
                 <body>
                     <div class="container">
                         <div class="header">
-                            ${data.logoUrl ? `<img src="${data.logoUrl}" alt="West Coast Deaf Men's Retreat Logo" class="email-logo" style="max-width: 280px; width: auto; height: auto; margin: 0 auto 16px; display: block; border-radius: 4px; background: #ffffff; padding: 6px 10px; box-shadow: 0 1px 4px rgba(15, 31, 53, 0.14);">` : ''}
+                            <img src="${resolvedLogoUrl}" alt="West Coast Deaf Men's Retreat Logo" class="email-logo" style="max-width: 280px; width: auto; height: auto; margin: 0 auto 16px; display: block; border-radius: 4px; background: #ffffff; padding: 6px 10px; box-shadow: 0 1px 4px rgba(15, 31, 53, 0.14);">
                             <div class="success-icon">✓</div>
                             <h1>Welcome to West Coast Deaf Men's Retreat</h1>
                             <p>West Coast Deaf Men's Retreat 2026</p>

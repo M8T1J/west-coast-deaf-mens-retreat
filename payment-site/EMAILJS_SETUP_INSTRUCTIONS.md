@@ -53,7 +53,7 @@ Follow these steps to configure EmailJS:
 <body>
     <div class="container">
         <div class="header">
-            <img src="{{logo_url}}" alt="West Coast Deaf Men's Retreat Logo" class="email-logo">
+            <img src="https://www.wcdmr.com/images/logo-enhanced.JPG" alt="West Coast Deaf Men's Retreat Logo" class="email-logo">
             <div class="success-icon">✓</div>
             <h1>Welcome to West Coast Deaf Men's Retreat</h1>
             <p>West Coast Deaf Men's Retreat 2026</p>
