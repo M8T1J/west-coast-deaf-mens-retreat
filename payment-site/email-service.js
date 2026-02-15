@@ -317,10 +317,10 @@ function generateEmailHTML(data) {
                     border: 2px solid #2d3748;
                 }
                 .info-row { 
-                    display: flex;
-                    justify-content: space-between;
-                    align-items: flex-start;
-                    gap: 14px;
+                    display: grid;
+                    grid-template-columns: 140px 1fr;
+                    column-gap: 14px;
+                    align-items: start;
                     margin: 0;
                     padding: 10px 0;
                     border-bottom: 1px solid #e5e7eb;
@@ -338,10 +338,10 @@ function generateEmailHTML(data) {
                     min-width: 140px;
                 }
                 .info-value {
-                    flex: 1;
-                    text-align: right;
+                    text-align: left;
                     font-weight: 600;
                     color: #111827;
+                    word-break: break-word;
                 }
                 .button { 
                     display: inline-block; 
@@ -391,13 +391,14 @@ function generateEmailHTML(data) {
                 }
                 @media (max-width: 520px) {
                     .info-row {
-                        display: block;
+                        grid-template-columns: 1fr;
+                        row-gap: 4px;
                         padding: 8px 0;
                     }
                     .info-label {
                         display: block;
                         min-width: 0;
-                        margin-bottom: 4px;
+                        margin-bottom: 0;
                     }
                     .info-value {
                         display: block;
