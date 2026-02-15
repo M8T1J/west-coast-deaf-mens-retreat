@@ -70,7 +70,8 @@
             logoUrl: 'images/logo.JPG',
             eventName: 'West Coast Deaf Men\'s Retreat 2026',
             eventDates: 'November 6-8, 2026',
-            venue: 'Pine Crest Camp, Twin Peaks, CA',
+            venue: 'Pine Crest Camp',
+            eventLocation: 'Twin Peaks, CA',
             venueAddress: '1140 PINECREST ROAD, TWIN PEAKS, CA 92361',
             rsvpLink: 'https://forms.gle/qaW22U9mB2C1hGx86',
             facebookLink: 'https://www.facebook.com/wcdmr',
@@ -144,22 +145,33 @@
                             border-left: 4px solid #c9a961; 
                             border: 2px solid #2d3748;
                         }
-                        .info-row { 
-                            margin: 12px 0; 
-                            padding: 8px 0;
+                        .summary-table {
+                            width: 100%;
+                            border-collapse: collapse;
+                            table-layout: fixed;
+                        }
+                        .summary-table tr {
                             border-bottom: 1px solid #e5e7eb;
                         }
-                        .info-row:last-child {
+                        .summary-table tr:last-child {
                             border-bottom: none;
                         }
-                        .info-label { 
-                            font-weight: 700; 
-                            color: #1e3a5f; 
+                        .summary-label {
+                            width: 145px;
+                            padding: 10px 0;
+                            font-weight: 700;
+                            color: #1e3a5f;
                             text-transform: uppercase;
-                            font-size: 0.9rem;
-                            letter-spacing: 0.05em;
-                            display: inline-block;
-                            min-width: 140px;
+                            font-size: 0.78rem;
+                            letter-spacing: 0.04em;
+                            vertical-align: top;
+                        }
+                        .summary-value {
+                            padding: 10px 0;
+                            font-weight: 600;
+                            color: #111827;
+                            word-break: break-word;
+                            vertical-align: top;
                         }
                         .button { 
                             display: inline-block; 
@@ -207,6 +219,14 @@
                         p {
                             margin: 15px 0;
                         }
+                        @media (max-width: 520px) {
+                            .summary-label,
+                            .summary-value {
+                                display: block;
+                                width: 100%;
+                                padding: 6px 0;
+                            }
+                        }
                     </style>
                 </head>
                 <body>
@@ -220,31 +240,43 @@
                         <div class="content">
                             <p>Dear ${data.fullName},</p>
                             
-                            <p>Thank you for registering for the West Coast Deaf Men's Retreat 2026! We're excited to have you join us for this three-day summit of Prayer, worship, and Fellowship.</p>
+                            <p>Thank you for registering for the West Coast Deaf Men's Retreat 2026! We are excited to have you with us.</p>
+                            <p>Friendly reminder: please make sure your registration payment is completed before <strong>October 23, 2026</strong>.</p>
                             
                             <div class="info-box">
-                                <div class="info-row">
-                                    <span class="info-label">Payment Amount:</span> $${data.amount}
-                                </div>
-                                <div class="info-row">
-                                    <span class="info-label">Transaction ID:</span> ${data.paymentId}
-                                </div>
-                                <div class="info-row">
-                                    <span class="info-label">Event Dates:</span> ${data.eventDates}
-                                </div>
-                                <div class="info-row">
-                                    <span class="info-label">Venue:</span> ${data.venue}
-                                </div>
-                                <div class="info-row">
-                                    <span class="info-label">Address:</span> ${data.venueAddress}
-                                </div>
+                                <table class="summary-table" role="presentation" cellpadding="0" cellspacing="0" border="0">
+                                    <tr>
+                                        <td class="summary-label">Event Dates</td>
+                                        <td class="summary-value">${data.eventDates}</td>
+                                    </tr>
+                                    <tr>
+                                        <td class="summary-label">Venue</td>
+                                        <td class="summary-value">${data.venue}</td>
+                                    </tr>
+                                    <tr>
+                                        <td class="summary-label">Location</td>
+                                        <td class="summary-value">${data.eventLocation || 'Twin Peaks, CA'}</td>
+                                    </tr>
+                                    <tr>
+                                        <td class="summary-label">Address</td>
+                                        <td class="summary-value">${data.venueAddress}</td>
+                                    </tr>
+                                    <tr>
+                                        <td class="summary-label">Payment Amount</td>
+                                        <td class="summary-value">$${data.amount}</td>
+                                    </tr>
+                                    <tr>
+                                        <td class="summary-label">Transaction ID</td>
+                                        <td class="summary-value">${data.paymentId}</td>
+                                    </tr>
+                                </table>
                             </div>
                             
                             <p><strong>Next Steps:</strong></p>
                             <ul>
                                 <li>Please complete the RSVP form if you haven't already</li>
                                 <li>Save this confirmation email for your records</li>
-                                <li>Follow us on social media for updates</li>
+                                <li>We will keep you updated with speakers and errands</li>
                             </ul>
                             
                             <div style="text-align: center;">
@@ -258,6 +290,7 @@
                             </div>
                             
                             <p>If you have any questions, please contact us through the RSVP form or our social media channels.</p>
+                            <p>We will keep you updated with speaker announcements and errands as the retreat date gets closer.</p>
                             
                             <p>We look forward to seeing you at Pine Crest Camp!</p>
                             

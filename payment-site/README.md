@@ -42,6 +42,9 @@ const stripe = Stripe('pk_test_your_actual_key_here');
 
 The site includes email automation that sends confirmation emails after successful registration and payment. See [EMAIL_SETUP.md](EMAIL_SETUP.md) for detailed setup instructions.
 
+> Note: SMTP (Gmail/iCloud/custom mailboxes) requires a backend API endpoint.
+> GitHub Pages static hosting alone cannot send SMTP emails directly.
+
 **Quick Setup Options:**
 - **EmailJS** (Development/Testing): Free tier, easy setup, client-side
 - **SendGrid** (Production): Recommended, 100 emails/day free, requires backend
