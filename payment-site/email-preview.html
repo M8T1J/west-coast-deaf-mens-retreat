@@ -146,8 +146,12 @@
                             border: 2px solid #2d3748;
                         }
                         .info-row { 
-                            margin: 12px 0; 
-                            padding: 8px 0;
+                            display: flex;
+                            justify-content: space-between;
+                            align-items: flex-start;
+                            gap: 14px;
+                            margin: 0;
+                            padding: 10px 0;
                             border-bottom: 1px solid #e5e7eb;
                         }
                         .info-row:last-child {
@@ -157,10 +161,16 @@
                             font-weight: 700; 
                             color: #1e3a5f; 
                             text-transform: uppercase;
-                            font-size: 0.9rem;
-                            letter-spacing: 0.05em;
+                            font-size: 0.78rem;
+                            letter-spacing: 0.04em;
                             display: inline-block;
                             min-width: 140px;
+                        }
+                        .info-value {
+                            flex: 1;
+                            text-align: right;
+                            font-weight: 600;
+                            color: #111827;
                         }
                         .button { 
                             display: inline-block; 
@@ -208,6 +218,21 @@
                         p {
                             margin: 15px 0;
                         }
+                        @media (max-width: 520px) {
+                            .info-row {
+                                display: block;
+                                padding: 8px 0;
+                            }
+                            .info-label {
+                                display: block;
+                                min-width: 0;
+                                margin-bottom: 4px;
+                            }
+                            .info-value {
+                                display: block;
+                                text-align: left;
+                            }
+                        }
                     </style>
                 </head>
                 <body>
@@ -226,22 +251,28 @@
                             
                             <div class="info-box">
                                 <div class="info-row">
-                                    <span class="info-label">Event Dates:</span> ${data.eventDates}
+                                    <span class="info-label">Event Dates</span>
+                                    <span class="info-value">${data.eventDates}</span>
                                 </div>
                                 <div class="info-row">
-                                    <span class="info-label">Venue:</span> ${data.venue}
+                                    <span class="info-label">Venue</span>
+                                    <span class="info-value">${data.venue}</span>
                                 </div>
                                 <div class="info-row">
-                                    <span class="info-label">Location:</span> ${data.eventLocation || 'Twin Peaks, CA'}
+                                    <span class="info-label">Location</span>
+                                    <span class="info-value">${data.eventLocation || 'Twin Peaks, CA'}</span>
                                 </div>
                                 <div class="info-row">
-                                    <span class="info-label">Address:</span> ${data.venueAddress}
+                                    <span class="info-label">Address</span>
+                                    <span class="info-value">${data.venueAddress}</span>
                                 </div>
                                 <div class="info-row">
-                                    <span class="info-label">Payment Amount:</span> $${data.amount}
+                                    <span class="info-label">Payment Amount</span>
+                                    <span class="info-value">$${data.amount}</span>
                                 </div>
                                 <div class="info-row">
-                                    <span class="info-label">Transaction ID:</span> ${data.paymentId}
+                                    <span class="info-label">Transaction ID</span>
+                                    <span class="info-value">${data.paymentId}</span>
                                 </div>
                             </div>
                             

@@ -37,10 +37,17 @@ Follow these steps to configure EmailJS:
         .content { background: #f9fafb; padding: 30px; border-radius: 0 0 10px 10px; }
         .success-icon { font-size: 48px; margin-bottom: 20px; }
         .info-box { background: white; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #6366f1; }
-        .info-row { margin: 10px 0; }
-        .info-label { font-weight: bold; color: #6366f1; }
+        .info-row { display: flex; justify-content: space-between; align-items: flex-start; gap: 14px; margin: 0; padding: 10px 0; border-bottom: 1px solid #e5e7eb; }
+        .info-row:last-child { border-bottom: none; }
+        .info-label { font-weight: bold; color: #6366f1; text-transform: uppercase; font-size: 0.78rem; letter-spacing: 0.04em; min-width: 130px; }
+        .info-value { flex: 1; text-align: right; font-weight: 600; color: #111827; }
         .button { display: inline-block; background: #6366f1; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; margin: 20px 0; }
         .footer { text-align: center; margin-top: 30px; padding-top: 20px; border-top: 1px solid #e5e7eb; color: #6b7280; font-size: 14px; }
+        @media (max-width: 520px) {
+            .info-row { display: block; padding: 8px 0; }
+            .info-label { display: block; min-width: 0; margin-bottom: 4px; }
+            .info-value { display: block; text-align: left; }
+        }
     </style>
 </head>
 <body>
@@ -57,22 +64,28 @@ Follow these steps to configure EmailJS:
             
             <div class="info-box">
                 <div class="info-row">
-                    <span class="info-label">Event Dates:</span> {{event_dates}}
+                    <span class="info-label">Event Dates</span>
+                    <span class="info-value">{{event_dates}}</span>
                 </div>
                 <div class="info-row">
-                    <span class="info-label">Venue:</span> {{venue}}
+                    <span class="info-label">Venue</span>
+                    <span class="info-value">{{venue}}</span>
                 </div>
                 <div class="info-row">
-                    <span class="info-label">Location:</span> {{event_location}}
+                    <span class="info-label">Location</span>
+                    <span class="info-value">{{event_location}}</span>
                 </div>
                 <div class="info-row">
-                    <span class="info-label">Address:</span> {{venue_address}}
+                    <span class="info-label">Address</span>
+                    <span class="info-value">{{venue_address}}</span>
                 </div>
                 <div class="info-row">
-                    <span class="info-label">Payment Amount:</span> ${{amount}}
+                    <span class="info-label">Payment Amount</span>
+                    <span class="info-value">${{amount}}</span>
                 </div>
                 <div class="info-row">
-                    <span class="info-label">Transaction ID:</span> {{payment_id}}
+                    <span class="info-label">Transaction ID</span>
+                    <span class="info-value">{{payment_id}}</span>
                 </div>
             </div>
             
