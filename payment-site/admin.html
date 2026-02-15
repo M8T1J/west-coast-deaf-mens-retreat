@@ -23,6 +23,15 @@
             margin: 0 0 0.5rem 0;
             font-size: 2rem;
         }
+        .local-storage-notice {
+            background: #fff7d6;
+            border: 2px solid #fbbf24;
+            color: #78350f;
+            padding: 1rem 1.25rem;
+            border-radius: 0.5rem;
+            margin-bottom: 1.5rem;
+            font-weight: 600;
+        }
         .admin-stats {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
@@ -172,6 +181,9 @@
         <div class="admin-header">
             <h1>WCDMR 2026 Registration Admin</h1>
             <p>View and manage all registrations</p>
+        </div>
+        <div class="local-storage-notice">
+            Admin note: This page reads browser local storage only. It shows registrations submitted from this same browser/device.
         </div>
 
         <div class="admin-stats" id="stats">
