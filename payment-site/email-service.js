@@ -316,32 +316,33 @@ function generateEmailHTML(data) {
                     border-left: 4px solid #c9a961; 
                     border: 2px solid #2d3748;
                 }
-                .info-row { 
-                    display: grid;
-                    grid-template-columns: 140px 1fr;
-                    column-gap: 14px;
-                    align-items: start;
-                    margin: 0;
-                    padding: 10px 0;
+                .summary-table {
+                    width: 100%;
+                    border-collapse: collapse;
+                    table-layout: fixed;
+                }
+                .summary-table tr {
                     border-bottom: 1px solid #e5e7eb;
                 }
-                .info-row:last-child {
+                .summary-table tr:last-child {
                     border-bottom: none;
                 }
-                .info-label { 
-                    font-weight: 700; 
-                    color: #1e3a5f; 
+                .summary-label {
+                    width: 145px;
+                    padding: 10px 0;
+                    font-weight: 700;
+                    color: #1e3a5f;
                     text-transform: uppercase;
                     font-size: 0.78rem;
                     letter-spacing: 0.04em;
-                    display: inline-block;
-                    min-width: 140px;
+                    vertical-align: top;
                 }
-                .info-value {
-                    text-align: left;
+                .summary-value {
+                    padding: 10px 0;
                     font-weight: 600;
                     color: #111827;
                     word-break: break-word;
+                    vertical-align: top;
                 }
                 .button { 
                     display: inline-block; 
@@ -390,19 +391,11 @@ function generateEmailHTML(data) {
                     margin: 15px 0;
                 }
                 @media (max-width: 520px) {
-                    .info-row {
-                        grid-template-columns: 1fr;
-                        row-gap: 4px;
-                        padding: 8px 0;
-                    }
-                    .info-label {
+                    .summary-label,
+                    .summary-value {
                         display: block;
-                        min-width: 0;
-                        margin-bottom: 0;
-                    }
-                    .info-value {
-                        display: block;
-                        text-align: left;
+                        width: 100%;
+                        padding: 6px 0;
                     }
                 }
             </style>
@@ -422,30 +415,32 @@ function generateEmailHTML(data) {
                     <p>Friendly reminder: please make sure your registration payment is completed before <strong>October 23, 2026</strong>.</p>
                     
                     <div class="info-box">
-                        <div class="info-row">
-                            <span class="info-label">Event Dates</span>
-                            <span class="info-value">${data.eventDates}</span>
-                        </div>
-                        <div class="info-row">
-                            <span class="info-label">Venue</span>
-                            <span class="info-value">${data.venue}</span>
-                        </div>
-                        <div class="info-row">
-                            <span class="info-label">Location</span>
-                            <span class="info-value">${data.eventLocation || 'Twin Peaks, CA'}</span>
-                        </div>
-                        <div class="info-row">
-                            <span class="info-label">Address</span>
-                            <span class="info-value">${data.venueAddress}</span>
-                        </div>
-                        <div class="info-row">
-                            <span class="info-label">Payment Amount</span>
-                            <span class="info-value">$${data.amount}</span>
-                        </div>
-                        <div class="info-row">
-                            <span class="info-label">Transaction ID</span>
-                            <span class="info-value">${data.paymentId}</span>
-                        </div>
+                        <table class="summary-table" role="presentation" cellpadding="0" cellspacing="0" border="0">
+                            <tr>
+                                <td class="summary-label">Event Dates</td>
+                                <td class="summary-value">${data.eventDates}</td>
+                            </tr>
+                            <tr>
+                                <td class="summary-label">Venue</td>
+                                <td class="summary-value">${data.venue}</td>
+                            </tr>
+                            <tr>
+                                <td class="summary-label">Location</td>
+                                <td class="summary-value">${data.eventLocation || 'Twin Peaks, CA'}</td>
+                            </tr>
+                            <tr>
+                                <td class="summary-label">Address</td>
+                                <td class="summary-value">${data.venueAddress}</td>
+                            </tr>
+                            <tr>
+                                <td class="summary-label">Payment Amount</td>
+                                <td class="summary-value">$${data.amount}</td>
+                            </tr>
+                            <tr>
+                                <td class="summary-label">Transaction ID</td>
+                                <td class="summary-value">${data.paymentId}</td>
+                            </tr>
+                        </table>
                     </div>
                     
                     <p><strong>Next Steps:</strong></p>
