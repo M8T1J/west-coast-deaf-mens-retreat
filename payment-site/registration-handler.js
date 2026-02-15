@@ -51,6 +51,12 @@ async function submitToGoogleForm(formData) {
  * @param {string} paymentId - Payment transaction ID (or 'PENDING' if not paid yet)
  */
 function storeRegistrationData(formData, paymentId) {
+    const addressLine = formData.addressLine || '';
+    const city = formData.city || '';
+    const zipCode = formData.zipCode || formData.zip || '';
+    const fullAddress = formData.fullAddress || [addressLine, city, zipCode].filter(Boolean).join(', ');
+    const isPendingPayment = paymentId === 'PENDING' || formData.paymentMethod === 'check_money_order';
+
     // Store in localStorage (for demo - in production, send to your backend)
     const registration = {
         firstName: formData.firstName || formData.fullName?.split(' ')[0] || '',
@@ -59,24 +65,28 @@ function storeRegistrationData(formData, paymentId) {
         email: formData.email,
         phone: formData.phone,
         videophone: formData.videophone || '',
-        fullAddress: formData.fullAddress || '',
+        addressLine,
+        city,
+        zipCode,
+        fullAddress,
         churchName: formData.churchName || '',
         emergencyName: formData.emergencyName || '',
         emergencyPhone: formData.emergencyPhone || '',
         bunkSelection: formData.bunkSelection || '',
         youthInfo: formData.youthInfo || '',
         paymentUnderstanding: formData.paymentUnderstanding || false,
+        paymentMethod: formData.paymentMethod || '',
         amount: formData.amount,
         paymentId: paymentId,
         timestamp: new Date().toISOString(),
-        status: paymentId === 'PENDING' ? 'pending' : 'completed'
+        status: isPendingPayment ? 'pending' : 'completed'
     };
 
     // Get existing registrations
     const existingRegistrations = JSON.parse(localStorage.getItem('wcdmr_registrations') || '[]');
     
     // If updating a pending registration, find and update it
-    if (paymentId !== 'PENDING') {
+    if (!isPendingPayment) {
         const pendingIndex = existingRegistrations.findIndex(r => 
             r.email === formData.email && r.status === 'pending'
         );

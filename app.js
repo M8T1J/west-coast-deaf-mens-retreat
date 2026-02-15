@@ -122,6 +122,20 @@ function showPayPalRedirectState(message) {
     `;
 }
 
+function getAddressParts() {
+    const addressLine = (document.getElementById('address-line')?.value || '').trim();
+    const city = (document.getElementById('city')?.value || '').trim();
+    const zipCode = (document.getElementById('zip-code')?.value || '').trim();
+    const fullAddress = [addressLine, city, zipCode].filter(Boolean).join(', ');
+
+    return {
+        addressLine,
+        city,
+        zipCode,
+        fullAddress
+    };
+}
+
 // Handle PayPal link click - Integrated registration and payment
 async function handlePayPalClick(event) {
     // Prevent default navigation
@@ -157,6 +171,7 @@ async function handlePayPalClick(event) {
         bunkSelections.push(cb.value);
     });
     
+    const addressParts = getAddressParts();
     const formData = {
         firstName: firstName,
         lastName: lastName,
@@ -164,7 +179,10 @@ async function handlePayPalClick(event) {
         email: document.getElementById('email').value.trim(),
         phone: document.getElementById('phone').value.trim(),
         videophone: document.getElementById('videophone').value.trim(),
-        fullAddress: document.getElementById('full-address').value.trim(),
+        addressLine: addressParts.addressLine,
+        city: addressParts.city,
+        zipCode: addressParts.zipCode,
+        fullAddress: addressParts.fullAddress,
         churchName: document.getElementById('church-name').value.trim(),
         emergencyName: document.getElementById('emergency-name').value.trim(),
         emergencyPhone: document.getElementById('emergency-phone').value.trim(),
@@ -172,6 +190,7 @@ async function handlePayPalClick(event) {
         youthInfo: document.getElementById('youth-info').value.trim(),
         paymentUnderstanding: document.getElementById('payment-understanding').checked,
         amount: amount,
+        paymentMethod: 'paypal',
         timestamp: Date.now()
     };
     
@@ -191,7 +210,7 @@ async function handlePayPalClick(event) {
         ...formData,
         amount: formData.amount * 100,
         name: formData.fullName,
-        zip: ''
+        zip: formData.zipCode || ''
     };
 
     showPayPalRedirectState('Registration complete. Sending confirmation email...');
@@ -284,7 +303,7 @@ async function checkPayPalReturn() {
             ...formData,
             amount: formData.amount * 100,
             name: formData.fullName,
-            zip: ''
+            zip: formData.zipCode || formData.zip || ''
         };
 
         // Complete registration (update status from PENDING to COMPLETED)
@@ -343,6 +362,7 @@ async function handleZellePayment() {
         bunkSelections.push(cb.value);
     });
     
+    const addressParts = getAddressParts();
     const formData = {
         firstName: firstName,
         lastName: lastName,
@@ -350,7 +370,10 @@ async function handleZellePayment() {
         email: document.getElementById('email').value.trim(),
         phone: document.getElementById('phone').value.trim(),
         videophone: document.getElementById('videophone').value.trim(),
-        fullAddress: document.getElementById('full-address').value.trim(),
+        addressLine: addressParts.addressLine,
+        city: addressParts.city,
+        zipCode: addressParts.zipCode,
+        fullAddress: addressParts.fullAddress,
         churchName: document.getElementById('church-name').value.trim(),
         emergencyName: document.getElementById('emergency-name').value.trim(),
         emergencyPhone: document.getElementById('emergency-phone').value.trim(),
@@ -375,7 +398,7 @@ async function handleZellePayment() {
         ...formData,
         amount: formData.amount * 100,
         name: formData.fullName,
-        zip: ''
+        zip: formData.zipCode || ''
     };
     
     // Complete registration
@@ -387,7 +410,85 @@ async function handleZellePayment() {
 
     // Show success message
     showPaymentSuccess(emailFormData, paymentId, emailSent);
+
+    sessionStorage.removeItem('wcdmr_registration');
+    sessionStorage.removeItem('wcdmr_registration_email_sent');
     
+    return false;
+}
+
+// Check / Money Order payment handler
+async function handleCheckMoneyOrderPayment() {
+    if (!validateForm()) {
+        const firstError = document.querySelector('[aria-invalid="true"]');
+        if (firstError) {
+            firstError.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            firstError.focus();
+        }
+
+        const errorDiv = document.getElementById('check-payment-errors');
+        if (errorDiv) {
+            errorDiv.textContent = 'Please fill in all required fields correctly before completing registration.';
+            errorDiv.style.display = 'block';
+        }
+        return false;
+    }
+
+    const amount = parseFloat(document.getElementById('amount').value) || DEFAULT_AMOUNT;
+    const firstName = document.getElementById('first-name').value.trim();
+    const lastName = document.getElementById('last-name').value.trim();
+    const addressParts = getAddressParts();
+
+    const bunkSelections = [];
+    document.querySelectorAll('input[name^="bunk-"]:checked').forEach(cb => {
+        bunkSelections.push(cb.value);
+    });
+
+    const formData = {
+        firstName: firstName,
+        lastName: lastName,
+        fullName: `${firstName} ${lastName}`,
+        email: document.getElementById('email').value.trim(),
+        phone: document.getElementById('phone').value.trim(),
+        videophone: document.getElementById('videophone').value.trim(),
+        addressLine: addressParts.addressLine,
+        city: addressParts.city,
+        zipCode: addressParts.zipCode,
+        fullAddress: addressParts.fullAddress,
+        churchName: document.getElementById('church-name').value.trim(),
+        emergencyName: document.getElementById('emergency-name').value.trim(),
+        emergencyPhone: document.getElementById('emergency-phone').value.trim(),
+        bunkSelection: bunkSelections.join(', '),
+        youthInfo: document.getElementById('youth-info').value.trim(),
+        paymentUnderstanding: document.getElementById('payment-understanding').checked,
+        amount: amount,
+        paymentMethod: 'check_money_order',
+        timestamp: Date.now()
+    };
+
+    const paymentId = `CHECK-MO-${formData.timestamp}`;
+
+    if (typeof storeRegistrationData === 'function') {
+        storeRegistrationData(formData, paymentId);
+    }
+
+    const emailFormData = {
+        ...formData,
+        amount: formData.amount * 100,
+        name: formData.fullName,
+        zip: formData.zipCode || ''
+    };
+
+    if (typeof completeRegistration === 'function') {
+        await completeRegistration(formData, paymentId);
+    }
+
+    const emailSent = await sendConfirmationEmailIfAvailable(emailFormData, paymentId);
+    showPaymentSuccess(emailFormData, paymentId, emailSent);
+
+    sessionStorage.removeItem('wcdmr_registration');
+    sessionStorage.removeItem('wcdmr_registration_email_sent');
+
     return false;
 }
 
@@ -447,19 +548,32 @@ function fallbackCopyTextToClipboard(text) {
 function handlePaymentMethodChange() {
     const paypalMethod = document.getElementById('payment-method-paypal');
     const zelleMethod = document.getElementById('payment-method-zelle');
+    const checkMethod = document.getElementById('payment-method-check');
     const paypalSection = document.getElementById('paypal-payment-section');
     const zelleSection = document.getElementById('zelle-payment-section');
+    const checkSection = document.getElementById('check-payment-section');
     
-    if (paypalMethod && zelleMethod && paypalSection && zelleSection) {
+    if (paypalMethod && zelleMethod && checkMethod && paypalSection && zelleSection && checkSection) {
         if (paypalMethod.checked) {
             paypalSection.classList.remove('hidden');
             zelleSection.classList.add('hidden');
+            checkSection.classList.add('hidden');
         } else if (zelleMethod.checked) {
             paypalSection.classList.add('hidden');
             zelleSection.classList.remove('hidden');
+            checkSection.classList.add('hidden');
             // Update Zelle amount display
             const amount = parseFloat(document.getElementById('amount').value) || DEFAULT_AMOUNT;
             document.getElementById('zelle-amount').textContent = amount.toFixed(2);
+        } else if (checkMethod.checked) {
+            paypalSection.classList.add('hidden');
+            zelleSection.classList.add('hidden');
+            checkSection.classList.remove('hidden');
+            const amount = parseFloat(document.getElementById('amount').value) || DEFAULT_AMOUNT;
+            const checkAmountEl = document.getElementById('check-amount');
+            if (checkAmountEl) {
+                checkAmountEl.textContent = amount.toFixed(2);
+            }
         }
     }
 }
@@ -491,19 +605,32 @@ document.addEventListener('DOMContentLoaded', function() {
     if (amountInput) {
         amountInput.addEventListener('input', () => {
             updatePayPalButton();
-            // Update Zelle amount if Zelle is selected
+            const amount = parseFloat(amountInput.value) || DEFAULT_AMOUNT;
             const zelleMethod = document.getElementById('payment-method-zelle');
             if (zelleMethod && zelleMethod.checked) {
-                const amount = parseFloat(amountInput.value) || DEFAULT_AMOUNT;
-                document.getElementById('zelle-amount').textContent = amount.toFixed(2);
+                const zelleAmountEl = document.getElementById('zelle-amount');
+                if (zelleAmountEl) {
+                    zelleAmountEl.textContent = amount.toFixed(2);
+                }
+            }
+            const checkAmountEl = document.getElementById('check-amount');
+            if (checkAmountEl) {
+                checkAmountEl.textContent = amount.toFixed(2);
             }
         });
         amountInput.addEventListener('change', () => {
             updatePayPalButton();
+            const amount = parseFloat(amountInput.value) || DEFAULT_AMOUNT;
             const zelleMethod = document.getElementById('payment-method-zelle');
             if (zelleMethod && zelleMethod.checked) {
-                const amount = parseFloat(amountInput.value) || DEFAULT_AMOUNT;
-                document.getElementById('zelle-amount').textContent = amount.toFixed(2);
+                const zelleAmountEl = document.getElementById('zelle-amount');
+                if (zelleAmountEl) {
+                    zelleAmountEl.textContent = amount.toFixed(2);
+                }
+            }
+            const checkAmountEl = document.getElementById('check-amount');
+            if (checkAmountEl) {
+                checkAmountEl.textContent = amount.toFixed(2);
             }
         });
     }
@@ -511,12 +638,16 @@ document.addEventListener('DOMContentLoaded', function() {
     // Handle payment method selection
     const paypalMethod = document.getElementById('payment-method-paypal');
     const zelleMethod = document.getElementById('payment-method-zelle');
+    const checkMethod = document.getElementById('payment-method-check');
     
     if (paypalMethod) {
         paypalMethod.addEventListener('change', handlePaymentMethodChange);
     }
     if (zelleMethod) {
         zelleMethod.addEventListener('change', handlePaymentMethodChange);
+    }
+    if (checkMethod) {
+        checkMethod.addEventListener('change', handlePaymentMethodChange);
     }
     
     // Initialize payment method display
@@ -587,9 +718,21 @@ function validateForm() {
         isValid = false;
     }
     
-    // Validate full address
-    if (!validateField('full-address', (val) => val.length >= 10)) {
-        document.getElementById('full-address-error').textContent = 'Please enter your full address';
+    // Validate street address
+    if (!validateField('address-line', (val) => val.length >= 5)) {
+        document.getElementById('address-line-error').textContent = 'Please enter your street address';
+        isValid = false;
+    }
+
+    // Validate city
+    if (!validateField('city', (val) => val.length >= 2)) {
+        document.getElementById('city-error').textContent = 'Please enter your city';
+        isValid = false;
+    }
+
+    // Validate ZIP code
+    if (!validateField('zip-code', (val) => /^\d{5}(-\d{4})?$/.test(val))) {
+        document.getElementById('zip-code-error').textContent = 'Please enter a valid ZIP code';
         isValid = false;
     }
     
@@ -662,7 +805,7 @@ function validateForm() {
 }
 
 // Real-time validation
-['first-name', 'last-name', 'email', 'phone', 'full-address', 'church-name', 'emergency-name', 'emergency-phone', 'amount'].forEach(fieldId => {
+['first-name', 'last-name', 'email', 'phone', 'address-line', 'city', 'zip-code', 'church-name', 'emergency-name', 'emergency-phone', 'amount'].forEach(fieldId => {
     const field = document.getElementById(fieldId);
     if (field) {
         field.addEventListener('blur', () => {
@@ -688,6 +831,9 @@ function showPaymentSuccess(formData, paymentId, emailSent = null) {
     const paymentForm = document.getElementById('registration-form');
     const paymentSuccess = document.getElementById('payment-success');
     const successMessage = document.getElementById('success-message');
+    const amountValue = Number(formData.amount) || 0;
+    const amountDisplay = (amountValue / 100).toFixed(2);
+    const paymentMethod = formData.paymentMethod || 'paypal';
     
     if (paymentForm) paymentForm.classList.add('hidden');
     if (paymentSuccess) paymentSuccess.classList.remove('hidden');
@@ -702,19 +848,32 @@ function showPaymentSuccess(formData, paymentId, emailSent = null) {
     } else {
         emailStatus = 'Registration is complete. Email confirmation is not configured on this page yet.';
     }
+
+    let paymentSummary = `Your payment of <strong>$${amountDisplay}</strong> has been processed successfully.`;
+    let transactionLabel = 'Transaction ID';
+    let announcementSummary = `Registration successful! Payment of $${amountDisplay} processed.`;
+
+    if (paymentMethod === 'check_money_order') {
+        paymentSummary = `Your registration is complete. Please mail your <strong>check or money order for $${amountDisplay}</strong> to WCDMR.`;
+        transactionLabel = 'Registration Reference';
+        announcementSummary = `Registration successful. Please mail your check or money order payment of $${amountDisplay}.`;
+    } else if (paymentMethod === 'zelle') {
+        paymentSummary = `Your registration is complete. We recorded your <strong>Zelle payment of $${amountDisplay}</strong>.`;
+        announcementSummary = `Registration successful. Zelle payment of $${amountDisplay} recorded.`;
+    }
     
     if (successMessage) {
         successMessage.innerHTML = `
-            <p>Your payment of <strong>$${(formData.amount / 100).toFixed(2)}</strong> has been processed successfully.</p>
+            <p>${paymentSummary}</p>
             <p>${emailStatus}</p>
             <p style="margin-top: 1rem; font-size: 0.9rem; color: #6b7280;">
-                Transaction ID: <code style="background: #f3f4f6; padding: 2px 6px; border-radius: 4px;">${paymentId || 'N/A'}</code>
+                ${transactionLabel}: <code style="background: #f3f4f6; padding: 2px 6px; border-radius: 4px;">${paymentId || 'N/A'}</code>
             </p>
         `;
     }
     
     // Announce success to screen readers
-    announceToScreenReader(`Registration successful! Payment of $${(formData.amount / 100).toFixed(2)} processed. Transaction ID: ${paymentId || 'N/A'}`);
+    announceToScreenReader(`${announcementSummary} ${transactionLabel}: ${paymentId || 'N/A'}`);
     
     // Focus success message for screen readers
     if (paymentSuccess) {
@@ -849,7 +1008,7 @@ formatPhoneInput(document.getElementById('videophone'));
 formatPhoneInput(document.getElementById('emergency-phone'));
 
 // Format ZIP code input
-const zipInput = document.getElementById('billing-zip');
+const zipInput = document.getElementById('zip-code') || document.getElementById('billing-zip');
 if (zipInput) {
     zipInput.addEventListener('input', (e) => {
         let value = e.target.value.replace(/\D/g, '');
