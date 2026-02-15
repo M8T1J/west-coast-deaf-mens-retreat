@@ -116,6 +116,7 @@ async function sendConfirmationEmail(formData, paymentId) {
     }
 
     const fullName = formData.fullName || `${formData.firstName || ''} ${formData.lastName || ''}`.trim();
+    const displayName = fullName || formData.firstName || recipientEmail.split('@')[0] || 'Registrant';
     const amount = typeof formData.amount === 'number' ? (formData.amount / 100).toFixed(2) : parseFloat(formData.amount).toFixed(2);
     
     // Get website URL for logo (you'll need to update this with your actual website URL)
@@ -124,11 +125,11 @@ async function sendConfirmationEmail(formData, paymentId) {
     
     const emailData = {
         to: recipientEmail,
-        toName: fullName,
-        subject: 'Thank You for Registering - WCDMR 2026',
+        toName: displayName,
+        subject: `Thank You for Registering, ${displayName} - WCDMR 2026`,
         template: 'confirmation',
         data: {
-            fullName: fullName,
+            fullName: displayName,
             firstName: formData.firstName || '',
             lastName: formData.lastName || '',
             email: formData.email,
@@ -168,6 +169,26 @@ async function sendConfirmationEmail(formData, paymentId) {
                 initEmailJS();
                 
                 const htmlMessage = generateEmailHTML(emailData.data);
+                const summaryText = [
+                    `Event Dates: ${emailData.data.eventDates}`,
+                    `Venue: ${emailData.data.venue}`,
+                    `Location: ${emailData.data.eventLocation || 'Twin Peaks, CA'}`,
+                    `Address: ${emailData.data.venueAddress}`,
+                    `Payment Amount: $${emailData.data.amount}`,
+                    `Transaction ID: ${paymentId}`
+                ].join('\n');
+
+                const summaryHtml = `
+                    <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="width:100%;border-collapse:collapse;table-layout:fixed;">
+                        <tr><td style="width:145px;padding:8px 0;font-weight:700;color:#1e3a5f;text-transform:uppercase;font-size:12px;vertical-align:top;">Event Dates</td><td style="padding:8px 0;font-weight:600;color:#111827;vertical-align:top;">${emailData.data.eventDates}</td></tr>
+                        <tr><td style="width:145px;padding:8px 0;font-weight:700;color:#1e3a5f;text-transform:uppercase;font-size:12px;vertical-align:top;">Venue</td><td style="padding:8px 0;font-weight:600;color:#111827;vertical-align:top;">${emailData.data.venue}</td></tr>
+                        <tr><td style="width:145px;padding:8px 0;font-weight:700;color:#1e3a5f;text-transform:uppercase;font-size:12px;vertical-align:top;">Location</td><td style="padding:8px 0;font-weight:600;color:#111827;vertical-align:top;">${emailData.data.eventLocation || 'Twin Peaks, CA'}</td></tr>
+                        <tr><td style="width:145px;padding:8px 0;font-weight:700;color:#1e3a5f;text-transform:uppercase;font-size:12px;vertical-align:top;">Address</td><td style="padding:8px 0;font-weight:600;color:#111827;vertical-align:top;">${emailData.data.venueAddress}</td></tr>
+                        <tr><td style="width:145px;padding:8px 0;font-weight:700;color:#1e3a5f;text-transform:uppercase;font-size:12px;vertical-align:top;">Payment Amount</td><td style="padding:8px 0;font-weight:600;color:#111827;vertical-align:top;">$${emailData.data.amount}</td></tr>
+                        <tr><td style="width:145px;padding:8px 0;font-weight:700;color:#1e3a5f;text-transform:uppercase;font-size:12px;vertical-align:top;">Transaction ID</td><td style="padding:8px 0;font-weight:600;color:#111827;vertical-align:top;">${paymentId}</td></tr>
+                    </table>
+                `.trim();
+
                 const templateParams = {
                     // Recipient aliases for different EmailJS template field names.
                     to_email: recipientEmail,
@@ -181,10 +202,20 @@ async function sendConfirmationEmail(formData, paymentId) {
                     replyTo: recipientEmail,
 
                     // Name aliases.
-                    to_name: fullName,
-                    name: fullName,
-                    full_name: fullName,
-                    fullName: fullName,
+                    to_name: displayName,
+                    recipient_name: displayName,
+                    recipientName: displayName,
+                    user_name: displayName,
+                    userName: displayName,
+                    attendee_name: displayName,
+                    attendeeName: displayName,
+                    registrant_name: displayName,
+                    registrantName: displayName,
+                    customer_name: displayName,
+                    customerName: displayName,
+                    name: displayName,
+                    full_name: displayName,
+                    fullName: displayName,
                     first_name: emailData.data.firstName,
                     firstName: emailData.data.firstName,
                     last_name: emailData.data.lastName,
@@ -194,9 +225,27 @@ async function sendConfirmationEmail(formData, paymentId) {
                     from_name: 'WCDMR 2026',
                     from_email: 'wcdeafmr@gmail.com',
                     subject: emailData.subject,
+                    subject_line: emailData.subject,
+                    subjectLine: emailData.subject,
+                    email_subject: emailData.subject,
+                    emailSubject: emailData.subject,
+                    mail_subject: emailData.subject,
+                    mailSubject: emailData.subject,
+                    title: emailData.subject,
                     message: htmlMessage,
                     html: htmlMessage,
                     email_html: htmlMessage,
+                    summary: summaryText,
+                    summary_text: summaryText,
+                    summaryText: summaryText,
+                    registration_summary: summaryText,
+                    registrationSummary: summaryText,
+                    registration_details: summaryText,
+                    registrationDetails: summaryText,
+                    registration_summary_html: summaryHtml,
+                    registrationSummaryHtml: summaryHtml,
+                    summary_html: summaryHtml,
+                    summaryHtml: summaryHtml,
 
                     // Registration details aliases.
                     amount: emailData.data.amount,
@@ -216,7 +265,20 @@ async function sendConfirmationEmail(formData, paymentId) {
                     venueName: emailData.data.venue,
                     venue_address: emailData.data.venueAddress,
                     venueAddress: emailData.data.venueAddress,
+                    event_address: emailData.data.venueAddress,
+                    eventAddress: emailData.data.venueAddress,
+                    street_address: emailData.data.venueAddress,
+                    streetAddress: emailData.data.venueAddress,
+                    full_address: emailData.data.venueAddress,
+                    fullAddress: emailData.data.venueAddress,
                     address: emailData.data.venueAddress,
+                    tx_id: paymentId,
+                    txId: paymentId,
+                    txn_id: paymentId,
+                    txnId: paymentId,
+                    transaction: paymentId,
+                    reference_id: paymentId,
+                    referenceId: paymentId,
                     rsvp_link: emailData.data.rsvpLink,
                     facebook_link: emailData.data.facebookLink,
                     instagram_link: emailData.data.instagramLink
