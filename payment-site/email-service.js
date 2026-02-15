@@ -10,7 +10,7 @@ let emailjsInitialized = false;
 // Option 1: EmailJS (Quick setup for development/testing)
 const EMAILJS_CONFIG = {
     serviceId: 'service_ai2qmh6', // Your EmailJS Service ID
-    templateId: 'template_k5knn6d', // Your EmailJS Template ID
+    templateId: 'template_jwhfmxk', // Your EmailJS Template ID
     publicKey: 'U4HrVI_T_57CG3MQF', // Your EmailJS Public Key
     enabled: true // Email automation is now enabled!
 };
@@ -38,7 +38,69 @@ if (typeof window !== 'undefined') {
 }
 
 // Option 2: Backend API endpoint (Recommended for production)
-const BACKEND_API_URL = 'https://your-backend-url.com/api/send-email'; // Replace with your backend URL
+// If your frontend runs on GitHub Pages, set this to your deployed backend URL.
+// Example: const BACKEND_API_URL = 'https://your-vercel-backend.vercel.app/api/send-email';
+const BACKEND_API_URL = 'https://your-backend-url.com/api/send-email';
+
+function isPlaceholderBackendUrl(url) {
+    return !url || url === 'https://your-backend-url.com/api/send-email';
+}
+
+function shouldAutoDiscoverBackend(hostname) {
+    return hostname === 'localhost' ||
+        hostname === '127.0.0.1' ||
+        hostname.endsWith('.vercel.app') ||
+        hostname.endsWith('.netlify.app');
+}
+
+function getBackendApiCandidates() {
+    const candidates = [];
+
+    const explicitUrl = typeof window !== 'undefined' && window.WCDMR_EMAIL_API_URL
+        ? window.WCDMR_EMAIL_API_URL
+        : BACKEND_API_URL;
+
+    if (!isPlaceholderBackendUrl(explicitUrl)) {
+        candidates.push(explicitUrl);
+    }
+
+    if (typeof window !== 'undefined' && shouldAutoDiscoverBackend(window.location.hostname)) {
+        candidates.push(`${window.location.origin}/api/send-email`);
+        candidates.push(`${window.location.origin}/.netlify/functions/send-email`);
+    }
+
+    return [...new Set(candidates)];
+}
+
+async function sendViaBackendApi(emailData) {
+    const backendUrls = getBackendApiCandidates();
+    if (backendUrls.length === 0) {
+        return false;
+    }
+
+    for (const apiUrl of backendUrls) {
+        try {
+            const response = await fetch(apiUrl, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(emailData)
+            });
+
+            if (response.ok) {
+                console.log(`Confirmation email sent via backend API: ${apiUrl}`);
+                return true;
+            }
+
+            console.error(`Backend email API failed (${response.status}) at ${apiUrl}`);
+        } catch (error) {
+            console.error(`Backend email API error at ${apiUrl}:`, error);
+        }
+    }
+
+    return false;
+}
 
 /**
  * Send registration confirmation email
@@ -47,20 +109,26 @@ const BACKEND_API_URL = 'https://your-backend-url.com/api/send-email'; // Replac
  * @returns {Promise<boolean>} - Success status
  */
 async function sendConfirmationEmail(formData, paymentId) {
+    const recipientEmail = (formData.email || '').trim();
+    if (!recipientEmail) {
+        console.error('Missing recipient email in registration data');
+        return false;
+    }
+
     const fullName = formData.fullName || `${formData.firstName || ''} ${formData.lastName || ''}`.trim();
+    const displayName = fullName || formData.firstName || recipientEmail.split('@')[0] || 'Registrant';
     const amount = typeof formData.amount === 'number' ? (formData.amount / 100).toFixed(2) : parseFloat(formData.amount).toFixed(2);
     
-    // Get website URL for logo (you'll need to update this with your actual website URL)
-    const websiteUrl = typeof window !== 'undefined' ? window.location.origin : 'https://your-website-url.com';
-    const logoUrl = `${websiteUrl}/images/logo.JPG`;
+    // Use a public absolute URL so email clients can always load the logo.
+    const logoUrl = 'https://www.wcdmr.com/images/logo-enhanced.JPG';
     
     const emailData = {
-        to: formData.email,
-        toName: fullName,
-        subject: 'WCDMR 2026 - Registration Confirmed!',
+        to: recipientEmail,
+        toName: displayName,
+        subject: `Welcome to West Coast Deaf Men's Retreat, ${displayName}`,
         template: 'confirmation',
         data: {
-            fullName: fullName,
+            fullName: displayName,
             firstName: formData.firstName || '',
             lastName: formData.lastName || '',
             email: formData.email,
@@ -77,7 +145,8 @@ async function sendConfirmationEmail(formData, paymentId) {
             logoUrl: logoUrl,
             eventName: 'West Coast Deaf Men\'s Retreat 2026',
             eventDates: 'November 6-8, 2026',
-            venue: 'Pine Crest Camp, Twin Peaks, CA',
+            venue: 'Pine Crest Camp',
+            eventLocation: 'Twin Peaks, CA',
             venueAddress: '1140 PINECREST ROAD, TWIN PEAKS, CA 92361',
             rsvpLink: 'https://forms.gle/qaW22U9mB2C1hGx86',
             facebookLink: 'https://www.facebook.com/wcdmr',
@@ -86,22 +155,10 @@ async function sendConfirmationEmail(formData, paymentId) {
     };
 
     try {
-        // Try backend API first (production)
-        if (BACKEND_API_URL && BACKEND_API_URL !== 'https://your-backend-url.com/api/send-email') {
-            const response = await fetch(BACKEND_API_URL, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify(emailData)
-            });
-
-            if (response.ok) {
-                console.log('Confirmation email sent via backend API');
-                return true;
-            } else {
-                console.error('Backend email API failed, trying EmailJS...');
-            }
+        // Try backend API first (SMTP/SendGrid via serverless)
+        const sentViaBackend = await sendViaBackendApi(emailData);
+        if (sentViaBackend) {
+            return true;
         }
 
         // Fallback to EmailJS (development/testing)
@@ -110,25 +167,131 @@ async function sendConfirmationEmail(formData, paymentId) {
                 // Initialize EmailJS if not already done
                 initEmailJS();
                 
+                const htmlMessage = generateEmailHTML(emailData.data);
+                const summaryText = [
+                    `Event Dates: ${emailData.data.eventDates}`,
+                    `Venue: ${emailData.data.venue}`,
+                    `Location: ${emailData.data.eventLocation || 'Twin Peaks, CA'}`,
+                    `Address: ${emailData.data.venueAddress}`,
+                    `Payment Amount: $${emailData.data.amount}`,
+                    `Transaction ID: ${paymentId}`
+                ].join('\n');
+
+                const summaryHtml = `
+                    <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="width:100%;border-collapse:collapse;table-layout:fixed;">
+                        <tr><td style="width:145px;padding:8px 0;font-weight:700;color:#1e3a5f;text-transform:uppercase;font-size:12px;vertical-align:top;">Event Dates</td><td style="padding:8px 0;font-weight:600;color:#111827;vertical-align:top;">${emailData.data.eventDates}</td></tr>
+                        <tr><td style="width:145px;padding:8px 0;font-weight:700;color:#1e3a5f;text-transform:uppercase;font-size:12px;vertical-align:top;">Venue</td><td style="padding:8px 0;font-weight:600;color:#111827;vertical-align:top;">${emailData.data.venue}</td></tr>
+                        <tr><td style="width:145px;padding:8px 0;font-weight:700;color:#1e3a5f;text-transform:uppercase;font-size:12px;vertical-align:top;">Location</td><td style="padding:8px 0;font-weight:600;color:#111827;vertical-align:top;">${emailData.data.eventLocation || 'Twin Peaks, CA'}</td></tr>
+                        <tr><td style="width:145px;padding:8px 0;font-weight:700;color:#1e3a5f;text-transform:uppercase;font-size:12px;vertical-align:top;">Address</td><td style="padding:8px 0;font-weight:600;color:#111827;vertical-align:top;">${emailData.data.venueAddress}</td></tr>
+                        <tr><td style="width:145px;padding:8px 0;font-weight:700;color:#1e3a5f;text-transform:uppercase;font-size:12px;vertical-align:top;">Payment Amount</td><td style="padding:8px 0;font-weight:600;color:#111827;vertical-align:top;">$${emailData.data.amount}</td></tr>
+                        <tr><td style="width:145px;padding:8px 0;font-weight:700;color:#1e3a5f;text-transform:uppercase;font-size:12px;vertical-align:top;">Transaction ID</td><td style="padding:8px 0;font-weight:600;color:#111827;vertical-align:top;">${paymentId}</td></tr>
+                    </table>
+                `.trim();
+
+                const templateParams = {
+                    // Recipient aliases for different EmailJS template field names.
+                    to_email: recipientEmail,
+                    toEmail: recipientEmail,
+                    email: recipientEmail,
+                    to: recipientEmail,
+                    recipient: recipientEmail,
+                    user_email: recipientEmail,
+                    userEmail: recipientEmail,
+                    reply_to: recipientEmail,
+                    replyTo: recipientEmail,
+
+                    // Name aliases.
+                    to_name: displayName,
+                    recipient_name: displayName,
+                    recipientName: displayName,
+                    user_name: displayName,
+                    userName: displayName,
+                    attendee_name: displayName,
+                    attendeeName: displayName,
+                    registrant_name: displayName,
+                    registrantName: displayName,
+                    customer_name: displayName,
+                    customerName: displayName,
+                    name: displayName,
+                    full_name: displayName,
+                    fullName: displayName,
+                    first_name: emailData.data.firstName,
+                    firstName: emailData.data.firstName,
+                    last_name: emailData.data.lastName,
+                    lastName: emailData.data.lastName,
+
+                    // Core message fields.
+                    from_name: 'WCDMR 2026',
+                    from_email: 'wcdeafmr@gmail.com',
+                    subject: emailData.subject,
+                    subject_line: emailData.subject,
+                    subjectLine: emailData.subject,
+                    email_subject: emailData.subject,
+                    emailSubject: emailData.subject,
+                    mail_subject: emailData.subject,
+                    mailSubject: emailData.subject,
+                    title: emailData.subject,
+                    message: htmlMessage,
+                    html: htmlMessage,
+                    email_html: htmlMessage,
+                    logo_url: emailData.data.logoUrl,
+                    logoUrl: emailData.data.logoUrl,
+                    logo: emailData.data.logoUrl,
+                    header_logo: emailData.data.logoUrl,
+                    headerLogo: emailData.data.logoUrl,
+                    summary: summaryText,
+                    summary_text: summaryText,
+                    summaryText: summaryText,
+                    registration_summary: summaryText,
+                    registrationSummary: summaryText,
+                    registration_details: summaryText,
+                    registrationDetails: summaryText,
+                    registration_summary_html: summaryHtml,
+                    registrationSummaryHtml: summaryHtml,
+                    summary_html: summaryHtml,
+                    summaryHtml: summaryHtml,
+
+                    // Registration details aliases.
+                    amount: emailData.data.amount,
+                    payment_id: paymentId,
+                    paymentId: paymentId,
+                    transaction_id: paymentId,
+                    transactionId: paymentId,
+                    event_dates: emailData.data.eventDates,
+                    event_date: emailData.data.eventDates,
+                    eventDates: emailData.data.eventDates,
+                    eventDate: emailData.data.eventDates,
+                    event_location: emailData.data.eventLocation || '',
+                    eventLocation: emailData.data.eventLocation || '',
+                    location: emailData.data.eventLocation || '',
+                    venue: emailData.data.venue,
+                    venue_name: emailData.data.venue,
+                    venueName: emailData.data.venue,
+                    venue_address: emailData.data.venueAddress,
+                    venueAddress: emailData.data.venueAddress,
+                    event_address: emailData.data.venueAddress,
+                    eventAddress: emailData.data.venueAddress,
+                    street_address: emailData.data.venueAddress,
+                    streetAddress: emailData.data.venueAddress,
+                    full_address: emailData.data.venueAddress,
+                    fullAddress: emailData.data.venueAddress,
+                    address: emailData.data.venueAddress,
+                    tx_id: paymentId,
+                    txId: paymentId,
+                    txn_id: paymentId,
+                    txnId: paymentId,
+                    transaction: paymentId,
+                    reference_id: paymentId,
+                    referenceId: paymentId,
+                    rsvp_link: emailData.data.rsvpLink,
+                    facebook_link: emailData.data.facebookLink,
+                    instagram_link: emailData.data.instagramLink
+                };
+
                 await emailjs.send(
                     EMAILJS_CONFIG.serviceId,
                     EMAILJS_CONFIG.templateId,
-                    {
-                        to_email: formData.email,
-                        to_name: formData.fullName,
-                        from_name: 'WCDMR 2026',
-                        from_email: 'wcdeafmr@gmail.com',
-                        subject: emailData.subject,
-                        message: generateEmailHTML(emailData.data),
-                        amount: emailData.data.amount,
-                        payment_id: paymentId,
-                        event_dates: emailData.data.eventDates,
-                        venue: emailData.data.venue,
-                        venue_address: emailData.data.venueAddress,
-                        rsvp_link: emailData.data.rsvpLink,
-                        facebook_link: emailData.data.facebookLink,
-                        instagram_link: emailData.data.instagramLink
-                    }
+                    templateParams
                 );
                 console.log('Confirmation email sent via EmailJS');
                 return true;
@@ -153,6 +316,7 @@ async function sendConfirmationEmail(formData, paymentId) {
  * @returns {string} - HTML email content
  */
 function generateEmailHTML(data) {
+    const resolvedLogoUrl = data.logoUrl || 'https://www.wcdmr.com/images/logo-enhanced.JPG';
     return `
         <!DOCTYPE html>
         <html>
@@ -174,38 +338,45 @@ function generateEmailHTML(data) {
                     padding: 0;
                     background: white;
                 }
-                .header { 
-                    background: linear-gradient(135deg, #0f1f35 0%, #1e3a5f 50%, #2d4a6b 100%); 
-                    color: white; 
-                    padding: 30px 20px 35px; 
-                    text-align: center; 
+                .header {
+                    background: linear-gradient(135deg, #f8fbff 0%, #e9f1ff 58%, #dbe9ff 100%);
+                    color: #12315a;
+                    padding: 28px 20px 32px;
+                    text-align: center;
+                    border-bottom: 2px solid #b8cdf1;
                 }
                 .email-logo {
-                    max-width: 350px;
+                    max-width: 280px;
                     width: auto;
                     height: auto;
                     max-height: none;
-                    margin: 0 auto 25px;
+                    margin: 0 auto 16px;
                     display: block;
                     border-radius: 4px;
+                    background: #ffffff;
+                    padding: 6px 10px;
+                    box-shadow: 0 1px 4px rgba(15, 31, 53, 0.14);
                 }
                 .success-icon { 
-                    font-size: 48px; 
-                    margin-bottom: 15px; 
+                    color: #2f855a;
+                    font-size: 46px; 
+                    margin-bottom: 10px; 
                     font-weight: 900;
                 }
                 .header h1 {
-                    font-size: 28px;
+                    color: #12315a;
+                    font-size: 27px;
                     font-weight: 800;
-                    text-transform: uppercase;
-                    letter-spacing: 0.1em;
+                    text-transform: none;
+                    letter-spacing: 0.01em;
                     margin: 0 0 10px 0;
                 }
                 .header p {
-                    font-size: 18px;
+                    color: #244b78;
+                    font-size: 17px;
                     font-weight: 600;
                     margin: 0;
-                    opacity: 0.95;
+                    opacity: 1;
                 }
                 .content { 
                     background: #ffffff; 
@@ -219,22 +390,33 @@ function generateEmailHTML(data) {
                     border-left: 4px solid #c9a961; 
                     border: 2px solid #2d3748;
                 }
-                .info-row { 
-                    margin: 12px 0; 
-                    padding: 8px 0;
+                .summary-table {
+                    width: 100%;
+                    border-collapse: collapse;
+                    table-layout: fixed;
+                }
+                .summary-table tr {
                     border-bottom: 1px solid #e5e7eb;
                 }
-                .info-row:last-child {
+                .summary-table tr:last-child {
                     border-bottom: none;
                 }
-                .info-label { 
-                    font-weight: 700; 
-                    color: #1e3a5f; 
+                .summary-label {
+                    width: 145px;
+                    padding: 10px 0;
+                    font-weight: 700;
+                    color: #1e3a5f;
                     text-transform: uppercase;
-                    font-size: 0.9rem;
-                    letter-spacing: 0.05em;
-                    display: inline-block;
-                    min-width: 140px;
+                    font-size: 0.78rem;
+                    letter-spacing: 0.04em;
+                    vertical-align: top;
+                }
+                .summary-value {
+                    padding: 10px 0;
+                    font-weight: 600;
+                    color: #111827;
+                    word-break: break-word;
+                    vertical-align: top;
                 }
                 .button { 
                     display: inline-block; 
@@ -282,44 +464,64 @@ function generateEmailHTML(data) {
                 p {
                     margin: 15px 0;
                 }
+                @media (max-width: 520px) {
+                    .summary-label,
+                    .summary-value {
+                        display: block;
+                        width: 100%;
+                        padding: 6px 0;
+                    }
+                }
             </style>
         </head>
         <body>
             <div class="container">
                 <div class="header">
-                    ${data.logoUrl ? `<img src="${data.logoUrl}" alt="West Coast Deaf Men's Retreat Logo" class="email-logo" style="max-width: 350px; width: auto; height: auto; margin: 0 auto 25px; display: block; border-radius: 4px;">` : ''}
+                    <img src="${resolvedLogoUrl}" alt="West Coast Deaf Men's Retreat Logo" class="email-logo" style="max-width: 280px; width: auto; height: auto; margin: 0 auto 16px; display: block; border-radius: 4px; background: #ffffff; padding: 6px 10px; box-shadow: 0 1px 4px rgba(15, 31, 53, 0.14);">
                     <div class="success-icon">✓</div>
-                    <h1>Registration Confirmed!</h1>
+                    <h1>Welcome to West Coast Deaf Men's Retreat</h1>
                     <p>West Coast Deaf Men's Retreat 2026</p>
                 </div>
                 <div class="content">
                     <p>Dear ${data.fullName},</p>
                     
-                    <p>Thank you for registering for the West Coast Deaf Men's Retreat 2026! We're excited to have you join us for this three-day summit of Prayer, worship, and Fellowship.</p>
+                    <p>Thank you for registering for the West Coast Deaf Men's Retreat 2026! We are excited to have you with us.</p>
+                    <p>Friendly reminder: please make sure your registration payment is completed before <strong>October 23, 2026</strong>.</p>
                     
                     <div class="info-box">
-                        <div class="info-row">
-                            <span class="info-label">Payment Amount:</span> $${data.amount}
-                        </div>
-                        <div class="info-row">
-                            <span class="info-label">Transaction ID:</span> ${data.paymentId}
-                        </div>
-                        <div class="info-row">
-                            <span class="info-label">Event Dates:</span> ${data.eventDates}
-                        </div>
-                        <div class="info-row">
-                            <span class="info-label">Venue:</span> ${data.venue}
-                        </div>
-                        <div class="info-row">
-                            <span class="info-label">Address:</span> ${data.venueAddress}
-                        </div>
+                        <table class="summary-table" role="presentation" cellpadding="0" cellspacing="0" border="0">
+                            <tr>
+                                <td class="summary-label">Event Dates</td>
+                                <td class="summary-value">${data.eventDates}</td>
+                            </tr>
+                            <tr>
+                                <td class="summary-label">Venue</td>
+                                <td class="summary-value">${data.venue}</td>
+                            </tr>
+                            <tr>
+                                <td class="summary-label">Location</td>
+                                <td class="summary-value">${data.eventLocation || 'Twin Peaks, CA'}</td>
+                            </tr>
+                            <tr>
+                                <td class="summary-label">Address</td>
+                                <td class="summary-value">${data.venueAddress}</td>
+                            </tr>
+                            <tr>
+                                <td class="summary-label">Payment Amount</td>
+                                <td class="summary-value">$${data.amount}</td>
+                            </tr>
+                            <tr>
+                                <td class="summary-label">Transaction ID</td>
+                                <td class="summary-value">${data.paymentId}</td>
+                            </tr>
+                        </table>
                     </div>
                     
                     <p><strong>Next Steps:</strong></p>
                     <ul>
                         <li>Please complete the RSVP form if you haven't already</li>
                         <li>Save this confirmation email for your records</li>
-                        <li>Follow us on social media for updates</li>
+                        <li>We will keep you updated with speakers and errands</li>
                     </ul>
                     
                     <div style="text-align: center;">
@@ -333,6 +535,7 @@ function generateEmailHTML(data) {
                     </div>
                     
                     <p>If you have any questions, please contact us through the RSVP form or our social media channels.</p>
+                    <p>We will keep you updated with speaker announcements and errands as the retreat date gets closer.</p>
                     
                     <p>We look forward to seeing you at Pine Crest Camp!</p>
                     

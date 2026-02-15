@@ -275,9 +275,22 @@
                             </div>
 
                             <div class="form-group">
-                                <label for="full-address">Full Address <span class="required-indicator" aria-label="required">*</span></label>
-                                <textarea id="full-address" name="full-address" rows="3" placeholder="Street address, City, State, ZIP" required aria-required="true" aria-describedby="full-address-error"></textarea>
-                                <span class="field-error" id="full-address-error" role="alert" aria-live="polite"></span>
+                                <label for="address-line">Address <span class="required-indicator" aria-label="required">*</span></label>
+                                <input type="text" id="address-line" name="address-line" placeholder="Street address" required autocomplete="street-address" aria-required="true" aria-describedby="address-line-error">
+                                <span class="field-error" id="address-line-error" role="alert" aria-live="polite"></span>
+                            </div>
+
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label for="city">City <span class="required-indicator" aria-label="required">*</span></label>
+                                    <input type="text" id="city" name="city" placeholder="City" required autocomplete="address-level2" aria-required="true" aria-describedby="city-error">
+                                    <span class="field-error" id="city-error" role="alert" aria-live="polite"></span>
+                                </div>
+                                <div class="form-group">
+                                    <label for="zip-code">ZIP Code <span class="required-indicator" aria-label="required">*</span></label>
+                                    <input type="text" id="zip-code" name="zip-code" placeholder="90210" required autocomplete="postal-code" aria-required="true" aria-describedby="zip-code-error" inputmode="numeric">
+                                    <span class="field-error" id="zip-code-error" role="alert" aria-live="polite"></span>
+                                </div>
                             </div>
 
                             <div class="form-group">
@@ -379,6 +392,10 @@
                                             <input type="radio" name="payment-method" value="zelle" id="payment-method-zelle" aria-describedby="payment-method-error">
                                             <span>Zelle</span>
                                         </label>
+                                        <label class="radio-label">
+                                            <input type="radio" name="payment-method" value="check" id="payment-method-check" aria-describedby="payment-method-error">
+                                            <span>Money Order / Check</span>
+                                        </label>
                                     </div>
                                     <span class="field-error" id="payment-method-error" role="alert" aria-live="polite"></span>
                                 </fieldset>
@@ -435,10 +452,30 @@
                                     <div id="zelle-payment-errors" class="error-message" role="alert"></div>
                                 </div>
                             </div>
+
+                            <div class="form-group hidden" id="check-payment-section">
+                                <div class="zelle-payment-section">
+                                    <p style="color: var(--text-light); margin-bottom: 1rem; font-weight: 600; text-align: center;">
+                                        Pay by Money Order or Check
+                                    </p>
+                                    <div class="zelle-info-box">
+                                        <div class="zelle-instructions">
+                                            <p><strong>Payable to:</strong> WCDMR</p>
+                                            <p><strong>Mail to:</strong><br>WCDMR<br>7455 Serapis Ave<br>Pico Rivera, CA 90660</p>
+                                            <p><strong>Memo:</strong> Regisration fee</p>
+                                            <p><strong>Amount to mail:</strong> $<span id="check-amount">245.00</span></p>
+                                        </div>
+                                    </div>
+                                    <button type="button" class="btn btn-primary btn-large" id="check-complete-btn" onclick="handleCheckMoneyOrderPayment()" style="margin-top: 1.5rem;">
+                                        Complete Registration (Money Order / Check)
+                                    </button>
+                                    <div id="check-payment-errors" class="error-message" role="alert"></div>
+                                </div>
+                            </div>
                         </div>
 
                         <div class="form-note" id="payment-note">
-                            <p><small><strong>One-Step Process:</strong> Fill out all required information above, then complete payment using your selected method. Your registration will be automatically completed after payment.</small></p>
+                            <p><small><strong>One-Step Process:</strong> Fill out all required information above, then complete payment using PayPal, Zelle, or Money Order/Check.</small></p>
                         </div>
                     </form>
 
@@ -643,8 +680,8 @@
                     <h4>Contact</h4>
                     <p>For questions about registration or the event, please contact us through the RSVP form.</p>
                     <p style="margin-top: 1rem; font-size: 0.875rem;">
-                        <a href="admin.html" style="color: rgba(255, 255, 255, 0.8);">Admin: View Registrations</a><br>
-                        <a href="email-preview.html" style="color: rgba(255, 255, 255, 0.8);">Preview Email Confirmation</a>
+                        <a href="payment-site/admin.html" style="color: rgba(255, 255, 255, 0.8);">Admin: View Registrations</a><br>
+                        <a href="payment-site/email-preview.html" style="color: rgba(255, 255, 255, 0.8);">Preview Email Confirmation</a>
                     </p>
                 </div>
             </div>
@@ -656,8 +693,8 @@
 
     <!-- EmailJS for email automation -->
     <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
-    <script src="registration-handler.js"></script>
-    <script src="email-service.js"></script>
+    <script src="payment-site/registration-handler.js"></script>
+    <script src="payment-site/email-service.js"></script>
     <script src="app.js"></script>
 </body>
 </html>

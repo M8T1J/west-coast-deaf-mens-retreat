@@ -10,6 +10,7 @@ The West Coast Deaf Men's Retreat is a three-day summit of Prayer, worship, and 
 
 - 🎨 Modern, responsive design
 - 💳 Stripe payment integration for registration fees
+- 📧 Registration confirmation email automation
 - 📱 Mobile-friendly interface
 - ⚡ Fast and lightweight
 - 🔒 Secure payment processing
@@ -125,6 +126,14 @@ git push -u origin main
    - Add `www.wcdmr.com` to the file
    - Configure your DNS settings to point to GitHub Pages
    - GitHub Pages will automatically detect the CNAME file
+
+### Registration Email + Admin Access
+
+- **Admin page:** `admin.html` (redirects to `payment-site/admin.html`)
+- **Email preview:** `email-preview.html` (redirects to `payment-site/email-preview.html`)
+- **Email service setup:** see `payment-site/EMAIL_SETUP.md`
+- **Google / iCloud custom email:** supported through SMTP configuration (App Password required)
+- **Important:** SMTP needs a backend endpoint (Vercel/Netlify). GitHub Pages alone cannot send SMTP directly.
 
 ### 4. Update Content
 
