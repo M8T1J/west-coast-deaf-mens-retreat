@@ -388,11 +388,6 @@ async function handleZellePayment() {
     // Generate payment ID for Zelle
     const paymentId = `ZELLE-${formData.timestamp}`;
     
-    // Store registration data
-    if (typeof storeRegistrationData === 'function') {
-        storeRegistrationData(formData, paymentId);
-    }
-    
     // Convert amount to cents for email service
     const emailFormData = {
         ...formData,
@@ -467,10 +462,6 @@ async function handleCheckMoneyOrderPayment() {
     };
 
     const paymentId = `CHECK-MO-${formData.timestamp}`;
-
-    if (typeof storeRegistrationData === 'function') {
-        storeRegistrationData(formData, paymentId);
-    }
 
     const emailFormData = {
         ...formData,
