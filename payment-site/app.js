@@ -33,6 +33,7 @@ const PAYPAL_BASE_LINK = 'https://www.paypal.com/ncp/payment/LNMQ6S8HZWP5C';
 const DEFAULT_AMOUNT = 245.00; // Default registration fee
 const ZELLE_CONTACT = 'wcdmrpayments@gmail.com'; // Zelle email for payments
 const ZELLE_RECIPIENT = 'WEST COAST DEAF MEN\'S RETREAT'; // Zelle recipient name
+const PAYPAL_REDIRECT_DELAY_MS = 1200;
 
 // Generate PayPal payment link with amount
 function generatePayPalLink(amount) {
@@ -92,10 +93,41 @@ function updatePayPalButton() {
     `;
 }
 
+function persistPendingRegistration(formData) {
+    try {
+        // Persist "pending" registration first so the user is recorded before payment.
+        if (typeof storeRegistrationData === 'function') {
+            storeRegistrationData(formData, 'PENDING');
+        }
+    } catch (error) {
+        console.error('Unable to store pending registration:', error);
+    }
+
+    try {
+        sessionStorage.setItem('wcdmr_registration', JSON.stringify(formData));
+        return true;
+    } catch (error) {
+        console.error('Unable to save registration session data:', error);
+        return false;
+    }
+}
+
+function showPayPalRedirectState(message) {
+    const container = document.getElementById('paypal-link-container');
+    if (!container) return;
+
+    container.innerHTML = `
+        <div class="spinner" style="margin: 1rem auto;"></div>
+        <p style="text-align: center; color: var(--text-light);">${message}</p>
+    `;
+}
+
 // Handle PayPal link click - Integrated registration and payment
 function handlePayPalClick(event) {
     // Prevent default navigation
-    event.preventDefault();
+    if (event && typeof event.preventDefault === 'function') {
+        event.preventDefault();
+    }
     
     // Validate form first
     if (!validateForm()) {
@@ -143,24 +175,23 @@ function handlePayPalClick(event) {
         timestamp: Date.now()
     };
     
-    // Store registration data immediately (before payment)
-    if (typeof storeRegistrationData === 'function') {
-        storeRegistrationData(formData, 'PENDING');
+    const registrationSaved = persistPendingRegistration(formData);
+    if (!registrationSaved) {
+        const errorDiv = document.getElementById('payment-errors');
+        if (errorDiv) {
+            errorDiv.textContent = 'We could not save your registration. Please refresh the page and try again.';
+            errorDiv.style.display = 'block';
+        }
+        return false;
     }
-    
-    // Store in sessionStorage for PayPal return
-    sessionStorage.setItem('wcdmr_registration', JSON.stringify(formData));
-    
-    // Show loading state
-    const container = document.getElementById('paypal-link-container');
-    if (container) {
-        container.innerHTML = '<div class="spinner" style="margin: 1rem auto;"></div><p style="text-align: center; color: var(--text-light);">Redirecting to PayPal...</p>';
-    }
+
+    showPayPalRedirectState('Registration complete. Check your email for confirmation. Redirecting to PayPal payment...');
+    announceToScreenReader('Registration complete. Redirecting to PayPal payment now.');
     
     // Redirect to PayPal after a brief moment
     setTimeout(() => {
         window.location.href = PAYPAL_BASE_LINK;
-    }, 500);
+    }, PAYPAL_REDIRECT_DELAY_MS);
     
     return false;
 }
