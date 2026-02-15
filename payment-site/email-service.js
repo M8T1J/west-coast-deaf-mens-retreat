@@ -167,7 +167,7 @@ async function sendConfirmationEmail(formData, paymentId) {
                         to_email: formData.email,
                         to_name: formData.fullName,
                         from_name: 'WCDMR 2026',
-                        from_email: 'wcdmr97@icloud.com',
+                        from_email: 'wcdeafmr@gmail.com',
                         subject: emailData.subject,
                         message: generateEmailHTML(emailData.data),
                         amount: emailData.data.amount,

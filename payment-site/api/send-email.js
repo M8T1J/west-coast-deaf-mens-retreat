@@ -3,12 +3,12 @@
 // Supports SMTP (preferred, including iCloud) and SendGrid fallback.
 
 const SENDGRID_API_KEY = process.env.SENDGRID_API_KEY;
-const SMTP_HOST = process.env.SMTP_HOST || 'smtp.mail.me.com';
+const SMTP_HOST = process.env.SMTP_HOST || 'smtp.gmail.com';
 const SMTP_PORT = Number(process.env.SMTP_PORT || 587);
 const SMTP_SECURE = process.env.SMTP_SECURE === 'true';
 const SMTP_USER = process.env.SMTP_USER || '';
 const SMTP_PASS = process.env.SMTP_PASS || '';
-const FROM_EMAIL = process.env.FROM_EMAIL || SMTP_USER || 'wcdmr97@icloud.com';
+const FROM_EMAIL = process.env.FROM_EMAIL || SMTP_USER || 'wcdeafmr@gmail.com';
 const FROM_NAME = process.env.FROM_NAME || 'WCDMR 2026';
 
 const CORS_HEADERS = {
