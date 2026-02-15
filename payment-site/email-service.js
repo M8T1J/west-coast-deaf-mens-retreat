@@ -145,7 +145,8 @@ async function sendConfirmationEmail(formData, paymentId) {
             logoUrl: logoUrl,
             eventName: 'West Coast Deaf Men\'s Retreat 2026',
             eventDates: 'November 6-8, 2026',
-            venue: 'Pine Crest Camp, Twin Peaks, CA',
+            venue: 'Pine Crest Camp',
+            eventLocation: 'Twin Peaks, CA',
             venueAddress: '1140 PINECREST ROAD, TWIN PEAKS, CA 92361',
             rsvpLink: 'https://forms.gle/qaW22U9mB2C1hGx86',
             facebookLink: 'https://www.facebook.com/wcdmr',
@@ -207,6 +208,9 @@ async function sendConfirmationEmail(formData, paymentId) {
                     event_date: emailData.data.eventDates,
                     eventDates: emailData.data.eventDates,
                     eventDate: emailData.data.eventDates,
+                    event_location: emailData.data.eventLocation || '',
+                    eventLocation: emailData.data.eventLocation || '',
+                    location: emailData.data.eventLocation || '',
                     venue: emailData.data.venue,
                     venue_name: emailData.data.venue,
                     venueName: emailData.data.venue,
@@ -393,19 +397,22 @@ function generateEmailHTML(data) {
                     
                     <div class="info-box">
                         <div class="info-row">
-                            <span class="info-label">Payment Amount:</span> $${data.amount}
-                        </div>
-                        <div class="info-row">
-                            <span class="info-label">Transaction ID:</span> ${data.paymentId}
-                        </div>
-                        <div class="info-row">
                             <span class="info-label">Event Dates:</span> ${data.eventDates}
                         </div>
                         <div class="info-row">
                             <span class="info-label">Venue:</span> ${data.venue}
                         </div>
                         <div class="info-row">
+                            <span class="info-label">Location:</span> ${data.eventLocation || 'Twin Peaks, CA'}
+                        </div>
+                        <div class="info-row">
                             <span class="info-label">Address:</span> ${data.venueAddress}
+                        </div>
+                        <div class="info-row">
+                            <span class="info-label">Payment Amount:</span> $${data.amount}
+                        </div>
+                        <div class="info-row">
+                            <span class="info-label">Transaction ID:</span> ${data.paymentId}
                         </div>
                     </div>
                     

@@ -55,19 +55,22 @@ function generateEmailHTML(data) {
                     
                     <div class="info-box">
                         <div class="info-row">
-                            <span class="info-label">Payment Amount:</span> $${data.amount}
-                        </div>
-                        <div class="info-row">
-                            <span class="info-label">Transaction ID:</span> ${data.paymentId}
-                        </div>
-                        <div class="info-row">
                             <span class="info-label">Event Dates:</span> ${data.eventDates}
                         </div>
                         <div class="info-row">
                             <span class="info-label">Venue:</span> ${data.venue}
                         </div>
                         <div class="info-row">
+                            <span class="info-label">Location:</span> ${data.eventLocation || 'Twin Peaks, CA'}
+                        </div>
+                        <div class="info-row">
                             <span class="info-label">Address:</span> ${data.venueAddress}
+                        </div>
+                        <div class="info-row">
+                            <span class="info-label">Payment Amount:</span> $${data.amount}
+                        </div>
+                        <div class="info-row">
+                            <span class="info-label">Transaction ID:</span> ${data.paymentId}
                         </div>
                     </div>
                     
@@ -118,7 +121,7 @@ function parseRequestBody(req) {
 }
 
 function buildTextBody(toName, data) {
-    return `Dear ${toName},\n\nThank you for registering for WCDMR 2026!\nFriendly reminder: please make sure your registration payment is completed before October 23, 2026.\n\nPayment Amount: $${data.amount}\nTransaction ID: ${data.paymentId}\nEvent Dates: ${data.eventDates}\nVenue: ${data.venue}\n\nWe will keep you updated with speaker announcements and errands.\n\nWCDMR 2026 Team`;
+    return `Dear ${toName},\n\nThank you for registering for WCDMR 2026!\nFriendly reminder: please make sure your registration payment is completed before October 23, 2026.\n\nEvent Dates: ${data.eventDates}\nVenue: ${data.venue}\nLocation: ${data.eventLocation || 'Twin Peaks, CA'}\nAddress: ${data.venueAddress}\nPayment Amount: $${data.amount}\nTransaction ID: ${data.paymentId}\n\nWe will keep you updated with speaker announcements and errands.\n\nWCDMR 2026 Team`;
 }
 
 function smtpIsConfigured() {
