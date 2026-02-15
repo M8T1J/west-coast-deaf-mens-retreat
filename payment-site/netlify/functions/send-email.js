@@ -130,6 +130,7 @@ function smtpIsConfigured() {
 }
 
 async function sendWithSmtp(to, toName, data) {
+    const subject = `Thank You for Registering, ${toName || 'Registrant'} - WCDMR 2026`;
     const transporter = nodemailer.createTransport({
         host: SMTP_HOST,
         port: SMTP_PORT,
@@ -143,13 +144,14 @@ async function sendWithSmtp(to, toName, data) {
     await transporter.sendMail({
         from: `"${FROM_NAME}" <${FROM_EMAIL}>`,
         to,
-        subject: 'Thank You for Registering - WCDMR 2026',
+        subject,
         html: generateEmailHTML(data),
         text: buildTextBody(toName, data)
     });
 }
 
 async function sendWithSendGrid(to, toName, data) {
+    const subject = `Thank You for Registering, ${toName || 'Registrant'} - WCDMR 2026`;
     sgMail.setApiKey(SENDGRID_API_KEY);
 
     const msg = {
@@ -158,7 +160,7 @@ async function sendWithSendGrid(to, toName, data) {
             email: FROM_EMAIL,
             name: FROM_NAME
         },
-        subject: 'Thank You for Registering - WCDMR 2026',
+        subject,
         html: generateEmailHTML(data),
         text: buildTextBody(toName, data)
     };
