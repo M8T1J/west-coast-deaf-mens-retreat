@@ -164,7 +164,13 @@ async function sendConfirmationEmail(formData, paymentId) {
                     EMAILJS_CONFIG.serviceId,
                     EMAILJS_CONFIG.templateId,
                     {
+                        // Provide common recipient aliases to support different EmailJS template variable names.
                         to_email: formData.email,
+                        email: formData.email,
+                        to: formData.email,
+                        recipient: formData.email,
+                        user_email: formData.email,
+                        reply_to: formData.email,
                         to_name: formData.fullName,
                         from_name: 'WCDMR 2026',
                         from_email: 'wcdeafmr@gmail.com',
