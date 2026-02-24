@@ -377,6 +377,10 @@
                                             <input type="radio" name="payment-method" value="zelle" id="payment-method-zelle" aria-describedby="payment-method-error">
                                             <span>Zelle</span>
                                         </label>
+                                        <label class="radio-label">
+                                            <input type="radio" name="payment-method" value="money-order" id="payment-method-money-order" aria-describedby="payment-method-error">
+                                            <span>Money Order</span>
+                                        </label>
                                     </div>
                                     <span class="field-error" id="payment-method-error" role="alert" aria-live="polite"></span>
                                 </fieldset>
@@ -434,10 +438,30 @@
                                 </div>
                             </div>
 
+                            <div class="form-group hidden" id="money-order-payment-section">
+                                <div class="zelle-payment-section">
+                                    <p style="color: var(--text-light); margin-bottom: 1rem; font-weight: 600; text-align: center;">
+                                        Pay by Money Order
+                                    </p>
+                                    <div class="zelle-info-box">
+                                        <div class="zelle-instructions">
+                                            <p><strong>Payable to:</strong> WCDMR</p>
+                                            <p><strong>Mail to:</strong><br>WCDMR<br>7455 Serapis Ave<br>Pico Rivera, CA 90660</p>
+                                            <p><strong>Memo:</strong> Registration fee</p>
+                                            <p><strong>Amount to mail:</strong> $<span id="money-order-amount">245.00</span></p>
+                                        </div>
+                                    </div>
+                                    <button type="button" class="btn btn-primary btn-large" id="money-order-complete-btn" onclick="handleMoneyOrderPayment()" style="margin-top: 1.5rem;">
+                                        Complete Registration (Money Order)
+                                    </button>
+                                    <div id="money-order-payment-errors" class="error-message" role="alert"></div>
+                                </div>
+                            </div>
+
                         </div>
 
                         <div class="form-note" id="payment-note">
-                            <p><small><strong>One-Step Process:</strong> Fill out all required information above, then complete payment using PayPal or Zelle.</small></p>
+                            <p><small><strong>One-Step Process:</strong> Fill out all required information above, then complete payment using PayPal, Zelle, or Money Order.</small></p>
                         </div>
                     </form>
 

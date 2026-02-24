@@ -51,6 +51,8 @@ async function submitToGoogleForm(formData) {
  * @param {string} paymentId - Payment transaction ID (or 'PENDING' if not paid yet)
  */
 function storeRegistrationData(formData, paymentId) {
+    const isPendingPayment = paymentId === 'PENDING' || formData.paymentMethod === 'money_order';
+
     // Store in localStorage (for demo - in production, send to your backend)
     const registration = {
         firstName: formData.firstName || formData.fullName?.split(' ')[0] || '',
@@ -69,14 +71,14 @@ function storeRegistrationData(formData, paymentId) {
         amount: formData.amount,
         paymentId: paymentId,
         timestamp: new Date().toISOString(),
-        status: paymentId === 'PENDING' ? 'pending' : 'completed'
+        status: isPendingPayment ? 'pending' : 'completed'
     };
 
     // Get existing registrations
     const existingRegistrations = JSON.parse(localStorage.getItem('wcdmr_registrations') || '[]');
 
     // If updating a pending registration, find and update it
-    if (paymentId !== 'PENDING') {
+    if (!isPendingPayment) {
         const pendingIndex = existingRegistrations.findIndex((r) => r.email === formData.email && r.status === 'pending');
         if (pendingIndex !== -1) {
             existingRegistrations[pendingIndex] = registration;

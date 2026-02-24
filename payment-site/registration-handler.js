@@ -55,7 +55,7 @@ function storeRegistrationData(formData, paymentId) {
     const city = formData.city || '';
     const zipCode = formData.zipCode || formData.zip || '';
     const fullAddress = formData.fullAddress || [addressLine, city, zipCode].filter(Boolean).join(', ');
-    const isPendingPayment = paymentId === 'PENDING';
+    const isPendingPayment = paymentId === 'PENDING' || formData.paymentMethod === 'money_order';
 
     // Store in localStorage (for demo - in production, send to your backend)
     const registration = {
