@@ -7,9 +7,9 @@
     "build": "echo 'No build step required for static site'"
   },
   "dependencies": {
-    "@sendgrid/mail": "^8.1.0"
+    "@sendgrid/mail": "^8.1.0",
+    "nodemailer": "^8.0.1"
   },
-  "devDependencies": {},
   "keywords": [
     "event",
     "registration",

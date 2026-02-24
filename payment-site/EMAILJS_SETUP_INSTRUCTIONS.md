@@ -22,7 +22,7 @@ Follow these steps to configure EmailJS:
 4. Set **From Name**: `WCDMR 2026`
 5. Set **From Email**: `wcdeafmr@gmail.com`
 6. Set **To Email**: `{{to_email}}`
-7. Set **Subject**: `WCDMR 2026 - Registration Confirmed!`
+7. Set **Subject**: `{{subject}}`
 
 8. **Email Content** (HTML):
 ```html
@@ -33,21 +33,29 @@ Follow these steps to configure EmailJS:
     <style>
         body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
         .container { max-width: 600px; margin: 0 auto; padding: 20px; }
-        .header { background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%); color: white; padding: 30px; text-align: center; border-radius: 10px 10px 0 0; }
+        .header { background: linear-gradient(135deg, #f8fbff 0%, #e9f1ff 58%, #dbe9ff 100%); color: #12315a; padding: 28px 20px 32px; text-align: center; border-radius: 10px 10px 0 0; border-bottom: 2px solid #b8cdf1; }
+        .email-logo { max-width: 280px; width: auto; height: auto; max-height: none; margin: 0 auto 16px; display: block; border-radius: 4px; background: #ffffff; padding: 6px 10px; box-shadow: 0 1px 4px rgba(15, 31, 53, 0.14); }
         .content { background: #f9fafb; padding: 30px; border-radius: 0 0 10px 10px; }
         .success-icon { font-size: 48px; margin-bottom: 20px; }
         .info-box { background: white; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #6366f1; }
-        .info-row { margin: 10px 0; }
-        .info-label { font-weight: bold; color: #6366f1; }
+        .summary-table { width: 100%; border-collapse: collapse; table-layout: fixed; }
+        .summary-table tr { border-bottom: 1px solid #e5e7eb; }
+        .summary-table tr:last-child { border-bottom: none; }
+        .summary-label { width: 145px; padding: 10px 0; font-weight: bold; color: #6366f1; text-transform: uppercase; font-size: 0.78rem; letter-spacing: 0.04em; vertical-align: top; }
+        .summary-value { padding: 10px 0; font-weight: 600; color: #111827; word-break: break-word; vertical-align: top; }
         .button { display: inline-block; background: #6366f1; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; margin: 20px 0; }
         .footer { text-align: center; margin-top: 30px; padding-top: 20px; border-top: 1px solid #e5e7eb; color: #6b7280; font-size: 14px; }
+        @media (max-width: 520px) {
+            .summary-label, .summary-value { display: block; width: 100%; padding: 6px 0; }
+        }
     </style>
 </head>
 <body>
     <div class="container">
         <div class="header">
+            <img src="https://www.wcdmr.com/images/logo-enhanced.JPG" alt="West Coast Deaf Men's Retreat Logo" class="email-logo">
             <div class="success-icon">✓</div>
-            <h1>Registration Confirmed!</h1>
+            <h1>Welcome to West Coast Deaf Men's Retreat</h1>
             <p>West Coast Deaf Men's Retreat 2026</p>
         </div>
         <div class="content">
@@ -56,28 +64,39 @@ Follow these steps to configure EmailJS:
             <p>Thank you for registering for the West Coast Deaf Men's Retreat 2026! We're excited to have you join us for this three-day summit of Prayer, worship, and Fellowship.</p>
             
             <div class="info-box">
-                <div class="info-row">
-                    <span class="info-label">Payment Amount:</span> ${{amount}}
-                </div>
-                <div class="info-row">
-                    <span class="info-label">Transaction ID:</span> {{payment_id}}
-                </div>
-                <div class="info-row">
-                    <span class="info-label">Event Dates:</span> {{event_dates}}
-                </div>
-                <div class="info-row">
-                    <span class="info-label">Venue:</span> {{venue}}
-                </div>
-                <div class="info-row">
-                    <span class="info-label">Address:</span> {{venue_address}}
-                </div>
+                <table class="summary-table" role="presentation" cellpadding="0" cellspacing="0" border="0">
+                    <tr>
+                        <td class="summary-label">Event Dates</td>
+                        <td class="summary-value">{{event_dates}}</td>
+                    </tr>
+                    <tr>
+                        <td class="summary-label">Venue</td>
+                        <td class="summary-value">{{venue}}</td>
+                    </tr>
+                    <tr>
+                        <td class="summary-label">Location</td>
+                        <td class="summary-value">{{event_location}}</td>
+                    </tr>
+                    <tr>
+                        <td class="summary-label">Address</td>
+                        <td class="summary-value">{{venue_address}}</td>
+                    </tr>
+                    <tr>
+                        <td class="summary-label">Payment Amount</td>
+                        <td class="summary-value">${{amount}}</td>
+                    </tr>
+                    <tr>
+                        <td class="summary-label">Transaction ID</td>
+                        <td class="summary-value">{{payment_id}}</td>
+                    </tr>
+                </table>
             </div>
             
             <p><strong>Next Steps:</strong></p>
             <ul>
                 <li>Please complete the RSVP form if you haven't already</li>
                 <li>Save this confirmation email for your records</li>
-                <li>Follow us on social media for updates</li>
+                <li>We will keep you updated with speakers and errands</li>
             </ul>
             
             <div style="text-align: center;">
