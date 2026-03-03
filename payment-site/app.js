@@ -34,6 +34,7 @@ const DEFAULT_AMOUNT = 245.00; // Default registration fee
 const ZELLE_CONTACT = 'wcdmrpayments@gmail.com'; // Zelle email for payments
 const ZELLE_RECIPIENT = 'WEST COAST DEAF MEN\'S RETREAT'; // Zelle recipient name
 const PAYPAL_REDIRECT_DELAY_MS = 1200;
+const DUPLICATE_REGISTRATION_MESSAGE = 'A registration with this same name and email already exists. Please contact the admin team if you need to make changes.';
 
 // Generate PayPal payment link with amount
 function generatePayPalLink(amount) {
@@ -136,6 +137,25 @@ function getAddressParts() {
     };
 }
 
+function showPaymentError(errorElementId, message) {
+    const errorDiv = document.getElementById(errorElementId);
+    if (!errorDiv) return;
+    errorDiv.textContent = message;
+    errorDiv.style.display = 'block';
+}
+
+function hasDuplicateCompletedRegistration(formData) {
+    try {
+        if (typeof hasCompletedRegistration === 'function') {
+            return hasCompletedRegistration(formData);
+        }
+    } catch (error) {
+        console.error('Unable to validate duplicate registration:', error);
+    }
+
+    return false;
+}
+
 // Handle PayPal link click - Integrated registration and payment
 async function handlePayPalClick(event) {
     // Prevent default navigation
@@ -193,6 +213,12 @@ async function handlePayPalClick(event) {
         paymentMethod: 'paypal',
         timestamp: Date.now()
     };
+
+    if (hasDuplicateCompletedRegistration(formData)) {
+        showPaymentError('payment-errors', DUPLICATE_REGISTRATION_MESSAGE);
+        announceToScreenReader('This name and email are already registered.');
+        return false;
+    }
     
     const registrationSaved = persistPendingRegistration(formData);
     if (!registrationSaved) {
@@ -384,6 +410,12 @@ async function handleZellePayment() {
         paymentMethod: 'zelle',
         timestamp: Date.now()
     };
+
+    if (hasDuplicateCompletedRegistration(formData)) {
+        showPaymentError('zelle-payment-errors', DUPLICATE_REGISTRATION_MESSAGE);
+        announceToScreenReader('This name and email are already registered.');
+        return false;
+    }
     
     // Generate payment ID for Zelle
     const paymentId = `ZELLE-${formData.timestamp}`;
@@ -460,6 +492,12 @@ async function handleMoneyOrderPayment() {
         paymentMethod: 'money_order',
         timestamp: Date.now()
     };
+
+    if (hasDuplicateCompletedRegistration(formData)) {
+        showPaymentError('money-order-payment-errors', DUPLICATE_REGISTRATION_MESSAGE);
+        announceToScreenReader('This name and email are already registered.');
+        return false;
+    }
 
     const paymentId = `MONEY-ORDER-${formData.timestamp}`;
 

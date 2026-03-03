@@ -3,6 +3,52 @@
 
 const GOOGLE_FORM_URL = 'https://docs.google.com/forms/d/e/YOUR_FORM_ID/formResponse'; // Not used - standalone system
 const USE_GOOGLE_FORM = false; // Standalone system - no Google Forms needed
+const REGISTRATIONS_STORAGE_KEY = 'wcdmr_registrations';
+
+function normalizeIdentityValue(value) {
+    return String(value || '').trim().toLowerCase().replace(/\s+/g, ' ');
+}
+
+function buildRegistrantIdentity(record) {
+    const fallbackName = `${record.firstName || ''} ${record.lastName || ''}`.trim();
+    const fullName = record.fullName || fallbackName;
+
+    return {
+        name: normalizeIdentityValue(fullName),
+        email: normalizeIdentityValue(record.email)
+    };
+}
+
+function isSameRegistrant(existingRecord, incomingRecord) {
+    const existing = buildRegistrantIdentity(existingRecord);
+    const incoming = buildRegistrantIdentity(incomingRecord);
+
+    if (!incoming.name || !incoming.email) return false;
+    return existing.name === incoming.name && existing.email === incoming.email;
+}
+
+function findRegistrationIndex(registrations, record, status = null) {
+    return registrations.findIndex((existingRecord) => {
+        if (status && existingRecord.status !== status) return false;
+        return isSameRegistrant(existingRecord, record);
+    });
+}
+
+function getStoredRegistrations() {
+    try {
+        const stored = localStorage.getItem(REGISTRATIONS_STORAGE_KEY);
+        const parsed = stored ? JSON.parse(stored) : [];
+        return Array.isArray(parsed) ? parsed : [];
+    } catch (error) {
+        console.error('Unable to parse stored registrations:', error);
+        return [];
+    }
+}
+
+function hasCompletedRegistration(formData) {
+    const existingRegistrations = getStoredRegistrations();
+    return findRegistrationIndex(existingRegistrations, formData, 'completed') !== -1;
+}
 
 /**
  * Submit registration to Google Forms (optional)
@@ -74,24 +120,30 @@ function storeRegistrationData(formData, paymentId) {
         status: isPendingPayment ? 'pending' : 'completed'
     };
 
-    // Get existing registrations
-    const existingRegistrations = JSON.parse(localStorage.getItem('wcdmr_registrations') || '[]');
+    const existingRegistrations = getStoredRegistrations();
+    const pendingMatchIndex = findRegistrationIndex(existingRegistrations, registration, 'pending');
+    const completedMatchIndex = findRegistrationIndex(existingRegistrations, registration, 'completed');
 
-    // If updating a pending registration, find and update it
+    // Keep one record per normalized full name + email.
     if (!isPendingPayment) {
-        const pendingIndex = existingRegistrations.findIndex((r) => r.email === formData.email && r.status === 'pending');
-        if (pendingIndex !== -1) {
-            existingRegistrations[pendingIndex] = registration;
+        if (pendingMatchIndex !== -1) {
+            existingRegistrations[pendingMatchIndex] = registration;
+        } else if (completedMatchIndex !== -1) {
+            existingRegistrations[completedMatchIndex] = registration;
         } else {
             existingRegistrations.push(registration);
         }
+    } else if (completedMatchIndex !== -1) {
+        console.log('Completed registration already exists for this name and email; pending duplicate skipped.');
+    } else if (pendingMatchIndex !== -1) {
+        existingRegistrations[pendingMatchIndex] = registration;
     } else {
         existingRegistrations.push(registration);
     }
 
     // Store (limit to last 100 registrations)
     const limitedRegistrations = existingRegistrations.slice(-100);
-    localStorage.setItem('wcdmr_registrations', JSON.stringify(limitedRegistrations));
+    localStorage.setItem(REGISTRATIONS_STORAGE_KEY, JSON.stringify(limitedRegistrations));
 
     console.log('Registration data stored locally', registration);
 }
@@ -116,4 +168,5 @@ if (typeof window !== 'undefined') {
     window.completeRegistration = completeRegistration;
     window.storeRegistrationData = storeRegistrationData;
     window.submitToGoogleForm = submitToGoogleForm;
+    window.hasCompletedRegistration = hasCompletedRegistration;
 }
