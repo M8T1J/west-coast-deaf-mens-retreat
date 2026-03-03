@@ -130,7 +130,6 @@ git push -u origin main
 ### Registration Email + Admin Access
 
 - **Admin page:** `admin.html` (redirects to `payment-site/admin.html`)
-- **Email preview:** `email-preview.html` (redirects to `payment-site/email-preview.html`)
 - **Email service setup:** see `payment-site/EMAIL_SETUP.md`
 - **Google / iCloud custom email:** supported through SMTP configuration (App Password required)
 - **Important:** SMTP needs a backend endpoint (Vercel/Netlify). GitHub Pages alone cannot send SMTP directly.
