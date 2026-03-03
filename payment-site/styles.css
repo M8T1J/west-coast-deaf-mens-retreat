@@ -1889,6 +1889,7 @@ legend {
     object-fit: cover;
     object-position: center 18%;
     display: block;
+    image-rendering: auto;
 }
 
 .avatar-placeholder {
@@ -2327,7 +2328,7 @@ html {
     }
 
     .speaker-avatar {
-        width: min(92vw, 520px);
+        width: min(86vw, 340px);
     }
 
     /* Committee gallery mobile */
@@ -2638,6 +2639,14 @@ html {
 
     .schedule-day {
         padding: 1.25rem;
+    }
+
+    .speaker-card {
+        padding: 1.25rem;
+    }
+
+    .speaker-avatar {
+        width: min(84vw, 300px);
     }
 }
 
