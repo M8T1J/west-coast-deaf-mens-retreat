@@ -1846,7 +1846,7 @@ legend {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
     gap: 2rem;
-    max-width: 800px;
+    max-width: 980px;
     margin: 0 auto;
 }
 
@@ -1855,8 +1855,8 @@ legend {
     padding: 2.25rem;
     border-radius: 4px;
     text-align: center;
-    max-width: 560px;
-    width: min(100%, 560px);
+    max-width: 780px;
+    width: min(100%, 780px);
     margin: 0 auto;
     box-shadow: var(--shadow-md);
     transition: transform 0.3s, box-shadow 0.3s;
@@ -1869,7 +1869,7 @@ legend {
 }
 
 .speaker-avatar {
-    width: min(100%, 420px);
+    width: min(100%, 720px);
     aspect-ratio: 3 / 4;
     height: auto;
     margin: 0 auto 1.75rem;
@@ -2327,7 +2327,7 @@ html {
     }
 
     .speaker-avatar {
-        width: min(90vw, 360px);
+        width: min(92vw, 520px);
     }
 
     /* Committee gallery mobile */
