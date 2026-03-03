@@ -1,24 +1,27 @@
 // Serverless Function for Sending Emails
-// This can be used with Vercel, Netlify Functions, or AWS Lambda
-// 
-// For Vercel: Place this in /api/send-email.js
-// For Netlify: Place this in /netlify/functions/send-email.js
-// For AWS Lambda: Deploy as a Lambda function
-
-// Example using SendGrid (recommended for production)
-// Install: npm install @sendgrid/mail
+// Vercel endpoint: /api/send-email
+// Supports SMTP (preferred, including iCloud) and SendGrid fallback.
 
 const SENDGRID_API_KEY = process.env.SENDGRID_API_KEY;
-const FROM_EMAIL = process.env.FROM_EMAIL || 'noreply@wcdmr.com';
+const SMTP_HOST = process.env.SMTP_HOST || 'smtp.gmail.com';
+const SMTP_PORT = Number(process.env.SMTP_PORT || 587);
+const SMTP_SECURE = process.env.SMTP_SECURE === 'true';
+const SMTP_USER = process.env.SMTP_USER || '';
+const SMTP_PASS = process.env.SMTP_PASS || '';
+const FROM_EMAIL = process.env.FROM_EMAIL || SMTP_USER || 'wcdeafmr@gmail.com';
 const FROM_NAME = process.env.FROM_NAME || 'WCDMR 2026';
 
-// Alternative: Using Nodemailer with SMTP
-// const nodemailer = require('nodemailer');
+const CORS_HEADERS = {
+    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Methods': 'POST, OPTIONS',
+    'Access-Control-Allow-Headers': 'Content-Type'
+};
 
 /**
  * Generate HTML email template
  */
 function generateEmailHTML(data) {
+    const resolvedLogoUrl = data.logoUrl || 'https://www.wcdmr.com/images/logo-enhanced.JPG';
     return `
         <!DOCTYPE html>
         <html>
@@ -28,51 +31,71 @@ function generateEmailHTML(data) {
             <style>
                 body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; margin: 0; padding: 0; }
                 .container { max-width: 600px; margin: 0 auto; padding: 20px; }
-                .header { background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%); color: white; padding: 30px; text-align: center; border-radius: 10px 10px 0 0; }
+                .header { background: linear-gradient(135deg, #f8fbff 0%, #e9f1ff 58%, #dbe9ff 100%); color: #12315a; padding: 28px 20px 32px; text-align: center; border-radius: 10px 10px 0 0; border-bottom: 2px solid #b8cdf1; }
+                .email-logo { max-width: 280px; width: auto; height: auto; max-height: none; margin: 0 auto 16px; display: block; border-radius: 4px; background: #ffffff; padding: 6px 10px; box-shadow: 0 1px 4px rgba(15, 31, 53, 0.14); }
                 .content { background: #f9fafb; padding: 30px; border-radius: 0 0 10px 10px; }
-                .success-icon { font-size: 48px; margin-bottom: 20px; }
+                .success-icon { color: #2f855a; font-size: 46px; margin-bottom: 12px; }
                 .info-box { background: white; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #6366f1; }
-                .info-row { margin: 10px 0; }
-                .info-label { font-weight: bold; color: #6366f1; }
+                .summary-table { width: 100%; border-collapse: collapse; table-layout: fixed; }
+                .summary-table tr { border-bottom: 1px solid #e5e7eb; }
+                .summary-table tr:last-child { border-bottom: none; }
+                .summary-label { width: 145px; padding: 10px 0; font-weight: bold; color: #6366f1; text-transform: uppercase; font-size: 0.78rem; letter-spacing: 0.04em; vertical-align: top; }
+                .summary-value { padding: 10px 0; font-weight: 600; color: #111827; word-break: break-word; vertical-align: top; }
                 .button { display: inline-block; background: #6366f1; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; margin: 20px 0; }
                 .footer { text-align: center; margin-top: 30px; padding-top: 20px; border-top: 1px solid #e5e7eb; color: #6b7280; font-size: 14px; }
+                @media (max-width: 520px) {
+                    .summary-label, .summary-value { display: block; width: 100%; padding: 6px 0; }
+                }
             </style>
         </head>
         <body>
             <div class="container">
                 <div class="header">
+                    <img src="${resolvedLogoUrl}" alt="West Coast Deaf Men's Retreat Logo" class="email-logo" style="max-width: 280px; width: auto; height: auto; max-height: none; margin: 0 auto 16px; display: block; border-radius: 4px; background: #ffffff; padding: 6px 10px; box-shadow: 0 1px 4px rgba(15, 31, 53, 0.14);">
                     <div class="success-icon">✓</div>
-                    <h1>Registration Confirmed!</h1>
+                    <h1>Welcome to West Coast Deaf Men's Retreat</h1>
                     <p>West Coast Deaf Men's Retreat 2026</p>
                 </div>
                 <div class="content">
                     <p>Dear ${data.fullName},</p>
                     
-                    <p>Thank you for registering for the West Coast Deaf Men's Retreat 2026! We're excited to have you join us for this three-day summit of Prayer, worship, and Fellowship.</p>
+                    <p>Thank you for registering for the West Coast Deaf Men's Retreat 2026! We are excited to have you with us.</p>
+                    <p>Friendly reminder: please make sure your registration payment is completed before <strong>October 23, 2026</strong>.</p>
                     
                     <div class="info-box">
-                        <div class="info-row">
-                            <span class="info-label">Payment Amount:</span> $${data.amount}
-                        </div>
-                        <div class="info-row">
-                            <span class="info-label">Transaction ID:</span> ${data.paymentId}
-                        </div>
-                        <div class="info-row">
-                            <span class="info-label">Event Dates:</span> ${data.eventDates}
-                        </div>
-                        <div class="info-row">
-                            <span class="info-label">Venue:</span> ${data.venue}
-                        </div>
-                        <div class="info-row">
-                            <span class="info-label">Address:</span> ${data.venueAddress}
-                        </div>
+                        <table class="summary-table" role="presentation" cellpadding="0" cellspacing="0" border="0">
+                            <tr>
+                                <td class="summary-label">Event Dates</td>
+                                <td class="summary-value">${data.eventDates}</td>
+                            </tr>
+                            <tr>
+                                <td class="summary-label">Venue</td>
+                                <td class="summary-value">${data.venue}</td>
+                            </tr>
+                            <tr>
+                                <td class="summary-label">Location</td>
+                                <td class="summary-value">${data.eventLocation || 'Twin Peaks, CA'}</td>
+                            </tr>
+                            <tr>
+                                <td class="summary-label">Address</td>
+                                <td class="summary-value">${data.venueAddress}</td>
+                            </tr>
+                            <tr>
+                                <td class="summary-label">Payment Amount</td>
+                                <td class="summary-value">$${data.amount}</td>
+                            </tr>
+                            <tr>
+                                <td class="summary-label">Transaction ID</td>
+                                <td class="summary-value">${data.paymentId}</td>
+                            </tr>
+                        </table>
                     </div>
                     
                     <p><strong>Next Steps:</strong></p>
                     <ul>
                         <li>Please complete the RSVP form if you haven't already</li>
                         <li>Save this confirmation email for your records</li>
-                        <li>Follow us on social media for updates</li>
+                        <li>We will keep you updated with speakers and errands</li>
                     </ul>
                     
                     <div style="text-align: center;">
@@ -80,6 +103,7 @@ function generateEmailHTML(data) {
                     </div>
                     
                     <p>If you have any questions, please contact us through the RSVP form or our social media channels.</p>
+                    <p>We will keep you updated with speaker announcements and errands as the retreat date gets closer.</p>
                     
                     <p>We look forward to seeing you at Pine Crest Camp!</p>
                     
@@ -97,65 +121,100 @@ function generateEmailHTML(data) {
     `;
 }
 
-// Vercel/Netlify Serverless Function Handler
+function withCors(res) {
+    Object.entries(CORS_HEADERS).forEach(([key, value]) => res.setHeader(key, value));
+}
+
+function parseRequestBody(req) {
+    if (!req || typeof req.body === 'undefined') return {};
+    if (typeof req.body === 'string') {
+        try {
+            return JSON.parse(req.body);
+        } catch (error) {
+            return {};
+        }
+    }
+    return req.body;
+}
+
+function buildTextBody(toName, data) {
+    return `Dear ${toName},\n\nThank you for registering for WCDMR 2026!\nFriendly reminder: please make sure your registration payment is completed before October 23, 2026.\n\nEvent Dates: ${data.eventDates}\nVenue: ${data.venue}\nLocation: ${data.eventLocation || 'Twin Peaks, CA'}\nAddress: ${data.venueAddress}\nPayment Amount: $${data.amount}\nTransaction ID: ${data.paymentId}\n\nWe will keep you updated with speaker announcements and errands.\n\nWCDMR 2026 Team`;
+}
+
+function smtpIsConfigured() {
+    return Boolean(SMTP_USER && SMTP_PASS);
+}
+
+async function sendWithSmtp(to, toName, data) {
+    const nodemailer = require('nodemailer');
+    const subject = `Welcome to West Coast Deaf Men's Retreat, ${toName || 'Registrant'}`;
+    const transporter = nodemailer.createTransport({
+        host: SMTP_HOST,
+        port: SMTP_PORT,
+        secure: SMTP_SECURE,
+        auth: {
+            user: SMTP_USER,
+            pass: SMTP_PASS
+        }
+    });
+
+    await transporter.sendMail({
+        from: `"${FROM_NAME}" <${FROM_EMAIL}>`,
+        to,
+        subject,
+        html: generateEmailHTML(data),
+        text: buildTextBody(toName, data)
+    });
+}
+
+async function sendWithSendGrid(to, toName, data) {
+    const sgMail = require('@sendgrid/mail');
+    const subject = `Welcome to West Coast Deaf Men's Retreat, ${toName || 'Registrant'}`;
+    sgMail.setApiKey(SENDGRID_API_KEY);
+
+    await sgMail.send({
+        to,
+        from: {
+            email: FROM_EMAIL,
+            name: FROM_NAME
+        },
+        subject,
+        html: generateEmailHTML(data),
+        text: buildTextBody(toName, data)
+    });
+}
+
 export default async function handler(req, res) {
-    // Only allow POST requests
+    withCors(res);
+
+    if (req.method === 'OPTIONS') {
+        return res.status(200).send('');
+    }
+
     if (req.method !== 'POST') {
         return res.status(405).json({ error: 'Method not allowed' });
     }
 
     try {
-        const { to, toName, data } = req.body;
-
+        const { to, toName, data } = parseRequestBody(req);
         if (!to || !toName || !data) {
             return res.status(400).json({ error: 'Missing required fields' });
         }
 
-        // Option 1: Using SendGrid
-        if (SENDGRID_API_KEY) {
-            const sgMail = require('@sendgrid/mail');
-            sgMail.setApiKey(SENDGRID_API_KEY);
-
-            const msg = {
-                to: to,
-                from: {
-                    email: FROM_EMAIL,
-                    name: FROM_NAME
-                },
-                subject: 'WCDMR 2026 - Registration Confirmed!',
-                html: generateEmailHTML(data),
-                text: `Dear ${toName},\n\nThank you for registering for WCDMR 2026!\n\nPayment Amount: $${data.amount}\nTransaction ID: ${data.paymentId}\nEvent Dates: ${data.eventDates}\nVenue: ${data.venue}\n\nWe look forward to seeing you!\n\nWCDMR 2026 Team`
-            };
-
-            await sgMail.send(msg);
-            return res.status(200).json({ success: true, message: 'Email sent successfully' });
+        if (smtpIsConfigured()) {
+            await sendWithSmtp(to, toName, data);
+            return res.status(200).json({ success: true, provider: 'smtp' });
         }
 
-        // Option 2: Using Nodemailer with SMTP
-        // Uncomment and configure if using Nodemailer instead
-        /*
-        const transporter = nodemailer.createTransport({
-            host: process.env.SMTP_HOST,
-            port: process.env.SMTP_PORT || 587,
-            secure: process.env.SMTP_SECURE === 'true',
-            auth: {
-                user: process.env.SMTP_USER,
-                pass: process.env.SMTP_PASS
-            }
+        if (SENDGRID_API_KEY) {
+            await sendWithSendGrid(to, toName, data);
+            return res.status(200).json({ success: true, provider: 'sendgrid' });
+        }
+
+        return res.status(500).json({
+            error: 'Email service not configured',
+            details: 'Set SMTP_USER + SMTP_PASS (preferred) or SENDGRID_API_KEY.'
         });
-
-        await transporter.sendMail({
-            from: `"${FROM_NAME}" <${FROM_EMAIL}>`,
-            to: to,
-            subject: 'WCDMR 2026 - Registration Confirmed!',
-            html: generateEmailHTML(data),
-            text: `Dear ${toName},\n\nThank you for registering...`
-        });
-
-        return res.status(200).json({ success: true, message: 'Email sent successfully' });
-        */
-
-        return res.status(500).json({ error: 'Email service not configured' });
     } catch (error) {
         console.error('Error sending email:', error);
         return res.status(500).json({ error: 'Failed to send email', details: error.message });

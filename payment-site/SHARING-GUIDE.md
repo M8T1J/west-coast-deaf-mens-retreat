@@ -124,7 +124,8 @@ When sharing, ask your team to test:
 
 ⚠️ **Email Testing:**
 - EmailJS is configured but needs to be tested
-- Check email-preview.html to see the email design
+- Email HTML is generated in `email-service.js` (see `generateEmailHTML()`)
+- You can also open `email-template-for-emailjs.html` to review the template layout
 - Test with a real email address to verify delivery
 
 ---
