@@ -238,6 +238,14 @@
     <script>
         let allRegistrations = [];
 
+        // Registration amounts are stored in dollars; normalize legacy/invalid values safely
+        function getRegistrationAmount(registration) {
+            const amount = typeof registration.amount === 'number'
+                ? registration.amount
+                : parseFloat(registration.amount);
+            return Number.isFinite(amount) ? amount : 0;
+        }
+
         // Load registrations from localStorage
         function loadRegistrations() {
             const stored = localStorage.getItem('wcdmr_registrations');
@@ -272,7 +280,7 @@
                     hour: '2-digit',
                     minute: '2-digit'
                 });
-                const amount = typeof reg.amount === 'number' ? (reg.amount / 100).toFixed(2) : parseFloat(reg.amount).toFixed(2);
+                const amount = getRegistrationAmount(reg).toFixed(2);
                 const statusClass = reg.status === 'completed' ? 'status-completed' : 'status-pending';
                 const statusText = reg.status === 'completed' ? 'Completed' : 'Pending';
 
@@ -319,7 +327,7 @@ Accommodation:
 - Youth Info: ${reg.youthInfo || 'N/A'}
 
 Payment:
-- Amount: $${typeof reg.amount === 'number' ? (reg.amount / 100).toFixed(2) : parseFloat(reg.amount).toFixed(2)}
+- Amount: $${getRegistrationAmount(reg).toFixed(2)}
 - Payment ID: ${reg.paymentId || '-'}
             `;
 
@@ -334,7 +342,7 @@ Payment:
             const revenue = allRegistrations
                 .filter(r => r.status === 'completed')
                 .reduce((sum, r) => {
-                    const amount = typeof r.amount === 'number' ? r.amount / 100 : parseFloat(r.amount);
+                    const amount = getRegistrationAmount(r);
                     return sum + amount;
                 }, 0);
 
@@ -372,7 +380,7 @@ Payment:
             const headers = ['Date', 'First Name', 'Last Name', 'Email', 'Phone', 'Videophone', 'Address', 'Church', 'Emergency Name', 'Emergency Phone', 'Bunk Selection', 'Youth Info', 'Amount', 'Payment ID', 'Status'];
             const rows = allRegistrations.map(reg => {
                 const date = new Date(reg.timestamp).toLocaleString();
-                const amount = typeof reg.amount === 'number' ? (reg.amount / 100).toFixed(2) : parseFloat(reg.amount).toFixed(2);
+                const amount = getRegistrationAmount(reg).toFixed(2);
                 return [
                     date,
                     reg.firstName || '',
