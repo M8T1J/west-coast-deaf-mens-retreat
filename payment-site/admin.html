@@ -255,6 +255,63 @@
         .file-import input[type="file"] {
             display: none;
         }
+        .btn-small {
+            padding: 0.45rem 0.75rem;
+            font-size: 0.875rem;
+        }
+        .modal-backdrop {
+            position: fixed;
+            inset: 0;
+            background: rgba(17, 24, 39, 0.55);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 1rem;
+            z-index: 1200;
+        }
+        .modal-card {
+            background: white;
+            width: min(880px, 96vw);
+            max-height: 92vh;
+            overflow: auto;
+            border-radius: 0.75rem;
+            box-shadow: var(--shadow-lg);
+            padding: 1.25rem;
+        }
+        .modal-card h2 {
+            margin-top: 0;
+        }
+        .edit-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 0.85rem;
+        }
+        .edit-grid .full-width {
+            grid-column: 1 / -1;
+        }
+        .edit-grid label {
+            font-weight: 600;
+            color: var(--text-dark);
+            display: block;
+            margin-bottom: 0.35rem;
+        }
+        .edit-grid input,
+        .edit-grid select,
+        .edit-grid textarea {
+            width: 100%;
+            padding: 0.65rem 0.75rem;
+            border: 2px solid var(--border-color);
+            border-radius: 0.5rem;
+            font-size: 0.95rem;
+            font-family: inherit;
+        }
+        .edit-grid textarea {
+            min-height: 86px;
+            resize: vertical;
+        }
+        body.modal-open {
+            overflow: hidden;
+        }
     </style>
 </head>
 <body>
@@ -397,11 +454,12 @@
                                 <th>Amount</th>
                                 <th>Payment ID</th>
                                 <th>Status</th>
+                                <th>Actions</th>
                             </tr>
                         </thead>
                         <tbody id="registrations-tbody">
                             <tr>
-                                <td colspan="8" class="empty-state">
+                                <td colspan="9" class="empty-state">
                                     <div class="empty-state-icon">📋</div>
                                     <p>No registrations found.</p>
                                 </td>
@@ -409,6 +467,81 @@
                         </tbody>
                     </table>
                 </div>
+            </div>
+        </div>
+
+        <div id="edit-modal-backdrop" class="modal-backdrop hidden" role="presentation">
+            <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="edit-modal-title">
+                <h2 id="edit-modal-title">Edit Registration</h2>
+                <p class="small-note">Correct any errors, then save changes.</p>
+                <form id="edit-form" novalidate>
+                    <div class="edit-grid">
+                        <div>
+                            <label for="edit-first-name">First Name</label>
+                            <input id="edit-first-name" type="text" autocomplete="off">
+                        </div>
+                        <div>
+                            <label for="edit-last-name">Last Name</label>
+                            <input id="edit-last-name" type="text" autocomplete="off">
+                        </div>
+                        <div>
+                            <label for="edit-email">Email</label>
+                            <input id="edit-email" type="email" autocomplete="off" required>
+                        </div>
+                        <div>
+                            <label for="edit-phone">Phone</label>
+                            <input id="edit-phone" type="text" autocomplete="off">
+                        </div>
+                        <div>
+                            <label for="edit-videophone">Videophone</label>
+                            <input id="edit-videophone" type="text" autocomplete="off">
+                        </div>
+                        <div>
+                            <label for="edit-church-name">Church</label>
+                            <input id="edit-church-name" type="text" autocomplete="off">
+                        </div>
+                        <div>
+                            <label for="edit-emergency-name">Emergency Name</label>
+                            <input id="edit-emergency-name" type="text" autocomplete="off">
+                        </div>
+                        <div>
+                            <label for="edit-emergency-phone">Emergency Phone</label>
+                            <input id="edit-emergency-phone" type="text" autocomplete="off">
+                        </div>
+                        <div>
+                            <label for="edit-amount">Amount (USD)</label>
+                            <input id="edit-amount" type="number" min="0" step="0.01" required>
+                        </div>
+                        <div>
+                            <label for="edit-payment-id">Payment ID</label>
+                            <input id="edit-payment-id" type="text" autocomplete="off">
+                        </div>
+                        <div>
+                            <label for="edit-status">Status</label>
+                            <select id="edit-status">
+                                <option value="completed">Completed</option>
+                                <option value="pending">Pending</option>
+                            </select>
+                        </div>
+                        <div class="full-width">
+                            <label for="edit-bunk-selection">Bunk Selection</label>
+                            <input id="edit-bunk-selection" type="text" autocomplete="off">
+                        </div>
+                        <div class="full-width">
+                            <label for="edit-full-address">Address</label>
+                            <textarea id="edit-full-address" autocomplete="off"></textarea>
+                        </div>
+                        <div class="full-width">
+                            <label for="edit-youth-info">Youth Info</label>
+                            <textarea id="edit-youth-info" autocomplete="off"></textarea>
+                        </div>
+                    </div>
+                    <div class="auth-error" id="edit-error" role="alert"></div>
+                    <div class="auth-actions">
+                        <button type="button" class="btn btn-outline" id="edit-cancel-btn">Cancel</button>
+                        <button type="submit" class="btn btn-primary">Save Changes</button>
+                    </div>
+                </form>
             </div>
         </div>
     </div>
@@ -419,6 +552,7 @@
         const REGISTRATIONS_KEY = 'wcdmr_registrations';
 
         let allRegistrations = [];
+        let editingRegistrationTimestamp = null;
 
         function $(id) { return document.getElementById(id); }
 
@@ -540,7 +674,7 @@
             if (!registrations || registrations.length === 0) {
                 tbody.innerHTML = `
                     <tr>
-                        <td colspan="8" class="empty-state">
+                        <td colspan="9" class="empty-state">
                             <div class="empty-state-icon">📋</div>
                             <p>No registrations found.</p>
                         </td>
@@ -572,6 +706,13 @@
                         <td>$${amount}</td>
                         <td><code style="font-size: 0.75rem;">${reg.paymentId || '-'}</code></td>
                         <td><span class="status-badge ${statusClass}">${statusText}</span></td>
+                        <td>
+                            <button
+                                type="button"
+                                class="btn btn-outline btn-small edit-row-btn"
+                                data-edit-ts="${String(reg.timestamp).replace(/"/g, '&quot;')}"
+                            >Edit</button>
+                        </td>
                     </tr>
                 `;
             }).join('');
@@ -609,6 +750,108 @@ Payment:
             `;
 
             alert(details);
+        }
+
+        function findRegistrationIndexByTimestamp(timestamp) {
+            return allRegistrations.findIndex(r => String(r.timestamp) === String(timestamp));
+        }
+
+        function openEditModal(timestamp) {
+            const index = findRegistrationIndexByTimestamp(timestamp);
+            if (index === -1) {
+                alert('Registration record not found.');
+                return;
+            }
+
+            const reg = allRegistrations[index];
+            editingRegistrationTimestamp = String(reg.timestamp);
+
+            $('edit-first-name').value = reg.firstName || '';
+            $('edit-last-name').value = reg.lastName || '';
+            $('edit-email').value = reg.email || '';
+            $('edit-phone').value = reg.phone || '';
+            $('edit-videophone').value = reg.videophone || '';
+            $('edit-church-name').value = reg.churchName || '';
+            $('edit-emergency-name').value = reg.emergencyName || '';
+            $('edit-emergency-phone').value = reg.emergencyPhone || '';
+            $('edit-bunk-selection').value = reg.bunkSelection || '';
+            $('edit-full-address').value = reg.fullAddress || '';
+            $('edit-youth-info').value = reg.youthInfo || '';
+            $('edit-amount').value = getRegistrationAmount(reg).toFixed(2);
+            $('edit-payment-id').value = reg.paymentId || '';
+            $('edit-status').value = reg.status === 'pending' ? 'pending' : 'completed';
+
+            setError($('edit-error'), '');
+            show($('edit-modal-backdrop'));
+            document.body.classList.add('modal-open');
+            $('edit-first-name').focus();
+        }
+
+        function closeEditModal() {
+            editingRegistrationTimestamp = null;
+            setError($('edit-error'), '');
+            $('edit-form').reset();
+            hide($('edit-modal-backdrop'));
+            document.body.classList.remove('modal-open');
+        }
+
+        function saveEditedRegistration(e) {
+            e.preventDefault();
+            setError($('edit-error'), '');
+
+            if (!editingRegistrationTimestamp) {
+                setError($('edit-error'), 'No registration selected for editing.');
+                return;
+            }
+
+            const index = findRegistrationIndexByTimestamp(editingRegistrationTimestamp);
+            if (index === -1) {
+                setError($('edit-error'), 'Registration record was not found.');
+                return;
+            }
+
+            const amount = parseFloat($('edit-amount').value);
+            if (!Number.isFinite(amount) || amount < 0) {
+                setError($('edit-error'), 'Please enter a valid amount (0 or higher).');
+                return;
+            }
+
+            const email = $('edit-email').value.trim();
+            if (!email) {
+                setError($('edit-error'), 'Email is required.');
+                return;
+            }
+
+            const firstName = $('edit-first-name').value.trim();
+            const lastName = $('edit-last-name').value.trim();
+            const fullName = `${firstName} ${lastName}`.trim();
+            const existing = allRegistrations[index];
+
+            const updated = {
+                ...existing,
+                firstName: firstName,
+                lastName: lastName,
+                fullName: fullName || existing.fullName || '',
+                email: email,
+                phone: $('edit-phone').value.trim(),
+                videophone: $('edit-videophone').value.trim(),
+                churchName: $('edit-church-name').value.trim(),
+                emergencyName: $('edit-emergency-name').value.trim(),
+                emergencyPhone: $('edit-emergency-phone').value.trim(),
+                bunkSelection: $('edit-bunk-selection').value.trim(),
+                fullAddress: $('edit-full-address').value.trim(),
+                youthInfo: $('edit-youth-info').value.trim(),
+                amount: Number(amount.toFixed(2)),
+                paymentId: $('edit-payment-id').value.trim(),
+                status: $('edit-status').value === 'pending' ? 'pending' : 'completed'
+            };
+
+            allRegistrations[index] = updated;
+            localStorage.setItem(REGISTRATIONS_KEY, JSON.stringify(allRegistrations));
+
+            closeEditModal();
+            loadRegistrations();
+            alert('Registration updated successfully.');
         }
 
         function updateStats() {
@@ -760,13 +1003,12 @@ Payment:
         document.addEventListener('DOMContentLoaded', () => {
             renderChallenges();
 
-            // If already logged in, skip login
-            if (isLoggedIn()) {
+            const alreadyLoggedIn = isLoggedIn();
+            if (alreadyLoggedIn) {
                 enterAdminApp();
-                return;
+            } else {
+                showSetupOrLogin();
             }
-
-            showSetupOrLogin();
 
             $('setup-challenge-refresh').addEventListener('click', () => {
                 setupChallenge = makeChallenge();
@@ -879,6 +1121,8 @@ Payment:
             $('export-json-btn').addEventListener('click', exportToJSON);
             $('clear-data-btn').addEventListener('click', clearAllRegistrationData);
             $('logout-btn').addEventListener('click', logout);
+            $('edit-cancel-btn').addEventListener('click', closeEditModal);
+            $('edit-form').addEventListener('submit', saveEditedRegistration);
 
             $('import-json-input').addEventListener('change', (e) => {
                 const file = e.target.files && e.target.files[0];
@@ -903,9 +1147,26 @@ Payment:
             });
 
             $('registrations-tbody').addEventListener('click', (e) => {
+                const editBtn = e.target.closest('[data-edit-ts]');
+                if (editBtn) {
+                    openEditModal(editBtn.getAttribute('data-edit-ts'));
+                    return;
+                }
                 const tr = e.target.closest('tr[data-ts]');
                 if (!tr) return;
                 showDetailsByTimestamp(tr.getAttribute('data-ts'));
+            });
+
+            $('edit-modal-backdrop').addEventListener('click', (e) => {
+                if (e.target === $('edit-modal-backdrop')) {
+                    closeEditModal();
+                }
+            });
+
+            document.addEventListener('keydown', (e) => {
+                if (e.key === 'Escape' && !$('edit-modal-backdrop').classList.contains('hidden')) {
+                    closeEditModal();
+                }
             });
 
             // Auto-refresh every 30 seconds while logged in
