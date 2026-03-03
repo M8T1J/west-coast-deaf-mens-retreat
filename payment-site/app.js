@@ -33,6 +33,7 @@ const PAYPAL_BASE_LINK = 'https://www.paypal.com/ncp/payment/LNMQ6S8HZWP5C';
 const DEFAULT_AMOUNT = 245.00; // Default registration fee
 const ZELLE_CONTACT = 'wcdmrpayments@gmail.com'; // Zelle email for payments
 const ZELLE_RECIPIENT = 'WEST COAST DEAF MEN\'S RETREAT'; // Zelle recipient name
+const PAYPAL_REDIRECT_DELAY_MS = 1200;
 
 // Generate PayPal payment link with amount
 function generatePayPalLink(amount) {
@@ -92,10 +93,55 @@ function updatePayPalButton() {
     `;
 }
 
+function persistPendingRegistration(formData) {
+    try {
+        // Persist "pending" registration first so the user is recorded before payment.
+        if (typeof storeRegistrationData === 'function') {
+            storeRegistrationData(formData, 'PENDING');
+        }
+    } catch (error) {
+        console.error('Unable to store pending registration:', error);
+    }
+
+    try {
+        sessionStorage.setItem('wcdmr_registration', JSON.stringify(formData));
+        return true;
+    } catch (error) {
+        console.error('Unable to save registration session data:', error);
+        return false;
+    }
+}
+
+function showPayPalRedirectState(message) {
+    const container = document.getElementById('paypal-link-container');
+    if (!container) return;
+
+    container.innerHTML = `
+        <div class="spinner" style="margin: 1rem auto;"></div>
+        <p style="text-align: center; color: var(--text-light);">${message}</p>
+    `;
+}
+
+function getAddressParts() {
+    const addressLine = (document.getElementById('address-line')?.value || '').trim();
+    const city = (document.getElementById('city')?.value || '').trim();
+    const zipCode = (document.getElementById('zip-code')?.value || '').trim();
+    const fullAddress = [addressLine, city, zipCode].filter(Boolean).join(', ');
+
+    return {
+        addressLine,
+        city,
+        zipCode,
+        fullAddress
+    };
+}
+
 // Handle PayPal link click - Integrated registration and payment
-function handlePayPalClick(event) {
+async function handlePayPalClick(event) {
     // Prevent default navigation
-    event.preventDefault();
+    if (event && typeof event.preventDefault === 'function') {
+        event.preventDefault();
+    }
     
     // Validate form first
     if (!validateForm()) {
@@ -125,6 +171,7 @@ function handlePayPalClick(event) {
         bunkSelections.push(cb.value);
     });
     
+    const addressParts = getAddressParts();
     const formData = {
         firstName: firstName,
         lastName: lastName,
@@ -132,7 +179,10 @@ function handlePayPalClick(event) {
         email: document.getElementById('email').value.trim(),
         phone: document.getElementById('phone').value.trim(),
         videophone: document.getElementById('videophone').value.trim(),
-        fullAddress: document.getElementById('full-address').value.trim(),
+        addressLine: addressParts.addressLine,
+        city: addressParts.city,
+        zipCode: addressParts.zipCode,
+        fullAddress: addressParts.fullAddress,
         churchName: document.getElementById('church-name').value.trim(),
         emergencyName: document.getElementById('emergency-name').value.trim(),
         emergencyPhone: document.getElementById('emergency-phone').value.trim(),
@@ -140,87 +190,151 @@ function handlePayPalClick(event) {
         youthInfo: document.getElementById('youth-info').value.trim(),
         paymentUnderstanding: document.getElementById('payment-understanding').checked,
         amount: amount,
+        paymentMethod: 'paypal',
         timestamp: Date.now()
     };
     
-    // Store registration data immediately (before payment)
-    if (typeof storeRegistrationData === 'function') {
-        storeRegistrationData(formData, 'PENDING');
+    const registrationSaved = persistPendingRegistration(formData);
+    if (!registrationSaved) {
+        const errorDiv = document.getElementById('payment-errors');
+        if (errorDiv) {
+            errorDiv.textContent = 'We could not save your registration. Please refresh the page and try again.';
+            errorDiv.style.display = 'block';
+        }
+        return false;
     }
-    
-    // Store in sessionStorage for PayPal return
-    sessionStorage.setItem('wcdmr_registration', JSON.stringify(formData));
-    
-    // Show loading state
-    const container = document.getElementById('paypal-link-container');
-    if (container) {
-        container.innerHTML = '<div class="spinner" style="margin: 1rem auto;"></div><p style="text-align: center; color: var(--text-light);">Redirecting to PayPal...</p>';
+
+    // Send registration email before redirecting to PayPal.
+    const pendingPaymentId = `PENDING-${formData.timestamp}`;
+    const emailFormData = {
+        ...formData,
+        amount: formData.amount * 100,
+        name: formData.fullName,
+        zip: formData.zipCode || ''
+    };
+
+    showPayPalRedirectState('Registration complete. Sending confirmation email...');
+    let prePaymentEmailSent = false;
+    try {
+        const emailResult = await Promise.race([
+            sendConfirmationEmailIfAvailable(emailFormData, pendingPaymentId),
+            new Promise((resolve) => setTimeout(() => resolve(null), 2500))
+        ]);
+        prePaymentEmailSent = emailResult === true;
+    } catch (error) {
+        console.error('Error while sending pre-payment confirmation email:', error);
     }
+
+    if (prePaymentEmailSent) {
+        sessionStorage.setItem('wcdmr_registration_email_sent', '1');
+        showPayPalRedirectState('Registration complete. Check your email for confirmation. Redirecting to PayPal payment...');
+    } else {
+        showPayPalRedirectState('Registration complete. Redirecting to PayPal payment...');
+    }
+    announceToScreenReader('Registration complete. Redirecting to PayPal payment now.');
     
     // Redirect to PayPal after a brief moment
     setTimeout(() => {
         window.location.href = PAYPAL_BASE_LINK;
-    }, 500);
+    }, PAYPAL_REDIRECT_DELAY_MS);
     
     return false;
 }
 
-// Check for PayPal return (if user comes back from PayPal)
-function checkPayPalReturn() {
-    const urlParams = new URLSearchParams(window.location.search);
-    const paymentStatus = urlParams.get('payment');
-    const registrationData = sessionStorage.getItem('wcdmr_registration');
-    
-    if (paymentStatus === 'success' && registrationData) {
-        try {
-            const formData = JSON.parse(registrationData);
-            
-            // Generate payment ID
-            const paymentId = `PAYPAL-${formData.timestamp}`;
-            
-            // Convert amount to cents for email service
-            const emailFormData = {
-                ...formData,
-                amount: formData.amount * 100,
-                name: formData.fullName,
-                zip: ''
-            };
-            
-            // Complete registration (update status from PENDING to COMPLETED)
-            if (typeof completeRegistration === 'function') {
-                completeRegistration(formData, paymentId);
-            } else {
-                // Fallback: store registration data
-                if (typeof storeRegistrationData === 'function') {
-                    storeRegistrationData(formData, paymentId);
-                }
-            }
-            
-            // Send confirmation email
-            sendConfirmationEmail(emailFormData, paymentId).then(emailSent => {
-                if (emailSent) {
-                    console.log('Confirmation email sent successfully');
-                }
-            }).catch(error => {
-                console.error('Error sending email:', error);
-            });
-            
-            // Show success message
-            showPaymentSuccess(emailFormData, paymentId);
-            
-            // Clear session storage
-            sessionStorage.removeItem('wcdmr_registration');
-            
-            // Clean URL
-            window.history.replaceState({}, document.title, window.location.pathname);
-        } catch (error) {
-            console.error('Error processing PayPal return:', error);
+function getPayPalReturnStatus(urlParams) {
+    const paymentStatus = (urlParams.get('payment') || '').toLowerCase();
+    const checkoutStatus = (urlParams.get('st') || '').toLowerCase();
+    const genericStatus = (urlParams.get('status') || '').toLowerCase();
+    const payerId = urlParams.get('PayerID') || urlParams.get('payerId') || urlParams.get('payerid');
+    const txId = urlParams.get('tx') || urlParams.get('paymentId') || urlParams.get('paymentID');
+    const token = urlParams.get('token');
+
+    const explicitSuccess =
+        ['success', 'completed', 'complete', 'approved'].includes(paymentStatus) ||
+        ['completed', 'success'].includes(checkoutStatus) ||
+        ['success', 'completed', 'approved'].includes(genericStatus);
+
+    // PayPal often returns token + payer id without a custom "payment=success" query param.
+    const callbackLooksSuccessful = Boolean(token && (payerId || txId));
+
+    return {
+        isSuccess: explicitSuccess || callbackLooksSuccessful,
+        payerId,
+        txId
+    };
+}
+
+async function sendConfirmationEmailIfAvailable(formData, paymentId) {
+    if (typeof sendConfirmationEmail !== 'function') {
+        console.warn('Email service script is not loaded. Confirmation email skipped.');
+        return null;
+    }
+
+    try {
+        const emailSent = await sendConfirmationEmail(formData, paymentId);
+        if (!emailSent) {
+            console.warn('Confirmation email could not be delivered.');
         }
+        return emailSent;
+    } catch (error) {
+        console.error('Error sending email:', error);
+        return false;
+    }
+}
+
+// Check for PayPal return (if user comes back from PayPal)
+async function checkPayPalReturn() {
+    const urlParams = new URLSearchParams(window.location.search);
+    const registrationData = sessionStorage.getItem('wcdmr_registration');
+
+    if (!registrationData) return;
+
+    const paypalReturn = getPayPalReturnStatus(urlParams);
+    if (!paypalReturn.isSuccess) return;
+
+    try {
+        const formData = JSON.parse(registrationData);
+
+        // Generate payment ID using PayPal data when available.
+        const paymentId = paypalReturn.txId || paypalReturn.payerId || `PAYPAL-${formData.timestamp}`;
+
+        // Convert amount to cents for email service
+        const emailFormData = {
+            ...formData,
+            amount: formData.amount * 100,
+            name: formData.fullName,
+            zip: formData.zipCode || formData.zip || ''
+        };
+
+        // Complete registration (update status from PENDING to COMPLETED)
+        if (typeof completeRegistration === 'function') {
+            await completeRegistration(formData, paymentId);
+        } else if (typeof storeRegistrationData === 'function') {
+            // Fallback: store registration data
+            storeRegistrationData(formData, paymentId);
+        }
+
+        const prePaymentEmailSent = sessionStorage.getItem('wcdmr_registration_email_sent') === '1';
+        const emailSent = prePaymentEmailSent
+            ? true
+            : await sendConfirmationEmailIfAvailable(emailFormData, paymentId);
+
+        // Show success message
+        showPaymentSuccess(emailFormData, paymentId, emailSent);
+
+        // Clear session storage
+        sessionStorage.removeItem('wcdmr_registration');
+        sessionStorage.removeItem('wcdmr_registration_email_sent');
+
+        // Clean URL
+        window.history.replaceState({}, document.title, window.location.pathname);
+    } catch (error) {
+        console.error('Error processing PayPal return:', error);
     }
 }
 
 // Zelle payment handler
-function handleZellePayment() {
+async function handleZellePayment() {
     // Validate form first
     if (!validateForm()) {
         const firstError = document.querySelector('[aria-invalid="true"]');
@@ -248,6 +362,7 @@ function handleZellePayment() {
         bunkSelections.push(cb.value);
     });
     
+    const addressParts = getAddressParts();
     const formData = {
         firstName: firstName,
         lastName: lastName,
@@ -255,7 +370,10 @@ function handleZellePayment() {
         email: document.getElementById('email').value.trim(),
         phone: document.getElementById('phone').value.trim(),
         videophone: document.getElementById('videophone').value.trim(),
-        fullAddress: document.getElementById('full-address').value.trim(),
+        addressLine: addressParts.addressLine,
+        city: addressParts.city,
+        zipCode: addressParts.zipCode,
+        fullAddress: addressParts.fullAddress,
         churchName: document.getElementById('church-name').value.trim(),
         emergencyName: document.getElementById('emergency-name').value.trim(),
         emergencyPhone: document.getElementById('emergency-phone').value.trim(),
@@ -270,38 +388,98 @@ function handleZellePayment() {
     // Generate payment ID for Zelle
     const paymentId = `ZELLE-${formData.timestamp}`;
     
-    // Store registration data
-    if (typeof storeRegistrationData === 'function') {
-        storeRegistrationData(formData, paymentId);
-    }
-    
     // Convert amount to cents for email service
     const emailFormData = {
         ...formData,
         amount: formData.amount * 100,
         name: formData.fullName,
-        zip: ''
+        zip: formData.zipCode || ''
     };
     
     // Complete registration
     if (typeof completeRegistration === 'function') {
-        completeRegistration(formData, paymentId);
+        await completeRegistration(formData, paymentId);
     }
-    
-    // Send confirmation email
-    if (typeof sendConfirmationEmail === 'function') {
-        sendConfirmationEmail(emailFormData, paymentId).then(emailSent => {
-            if (emailSent) {
-                console.log('Confirmation email sent successfully');
-            }
-        }).catch(error => {
-            console.error('Error sending email:', error);
-        });
-    }
-    
+
+    const emailSent = await sendConfirmationEmailIfAvailable(emailFormData, paymentId);
+
     // Show success message
-    showPaymentSuccess(emailFormData, paymentId);
+    showPaymentSuccess(emailFormData, paymentId, emailSent);
+
+    sessionStorage.removeItem('wcdmr_registration');
+    sessionStorage.removeItem('wcdmr_registration_email_sent');
     
+    return false;
+}
+
+// Money order payment handler
+async function handleMoneyOrderPayment() {
+    if (!validateForm()) {
+        const firstError = document.querySelector('[aria-invalid="true"]');
+        if (firstError) {
+            firstError.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            firstError.focus();
+        }
+
+        const errorDiv = document.getElementById('money-order-payment-errors');
+        if (errorDiv) {
+            errorDiv.textContent = 'Please fill in all required fields correctly before completing registration.';
+            errorDiv.style.display = 'block';
+        }
+        return false;
+    }
+
+    const amount = parseFloat(document.getElementById('amount').value) || DEFAULT_AMOUNT;
+    const firstName = document.getElementById('first-name').value.trim();
+    const lastName = document.getElementById('last-name').value.trim();
+    const addressParts = getAddressParts();
+
+    const bunkSelections = [];
+    document.querySelectorAll('input[name^="bunk-"]:checked').forEach(cb => {
+        bunkSelections.push(cb.value);
+    });
+
+    const formData = {
+        firstName: firstName,
+        lastName: lastName,
+        fullName: `${firstName} ${lastName}`,
+        email: document.getElementById('email').value.trim(),
+        phone: document.getElementById('phone').value.trim(),
+        videophone: document.getElementById('videophone').value.trim(),
+        addressLine: addressParts.addressLine,
+        city: addressParts.city,
+        zipCode: addressParts.zipCode,
+        fullAddress: addressParts.fullAddress,
+        churchName: document.getElementById('church-name').value.trim(),
+        emergencyName: document.getElementById('emergency-name').value.trim(),
+        emergencyPhone: document.getElementById('emergency-phone').value.trim(),
+        bunkSelection: bunkSelections.join(', '),
+        youthInfo: document.getElementById('youth-info').value.trim(),
+        paymentUnderstanding: document.getElementById('payment-understanding').checked,
+        amount: amount,
+        paymentMethod: 'money_order',
+        timestamp: Date.now()
+    };
+
+    const paymentId = `MONEY-ORDER-${formData.timestamp}`;
+
+    const emailFormData = {
+        ...formData,
+        amount: formData.amount * 100,
+        name: formData.fullName,
+        zip: formData.zipCode || ''
+    };
+
+    if (typeof completeRegistration === 'function') {
+        await completeRegistration(formData, paymentId);
+    }
+
+    const emailSent = await sendConfirmationEmailIfAvailable(emailFormData, paymentId);
+    showPaymentSuccess(emailFormData, paymentId, emailSent);
+
+    sessionStorage.removeItem('wcdmr_registration');
+    sessionStorage.removeItem('wcdmr_registration_email_sent');
+
     return false;
 }
 
@@ -361,19 +539,32 @@ function fallbackCopyTextToClipboard(text) {
 function handlePaymentMethodChange() {
     const paypalMethod = document.getElementById('payment-method-paypal');
     const zelleMethod = document.getElementById('payment-method-zelle');
+    const moneyOrderMethod = document.getElementById('payment-method-money-order');
     const paypalSection = document.getElementById('paypal-payment-section');
     const zelleSection = document.getElementById('zelle-payment-section');
+    const moneyOrderSection = document.getElementById('money-order-payment-section');
     
-    if (paypalMethod && zelleMethod && paypalSection && zelleSection) {
+    if (paypalMethod && zelleMethod && moneyOrderMethod && paypalSection && zelleSection && moneyOrderSection) {
         if (paypalMethod.checked) {
             paypalSection.classList.remove('hidden');
             zelleSection.classList.add('hidden');
+            moneyOrderSection.classList.add('hidden');
         } else if (zelleMethod.checked) {
             paypalSection.classList.add('hidden');
             zelleSection.classList.remove('hidden');
+            moneyOrderSection.classList.add('hidden');
             // Update Zelle amount display
             const amount = parseFloat(document.getElementById('amount').value) || DEFAULT_AMOUNT;
             document.getElementById('zelle-amount').textContent = amount.toFixed(2);
+        } else if (moneyOrderMethod.checked) {
+            paypalSection.classList.add('hidden');
+            zelleSection.classList.add('hidden');
+            moneyOrderSection.classList.remove('hidden');
+            const amount = parseFloat(document.getElementById('amount').value) || DEFAULT_AMOUNT;
+            const moneyOrderAmountEl = document.getElementById('money-order-amount');
+            if (moneyOrderAmountEl) {
+                moneyOrderAmountEl.textContent = amount.toFixed(2);
+            }
         }
     }
 }
@@ -405,19 +596,32 @@ document.addEventListener('DOMContentLoaded', function() {
     if (amountInput) {
         amountInput.addEventListener('input', () => {
             updatePayPalButton();
-            // Update Zelle amount if Zelle is selected
+            const amount = parseFloat(amountInput.value) || DEFAULT_AMOUNT;
             const zelleMethod = document.getElementById('payment-method-zelle');
             if (zelleMethod && zelleMethod.checked) {
-                const amount = parseFloat(amountInput.value) || DEFAULT_AMOUNT;
-                document.getElementById('zelle-amount').textContent = amount.toFixed(2);
+                const zelleAmountEl = document.getElementById('zelle-amount');
+                if (zelleAmountEl) {
+                    zelleAmountEl.textContent = amount.toFixed(2);
+                }
+            }
+            const moneyOrderAmountEl = document.getElementById('money-order-amount');
+            if (moneyOrderAmountEl) {
+                moneyOrderAmountEl.textContent = amount.toFixed(2);
             }
         });
         amountInput.addEventListener('change', () => {
             updatePayPalButton();
+            const amount = parseFloat(amountInput.value) || DEFAULT_AMOUNT;
             const zelleMethod = document.getElementById('payment-method-zelle');
             if (zelleMethod && zelleMethod.checked) {
-                const amount = parseFloat(amountInput.value) || DEFAULT_AMOUNT;
-                document.getElementById('zelle-amount').textContent = amount.toFixed(2);
+                const zelleAmountEl = document.getElementById('zelle-amount');
+                if (zelleAmountEl) {
+                    zelleAmountEl.textContent = amount.toFixed(2);
+                }
+            }
+            const moneyOrderAmountEl = document.getElementById('money-order-amount');
+            if (moneyOrderAmountEl) {
+                moneyOrderAmountEl.textContent = amount.toFixed(2);
             }
         });
     }
@@ -425,12 +629,16 @@ document.addEventListener('DOMContentLoaded', function() {
     // Handle payment method selection
     const paypalMethod = document.getElementById('payment-method-paypal');
     const zelleMethod = document.getElementById('payment-method-zelle');
+    const moneyOrderMethod = document.getElementById('payment-method-money-order');
     
     if (paypalMethod) {
         paypalMethod.addEventListener('change', handlePaymentMethodChange);
     }
     if (zelleMethod) {
         zelleMethod.addEventListener('change', handlePaymentMethodChange);
+    }
+    if (moneyOrderMethod) {
+        moneyOrderMethod.addEventListener('change', handlePaymentMethodChange);
     }
     
     // Initialize payment method display
@@ -501,9 +709,21 @@ function validateForm() {
         isValid = false;
     }
     
-    // Validate full address
-    if (!validateField('full-address', (val) => val.length >= 10)) {
-        document.getElementById('full-address-error').textContent = 'Please enter your full address';
+    // Validate street address
+    if (!validateField('address-line', (val) => val.length >= 5)) {
+        document.getElementById('address-line-error').textContent = 'Please enter your street address';
+        isValid = false;
+    }
+
+    // Validate city
+    if (!validateField('city', (val) => val.length >= 2)) {
+        document.getElementById('city-error').textContent = 'Please enter your city';
+        isValid = false;
+    }
+
+    // Validate ZIP code
+    if (!validateField('zip-code', (val) => /^\d{5}(-\d{4})?$/.test(val))) {
+        document.getElementById('zip-code-error').textContent = 'Please enter a valid ZIP code';
         isValid = false;
     }
     
@@ -576,7 +796,7 @@ function validateForm() {
 }
 
 // Real-time validation
-['first-name', 'last-name', 'email', 'phone', 'full-address', 'church-name', 'emergency-name', 'emergency-phone', 'amount'].forEach(fieldId => {
+['first-name', 'last-name', 'email', 'phone', 'address-line', 'city', 'zip-code', 'church-name', 'emergency-name', 'emergency-phone', 'amount'].forEach(fieldId => {
     const field = document.getElementById(fieldId);
     if (field) {
         field.addEventListener('blur', () => {
@@ -598,30 +818,53 @@ function validateForm() {
 
 // Payment success is now handled in PayPal's onApprove callback
 
-function showPaymentSuccess(formData, paymentId) {
+function showPaymentSuccess(formData, paymentId, emailSent = null) {
     const paymentForm = document.getElementById('registration-form');
     const paymentSuccess = document.getElementById('payment-success');
     const successMessage = document.getElementById('success-message');
+    const amountValue = Number(formData.amount) || 0;
+    const amountDisplay = (amountValue / 100).toFixed(2);
+    const paymentMethod = formData.paymentMethod || 'paypal';
     
     if (paymentForm) paymentForm.classList.add('hidden');
     if (paymentSuccess) paymentSuccess.classList.remove('hidden');
     
-    const emailStatus = typeof sendConfirmationEmail !== 'undefined' ? 
-        'A confirmation email has been sent to your email address.' : 
-        'Please check your email for confirmation (if email service is configured).';
+    let emailStatus = 'Registration completed successfully.';
+    if (emailSent === true) {
+        emailStatus = 'A confirmation email has been sent to your email address.';
+    } else if (emailSent === false) {
+        emailStatus = 'Registration is complete, but we could not send the confirmation email. Please contact the admin team.';
+    } else if (typeof sendConfirmationEmail === 'function') {
+        emailStatus = 'Registration is complete. A confirmation email will be sent if email service is available.';
+    } else {
+        emailStatus = 'Registration is complete. Email confirmation is not configured on this page yet.';
+    }
+
+    let paymentSummary = `Your payment of <strong>$${amountDisplay}</strong> has been processed successfully.`;
+    let transactionLabel = 'Transaction ID';
+    let announcementSummary = `Registration successful! Payment of $${amountDisplay} processed.`;
+
+    if (paymentMethod === 'money_order') {
+        paymentSummary = `Your registration is complete. Please mail your <strong>money order for $${amountDisplay}</strong> to WCDMR.`;
+        transactionLabel = 'Registration Reference';
+        announcementSummary = `Registration successful. Please mail your money order payment of $${amountDisplay}.`;
+    } else if (paymentMethod === 'zelle') {
+        paymentSummary = `Your registration is complete. We recorded your <strong>Zelle payment of $${amountDisplay}</strong>.`;
+        announcementSummary = `Registration successful. Zelle payment of $${amountDisplay} recorded.`;
+    }
     
     if (successMessage) {
         successMessage.innerHTML = `
-            <p>Your payment of <strong>$${(formData.amount / 100).toFixed(2)}</strong> has been processed successfully.</p>
+            <p>${paymentSummary}</p>
             <p>${emailStatus}</p>
             <p style="margin-top: 1rem; font-size: 0.9rem; color: #6b7280;">
-                Transaction ID: <code style="background: #f3f4f6; padding: 2px 6px; border-radius: 4px;">${paymentId || 'N/A'}</code>
+                ${transactionLabel}: <code style="background: #f3f4f6; padding: 2px 6px; border-radius: 4px;">${paymentId || 'N/A'}</code>
             </p>
         `;
     }
     
     // Announce success to screen readers
-    announceToScreenReader(`Registration successful! Payment of $${(formData.amount / 100).toFixed(2)} processed. Transaction ID: ${paymentId || 'N/A'}`);
+    announceToScreenReader(`${announcementSummary} ${transactionLabel}: ${paymentId || 'N/A'}`);
     
     // Focus success message for screen readers
     if (paymentSuccess) {
@@ -666,6 +909,7 @@ function resetForm() {
     
     // Clear session storage
     sessionStorage.removeItem('wcdmr_registration');
+    sessionStorage.removeItem('wcdmr_registration_email_sent');
     
     // Re-initialize PayPal button
     updatePayPalButton();
@@ -755,7 +999,7 @@ formatPhoneInput(document.getElementById('videophone'));
 formatPhoneInput(document.getElementById('emergency-phone'));
 
 // Format ZIP code input
-const zipInput = document.getElementById('billing-zip');
+const zipInput = document.getElementById('zip-code') || document.getElementById('billing-zip');
 if (zipInput) {
     zipInput.addEventListener('input', (e) => {
         let value = e.target.value.replace(/\D/g, '');

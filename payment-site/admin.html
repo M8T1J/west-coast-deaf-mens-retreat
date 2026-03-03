@@ -3,7 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>WCDMR 2026 - Registration Admin</title>
+    <title>WCDMR 2026 - Admin</title>
+    <meta name="robots" content="noindex,nofollow">
     <link rel="stylesheet" href="styles.css">
     <style>
         .admin-container {
@@ -22,6 +23,15 @@
         .admin-header h1 {
             margin: 0 0 0.5rem 0;
             font-size: 2rem;
+        }
+        .local-storage-notice {
+            background: #fff7d6;
+            border: 2px solid #fbbf24;
+            color: #78350f;
+            padding: 1rem 1.25rem;
+            border-radius: 0.5rem;
+            margin-bottom: 1.5rem;
+            font-weight: 600;
         }
         .admin-stats {
             display: grid;
@@ -165,80 +175,349 @@
             outline: none;
             border-color: var(--primary-color);
         }
+        .auth-card {
+            background: white;
+            border-radius: 0.75rem;
+            box-shadow: var(--shadow-lg);
+            padding: 1.5rem;
+            max-width: 520px;
+            margin: 0 auto 2rem;
+        }
+        .auth-card h2 {
+            margin-top: 0;
+        }
+        .auth-row {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 0.75rem;
+            margin-top: 1rem;
+        }
+        .auth-row label {
+            font-weight: 600;
+            color: var(--text-dark);
+        }
+        .auth-row input {
+            width: 100%;
+            padding: 0.75rem;
+            border: 2px solid var(--border-color);
+            border-radius: 0.5rem;
+            font-size: 1rem;
+        }
+        .auth-row input:focus {
+            outline: none;
+            border-color: var(--primary-color);
+        }
+        .auth-actions {
+            display: flex;
+            gap: 0.75rem;
+            flex-wrap: wrap;
+            margin-top: 1rem;
+        }
+        .auth-hint {
+            color: var(--text-light);
+            font-size: 0.95rem;
+            margin-top: 0.5rem;
+        }
+        .auth-error {
+            background: #fef2f2;
+            border: 1px solid #fecaca;
+            color: #991b1b;
+            padding: 0.75rem;
+            border-radius: 0.5rem;
+            margin-top: 0.75rem;
+            display: none;
+        }
+        .hidden {
+            display: none !important;
+        }
+        .small-note {
+            color: var(--text-light);
+            font-size: 0.9rem;
+            margin-top: 0.75rem;
+        }
+        .challenge {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            flex-wrap: wrap;
+            margin-top: 0.5rem;
+        }
+        .challenge code {
+            background: var(--bg-light);
+            padding: 0.25rem 0.5rem;
+            border-radius: 0.375rem;
+            border: 1px solid var(--border-color);
+            font-size: 0.95rem;
+        }
+        .file-import {
+            display: inline-block;
+        }
+        .file-import input[type="file"] {
+            display: none;
+        }
     </style>
 </head>
 <body>
     <div class="admin-container">
         <div class="admin-header">
-            <h1>WCDMR 2026 Registration Admin</h1>
-            <p>View and manage all registrations</p>
+            <h1>WCDMR 2026 Admin</h1>
+            <p>Secure access to view registration data</p>
+        </div>
+        <div class="local-storage-notice">
+            Admin note: This page reads browser local storage only. It shows registrations submitted from this same browser/device.
         </div>
 
-        <div class="admin-stats" id="stats">
-            <div class="stat-card">
-                <h3>Total Registrations</h3>
-                <div class="number" id="total-count">0</div>
-            </div>
-            <div class="stat-card">
-                <h3>Completed</h3>
-                <div class="number" id="completed-count">0</div>
-            </div>
-            <div class="stat-card">
-                <h3>Pending</h3>
-                <div class="number" id="pending-count">0</div>
-            </div>
-            <div class="stat-card">
-                <h3>Total Revenue</h3>
-                <div class="number" id="total-revenue">$0.00</div>
-            </div>
+        <div class="auth-card" id="setup-card">
+            <h2>First-time setup</h2>
+            <p class="auth-hint">Create an admin username and password on this device/browser.</p>
+            <form id="setup-form" autocomplete="off" novalidate>
+                <div class="auth-row">
+                    <div>
+                        <label for="setup-username">Admin username</label>
+                        <input id="setup-username" name="setup-username" type="text" required minlength="3" autocapitalize="none" spellcheck="false">
+                    </div>
+                    <div>
+                        <label for="setup-password">Admin password</label>
+                        <input id="setup-password" name="setup-password" type="password" required minlength="8">
+                    </div>
+                    <div>
+                        <label for="setup-password2">Confirm password</label>
+                        <input id="setup-password2" name="setup-password2" type="password" required minlength="8">
+                    </div>
+                    <div>
+                        <label for="setup-challenge-answer">Human verification</label>
+                        <div class="challenge">
+                            <span>Solve:</span>
+                            <code id="setup-challenge-q">...</code>
+                            <input id="setup-challenge-answer" name="setup-challenge-answer" type="text" inputmode="numeric" placeholder="Answer" required style="max-width: 140px;">
+                            <button type="button" class="btn btn-outline" id="setup-challenge-refresh">New question</button>
+                        </div>
+                        <div class="small-note">This helps prevent automated access.</div>
+                    </div>
+                    <div style="position:absolute; left:-9999px; width:1px; height:1px; overflow:hidden;" aria-hidden="true">
+                        <label for="setup-website">Website</label>
+                        <input id="setup-website" name="website" type="text" tabindex="-1" autocomplete="off">
+                    </div>
+                </div>
+                <div class="auth-actions">
+                    <button type="submit" class="btn btn-primary">Create admin login</button>
+                </div>
+                <div class="auth-error" id="setup-error" role="alert"></div>
+                <div class="small-note">
+                    Note: this is a static website. Admin credentials are stored only in this browser (not on a server).
+                </div>
+            </form>
         </div>
 
-        <div class="export-section">
-            <div class="controls">
-                <input type="text" id="search-box" class="search-box" placeholder="Search by name, email, or church...">
-                <button class="btn btn-primary" onclick="refreshData()">Refresh</button>
-                <button class="btn btn-outline" onclick="exportToCSV()">Export to CSV</button>
-                <button class="btn btn-outline" onclick="exportToJSON()">Export to JSON</button>
-                <a href="email-preview.html" target="_blank" class="btn btn-outline" style="text-decoration: none; display: inline-block;">Preview Email</a>
-                <button class="btn btn-danger" onclick="clearAllData()">Clear All Data</button>
-            </div>
+        <div class="auth-card hidden" id="login-card">
+            <h2>Admin login</h2>
+            <form id="login-form" autocomplete="off" novalidate>
+                <div class="auth-row">
+                    <div>
+                        <label for="login-username">Username</label>
+                        <input id="login-username" name="login-username" type="text" required autocapitalize="none" spellcheck="false">
+                    </div>
+                    <div>
+                        <label for="login-password">Password</label>
+                        <input id="login-password" name="login-password" type="password" required>
+                    </div>
+                    <div>
+                        <label for="login-challenge-answer">Human verification</label>
+                        <div class="challenge">
+                            <span>Solve:</span>
+                            <code id="login-challenge-q">...</code>
+                            <input id="login-challenge-answer" name="login-challenge-answer" type="text" inputmode="numeric" placeholder="Answer" required style="max-width: 140px;">
+                            <button type="button" class="btn btn-outline" id="login-challenge-refresh">New question</button>
+                        </div>
+                    </div>
+                    <div style="position:absolute; left:-9999px; width:1px; height:1px; overflow:hidden;" aria-hidden="true">
+                        <label for="login-website">Website</label>
+                        <input id="login-website" name="website" type="text" tabindex="-1" autocomplete="off">
+                    </div>
+                </div>
+                <div class="auth-actions">
+                    <button type="submit" class="btn btn-primary">Sign in</button>
+                    <button type="button" class="btn btn-outline" id="reset-admin">Reset admin login</button>
+                </div>
+                <div class="auth-error" id="login-error" role="alert"></div>
+            </form>
         </div>
 
-        <div class="registrations-table">
-            <div class="table-header">
-                <h2>All Registrations</h2>
+        <div id="admin-app" class="hidden">
+            <div class="admin-stats" id="stats">
+                <div class="stat-card">
+                    <h3>Total Registrations</h3>
+                    <div class="number" id="total-count">0</div>
+                </div>
+                <div class="stat-card">
+                    <h3>Completed</h3>
+                    <div class="number" id="completed-count">0</div>
+                </div>
+                <div class="stat-card">
+                    <h3>Pending</h3>
+                    <div class="number" id="pending-count">0</div>
+                </div>
+                <div class="stat-card">
+                    <h3>Total Revenue</h3>
+                    <div class="number" id="total-revenue">$0.00</div>
+                </div>
             </div>
-            <div class="table-container">
-                <table id="registrations-table">
-                    <thead>
-                        <tr>
-                            <th>Date</th>
-                            <th>Name</th>
-                            <th>Email</th>
-                            <th>Phone</th>
-                            <th>Church</th>
-                            <th>Amount</th>
-                            <th>Payment ID</th>
-                            <th>Status</th>
-                        </tr>
-                    </thead>
-                    <tbody id="registrations-tbody">
-                        <tr>
-                            <td colspan="8" class="empty-state">
-                                <div class="empty-state-icon">📋</div>
-                                <p>No registrations yet. Registrations will appear here after someone completes the form.</p>
-                            </td>
-                        </tr>
-                    </tbody>
-                </table>
+
+            <div class="export-section">
+                <div class="controls">
+                    <input type="text" id="search-box" class="search-box" placeholder="Search by name, email, or church...">
+                    <button class="btn btn-primary" id="refresh-btn">Refresh</button>
+                    <button class="btn btn-outline" id="export-csv-btn">Export to CSV</button>
+                    <button class="btn btn-outline" id="export-json-btn">Export to JSON</button>
+                    <label class="btn btn-outline file-import">
+                        Import JSON
+                        <input type="file" id="import-json-input" accept="application/json">
+                    </label>
+                    <button class="btn btn-danger" id="clear-data-btn">Clear Registration Data</button>
+                    <button class="btn btn-outline" id="logout-btn">Logout</button>
+                </div>
+                <div class="small-note">
+                    This page displays registration data saved in this browser’s storage. To combine data from multiple devices, export JSON on each device and import here.
+                </div>
+            </div>
+
+            <div class="registrations-table">
+                <div class="table-header">
+                    <h2>Registrations</h2>
+                </div>
+                <div class="table-container">
+                    <table id="registrations-table">
+                        <thead>
+                            <tr>
+                                <th>Date</th>
+                                <th>Name</th>
+                                <th>Email</th>
+                                <th>Phone</th>
+                                <th>Church</th>
+                                <th>Amount</th>
+                                <th>Payment ID</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody id="registrations-tbody">
+                            <tr>
+                                <td colspan="8" class="empty-state">
+                                    <div class="empty-state-icon">📋</div>
+                                    <p>No registrations found.</p>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
             </div>
         </div>
     </div>
 
     <script>
+        const ADMIN_AUTH_KEY = 'wcdmr_admin_auth_v1';
+        const ADMIN_SESSION_KEY = 'wcdmr_admin_session_v1';
+        const REGISTRATIONS_KEY = 'wcdmr_registrations';
+
         let allRegistrations = [];
 
-        // Registration amounts are stored in dollars; normalize legacy/invalid values safely
+        function $(id) { return document.getElementById(id); }
+
+        function show(el) { el.classList.remove('hidden'); }
+        function hide(el) { el.classList.add('hidden'); }
+
+        function setError(el, msg) {
+            el.textContent = msg;
+            el.style.display = msg ? 'block' : 'none';
+        }
+
+        function isBotTrapTriggered(trapValue) {
+            return typeof trapValue === 'string' && trapValue.trim().length > 0;
+        }
+
+        function randomInt(min, max) {
+            return Math.floor(Math.random() * (max - min + 1)) + min;
+        }
+
+        function makeChallenge() {
+            const a = randomInt(2, 12);
+            const b = randomInt(2, 12);
+            const op = Math.random() < 0.5 ? '+' : '×';
+            const answer = op === '+' ? (a + b) : (a * b);
+            return { q: `${a} ${op} ${b}`, answer, createdAt: Date.now() };
+        }
+
+        function fallbackHashHex(input) {
+            // Works even on non-secure contexts (e.g. file://). Not cryptographically strong.
+            const str = String(input ?? '');
+            let h1 = 0x811c9dc5;
+            let h2 = 0x811c9dc5 ^ 0xdeadbeef;
+            for (let i = 0; i < str.length; i++) {
+                const c = str.charCodeAt(i);
+                h1 ^= c;
+                h1 = Math.imul(h1, 0x01000193) >>> 0;
+                h2 ^= c;
+                h2 = Math.imul(h2, 0x01000193) >>> 0;
+            }
+            const p8 = (n) => n.toString(16).padStart(8, '0');
+            return `${p8(h1)}${p8(h2)}`;
+        }
+
+        async function sha256Hex(input) {
+            try {
+                if (globalThis.crypto?.subtle && typeof TextEncoder !== 'undefined') {
+                    const data = new TextEncoder().encode(String(input ?? ''));
+                    const hash = await crypto.subtle.digest('SHA-256', data);
+                    return Array.from(new Uint8Array(hash)).map(b => b.toString(16).padStart(2, '0')).join('');
+                }
+            } catch {
+                // Fall back below
+            }
+            return fallbackHashHex(input);
+        }
+
+        function getStoredAuth() {
+            try {
+                const raw = localStorage.getItem(ADMIN_AUTH_KEY);
+                return raw ? JSON.parse(raw) : null;
+            } catch {
+                return null;
+            }
+        }
+
+        function setStoredAuth(auth) {
+            localStorage.setItem(ADMIN_AUTH_KEY, JSON.stringify(auth));
+        }
+
+        function clearStoredAuth() {
+            localStorage.removeItem(ADMIN_AUTH_KEY);
+            sessionStorage.removeItem(ADMIN_SESSION_KEY);
+        }
+
+        function isLoggedIn() {
+            try {
+                const raw = sessionStorage.getItem(ADMIN_SESSION_KEY);
+                if (!raw) return false;
+                const s = JSON.parse(raw);
+                // 8 hour session
+                return s && s.loggedIn === true && (Date.now() - s.at) < (8 * 60 * 60 * 1000);
+            } catch {
+                return false;
+            }
+        }
+
+        function setLoggedIn() {
+            sessionStorage.setItem(ADMIN_SESSION_KEY, JSON.stringify({ loggedIn: true, at: Date.now() }));
+        }
+
+        function logout() {
+            sessionStorage.removeItem(ADMIN_SESSION_KEY);
+            location.reload();
+        }
+
+        function safeParseJSON(raw, fallback) {
+            try { return JSON.parse(raw); } catch { return fallback; }
+        }
+
         function getRegistrationAmount(registration) {
             const amount = typeof registration.amount === 'number'
                 ? registration.amount
@@ -246,21 +525,19 @@
             return Number.isFinite(amount) ? amount : 0;
         }
 
-        // Load registrations from localStorage
         function loadRegistrations() {
-            const stored = localStorage.getItem('wcdmr_registrations');
-            allRegistrations = stored ? JSON.parse(stored) : [];
+            const stored = localStorage.getItem(REGISTRATIONS_KEY);
+            allRegistrations = stored ? safeParseJSON(stored, []) : [];
             allRegistrations.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
             displayRegistrations();
             updateStats();
         }
 
-        // Display registrations in table
         function displayRegistrations(filtered = null) {
-            const tbody = document.getElementById('registrations-tbody');
+            const tbody = $('registrations-tbody');
             const registrations = filtered || allRegistrations;
 
-            if (registrations.length === 0) {
+            if (!registrations || registrations.length === 0) {
                 tbody.innerHTML = `
                     <tr>
                         <td colspan="8" class="empty-state">
@@ -284,11 +561,12 @@
                 const statusClass = reg.status === 'completed' ? 'status-completed' : 'status-pending';
                 const statusText = reg.status === 'completed' ? 'Completed' : 'Pending';
 
+                const name = reg.fullName || `${reg.firstName || ''} ${reg.lastName || ''}`.trim();
                 return `
-                    <tr onclick="showDetails('${reg.timestamp}')" style="cursor: pointer;">
+                    <tr data-ts="${String(reg.timestamp).replace(/"/g, '&quot;')}" style="cursor: pointer;">
                         <td>${date}</td>
-                        <td><strong>${reg.fullName || `${reg.firstName || ''} ${reg.lastName || ''}`.trim()}</strong></td>
-                        <td>${reg.email}</td>
+                        <td><strong>${name || '-'}</strong></td>
+                        <td>${reg.email || '-'}</td>
                         <td>${reg.phone || '-'}</td>
                         <td>${reg.churchName || '-'}</td>
                         <td>$${amount}</td>
@@ -299,20 +577,19 @@
             }).join('');
         }
 
-        // Show registration details
-        function showDetails(timestamp) {
-            const reg = allRegistrations.find(r => r.timestamp === timestamp);
+        function showDetailsByTimestamp(timestamp) {
+            const reg = allRegistrations.find(r => String(r.timestamp) === String(timestamp));
             if (!reg) return;
 
             const details = `
 Registration Details
 ===================
 Date: ${new Date(reg.timestamp).toLocaleString()}
-Status: ${reg.status}
+Status: ${reg.status || '-'}
 
 Personal Information:
 - Name: ${reg.fullName || `${reg.firstName || ''} ${reg.lastName || ''}`.trim()}
-- Email: ${reg.email}
+- Email: ${reg.email || '-'}
 - Phone: ${reg.phone || '-'}
 - Videophone: ${reg.videophone || '-'}
 - Address: ${reg.fullAddress || '-'}
@@ -334,7 +611,6 @@ Payment:
             alert(details);
         }
 
-        // Update statistics
         function updateStats() {
             const total = allRegistrations.length;
             const completed = allRegistrations.filter(r => r.status === 'completed').length;
@@ -346,37 +622,32 @@ Payment:
                     return sum + amount;
                 }, 0);
 
-            document.getElementById('total-count').textContent = total;
-            document.getElementById('completed-count').textContent = completed;
-            document.getElementById('pending-count').textContent = pending;
-            document.getElementById('total-revenue').textContent = `$${revenue.toFixed(2)}`;
+            $('total-count').textContent = String(total);
+            $('completed-count').textContent = String(completed);
+            $('pending-count').textContent = String(pending);
+            $('total-revenue').textContent = `$${revenue.toFixed(2)}`;
         }
 
-        // Search functionality
-        document.getElementById('search-box').addEventListener('input', (e) => {
-            const searchTerm = e.target.value.toLowerCase();
-            if (!searchTerm) {
-                displayRegistrations();
+        function exportToJSON() {
+            if (allRegistrations.length === 0) {
+                alert('No registrations to export');
                 return;
             }
+            const json = JSON.stringify(allRegistrations, null, 2);
+            const blob = new Blob([json], { type: 'application/json' });
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `wcdmr-registrations-${new Date().toISOString().split('T')[0]}.json`;
+            a.click();
+            window.URL.revokeObjectURL(url);
+        }
 
-            const filtered = allRegistrations.filter(reg => {
-                const fullName = (reg.fullName || `${reg.firstName || ''} ${reg.lastName || ''}`).toLowerCase();
-                const email = (reg.email || '').toLowerCase();
-                const church = (reg.churchName || '').toLowerCase();
-                return fullName.includes(searchTerm) || email.includes(searchTerm) || church.includes(searchTerm);
-            });
-
-            displayRegistrations(filtered);
-        });
-
-        // Export to CSV
         function exportToCSV() {
             if (allRegistrations.length === 0) {
                 alert('No registrations to export');
                 return;
             }
-
             const headers = ['Date', 'First Name', 'Last Name', 'Email', 'Phone', 'Videophone', 'Address', 'Church', 'Emergency Name', 'Emergency Phone', 'Bunk Selection', 'Youth Info', 'Amount', 'Payment ID', 'Status'];
             const rows = allRegistrations.map(reg => {
                 const date = new Date(reg.timestamp).toLocaleString();
@@ -399,8 +670,7 @@ Payment:
                     reg.status || ''
                 ];
             });
-
-            const csv = [headers, ...rows].map(row => 
+            const csv = [headers, ...rows].map(row =>
                 row.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(',')
             ).join('\n');
 
@@ -413,45 +683,238 @@ Payment:
             window.URL.revokeObjectURL(url);
         }
 
-        // Export to JSON
-        function exportToJSON() {
-            if (allRegistrations.length === 0) {
-                alert('No registrations to export');
+        function clearAllRegistrationData() {
+            const ok = confirm('Delete ALL registration data from this browser?\n\nThis cannot be undone.');
+            if (!ok) return;
+            localStorage.removeItem(REGISTRATIONS_KEY);
+            allRegistrations = [];
+            displayRegistrations();
+            updateStats();
+            alert('Registration data cleared from this browser.');
+        }
+
+        function mergeRegistrations(existing, incoming) {
+            const byKey = new Map();
+            const keyFor = (r) => `${r.email || ''}::${r.paymentId || ''}::${r.timestamp || ''}`;
+            [...existing, ...incoming].forEach(r => {
+                if (!r || typeof r !== 'object') return;
+                byKey.set(keyFor(r), r);
+            });
+            return Array.from(byKey.values());
+        }
+
+        function importFromJSONFile(file) {
+            const reader = new FileReader();
+            reader.onload = () => {
+                const incoming = safeParseJSON(reader.result, null);
+                if (!Array.isArray(incoming)) {
+                    alert('Invalid JSON file. Expected an array of registrations.');
+                    return;
+                }
+                const existing = safeParseJSON(localStorage.getItem(REGISTRATIONS_KEY) || '[]', []);
+                const merged = mergeRegistrations(existing, incoming).slice(-500);
+                localStorage.setItem(REGISTRATIONS_KEY, JSON.stringify(merged));
+                loadRegistrations();
+                alert(`Imported ${incoming.length} registrations (merged total: ${merged.length}).`);
+            };
+            reader.readAsText(file);
+        }
+
+        let setupChallenge = makeChallenge();
+        let loginChallenge = makeChallenge();
+
+        function renderChallenges() {
+            $('setup-challenge-q').textContent = setupChallenge.q;
+            $('login-challenge-q').textContent = loginChallenge.q;
+        }
+
+        function verifyChallenge(ch, answerRaw) {
+            const answer = Number(String(answerRaw || '').trim());
+            if (!Number.isFinite(answer)) return false;
+            if (answer !== ch.answer) return false;
+            // basic timing check: humans take at least a moment
+            return (Date.now() - ch.createdAt) >= 800;
+        }
+
+        function showSetupOrLogin() {
+            const auth = getStoredAuth();
+            if (!auth) {
+                show($('setup-card'));
+                hide($('login-card'));
+                hide($('admin-app'));
+                return;
+            }
+            hide($('setup-card'));
+            show($('login-card'));
+            hide($('admin-app'));
+        }
+
+        function enterAdminApp() {
+            hide($('setup-card'));
+            hide($('login-card'));
+            show($('admin-app'));
+            loadRegistrations();
+        }
+
+        // Event wiring
+        document.addEventListener('DOMContentLoaded', () => {
+            renderChallenges();
+
+            // If already logged in, skip login
+            if (isLoggedIn()) {
+                enterAdminApp();
                 return;
             }
 
-            const json = JSON.stringify(allRegistrations, null, 2);
-            const blob = new Blob([json], { type: 'application/json' });
-            const url = window.URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = `wcdmr-registrations-${new Date().toISOString().split('T')[0]}.json`;
-            a.click();
-            window.URL.revokeObjectURL(url);
-        }
+            showSetupOrLogin();
 
-        // Clear all data
-        function clearAllData() {
-            if (confirm('Are you sure you want to delete ALL registration data? This cannot be undone!')) {
-                localStorage.removeItem('wcdmr_registrations');
-                allRegistrations = [];
-                displayRegistrations();
-                updateStats();
-                alert('All registration data has been cleared.');
-            }
-        }
+            $('setup-challenge-refresh').addEventListener('click', () => {
+                setupChallenge = makeChallenge();
+                $('setup-challenge-answer').value = '';
+                renderChallenges();
+            });
+            $('login-challenge-refresh').addEventListener('click', () => {
+                loginChallenge = makeChallenge();
+                $('login-challenge-answer').value = '';
+                renderChallenges();
+            });
 
-        // Refresh data
-        function refreshData() {
-            loadRegistrations();
-            alert('Data refreshed!');
-        }
+            $('reset-admin').addEventListener('click', () => {
+                const ok = confirm('Reset admin username/password on this browser?\n\nYou will need to set up admin access again.');
+                if (!ok) return;
+                clearStoredAuth();
+                location.reload();
+            });
 
-        // Load on page load
-        loadRegistrations();
+            $('setup-form').addEventListener('submit', async (e) => {
+                e.preventDefault();
+                setError($('setup-error'), '');
 
-        // Auto-refresh every 30 seconds
-        setInterval(loadRegistrations, 30000);
+                if (isBotTrapTriggered($('setup-website').value)) return;
+
+                const username = $('setup-username').value.trim();
+                const pass1 = $('setup-password').value;
+                const pass2 = $('setup-password2').value;
+
+                if (username.length < 3) {
+                    setError($('setup-error'), 'Username must be at least 3 characters.');
+                    return;
+                }
+                if (pass1.length < 8) {
+                    setError($('setup-error'), 'Password must be at least 8 characters.');
+                    return;
+                }
+                if (pass1 !== pass2) {
+                    setError($('setup-error'), 'Passwords do not match.');
+                    return;
+                }
+                if (!verifyChallenge(setupChallenge, $('setup-challenge-answer').value)) {
+                    setError($('setup-error'), 'Human verification failed. Please try again.');
+                    setupChallenge = makeChallenge();
+                    $('setup-challenge-answer').value = '';
+                    renderChallenges();
+                    return;
+                }
+
+                try {
+                    const usernameHash = await sha256Hex(username.toLowerCase());
+                    const passwordHash = await sha256Hex(pass1);
+                    setStoredAuth({ usernameHash, passwordHash, createdAt: new Date().toISOString() });
+                    alert('Admin login created on this browser. Please sign in.');
+                    showSetupOrLogin();
+                    $('login-username').value = username;
+                    $('login-password').value = '';
+                    $('login-password').focus();
+                } catch (err) {
+                    setError($('setup-error'), 'Failed to create admin login. Please try again.');
+                    console.error(err);
+                }
+            });
+
+            $('login-form').addEventListener('submit', async (e) => {
+                e.preventDefault();
+                setError($('login-error'), '');
+
+                if (isBotTrapTriggered($('login-website').value)) return;
+
+                const auth = getStoredAuth();
+                if (!auth) {
+                    showSetupOrLogin();
+                    return;
+                }
+                if (!verifyChallenge(loginChallenge, $('login-challenge-answer').value)) {
+                    setError($('login-error'), 'Human verification failed. Please try again.');
+                    loginChallenge = makeChallenge();
+                    $('login-challenge-answer').value = '';
+                    renderChallenges();
+                    return;
+                }
+
+                const username = $('login-username').value.trim().toLowerCase();
+                const password = $('login-password').value;
+
+                try {
+                    const usernameHash = await sha256Hex(username);
+                    const passwordHash = await sha256Hex(password);
+                    if (usernameHash !== auth.usernameHash || passwordHash !== auth.passwordHash) {
+                        setError($('login-error'), 'Invalid username or password.');
+                        loginChallenge = makeChallenge();
+                        $('login-challenge-answer').value = '';
+                        renderChallenges();
+                        return;
+                    }
+                    setLoggedIn();
+                    enterAdminApp();
+                } catch (err) {
+                    setError($('login-error'), 'Login failed. Please try again.');
+                    console.error(err);
+                }
+            });
+
+            $('refresh-btn').addEventListener('click', () => {
+                loadRegistrations();
+                alert('Data refreshed!');
+            });
+            $('export-csv-btn').addEventListener('click', exportToCSV);
+            $('export-json-btn').addEventListener('click', exportToJSON);
+            $('clear-data-btn').addEventListener('click', clearAllRegistrationData);
+            $('logout-btn').addEventListener('click', logout);
+
+            $('import-json-input').addEventListener('change', (e) => {
+                const file = e.target.files && e.target.files[0];
+                if (!file) return;
+                importFromJSONFile(file);
+                e.target.value = '';
+            });
+
+            $('search-box').addEventListener('input', (e) => {
+                const searchTerm = e.target.value.toLowerCase();
+                if (!searchTerm) {
+                    displayRegistrations();
+                    return;
+                }
+                const filtered = allRegistrations.filter(reg => {
+                    const fullName = (reg.fullName || `${reg.firstName || ''} ${reg.lastName || ''}`).toLowerCase();
+                    const email = (reg.email || '').toLowerCase();
+                    const church = (reg.churchName || '').toLowerCase();
+                    return fullName.includes(searchTerm) || email.includes(searchTerm) || church.includes(searchTerm);
+                });
+                displayRegistrations(filtered);
+            });
+
+            $('registrations-tbody').addEventListener('click', (e) => {
+                const tr = e.target.closest('tr[data-ts]');
+                if (!tr) return;
+                showDetailsByTimestamp(tr.getAttribute('data-ts'));
+            });
+
+            // Auto-refresh every 30 seconds while logged in
+            setInterval(() => {
+                if (isLoggedIn() && !$('admin-app').classList.contains('hidden')) {
+                    loadRegistrations();
+                }
+            }, 30000);
+        });
     </script>
 </body>
 </html>
