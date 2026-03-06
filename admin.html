@@ -7,245 +7,51 @@
     <meta name="robots" content="noindex,nofollow">
     <link rel="stylesheet" href="styles.css">
     <style>
-        .admin-container {
-            max-width: 1400px;
-            margin: 2rem auto;
-            padding: 2rem;
-        }
-        .admin-header {
-            background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%);
-            color: white;
-            padding: 2rem;
-            border-radius: 0.75rem;
-            margin-bottom: 2rem;
-            text-align: center;
-        }
-        .admin-header h1 {
-            margin: 0 0 0.5rem 0;
-            font-size: 2rem;
-        }
-        .admin-stats {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 1rem;
-            margin-bottom: 2rem;
-        }
-        .stat-card {
-            background: white;
-            padding: 1.5rem;
-            border-radius: 0.5rem;
-            box-shadow: var(--shadow-md);
-            text-align: center;
-        }
-        .stat-card h3 {
-            margin: 0 0 0.5rem 0;
-            color: var(--text-light);
-            font-size: 0.875rem;
-            text-transform: uppercase;
-        }
-        .stat-card .number {
-            font-size: 2rem;
-            font-weight: 700;
-            color: var(--primary-color);
-        }
-        .controls {
-            display: flex;
-            gap: 1rem;
-            margin-bottom: 2rem;
-            flex-wrap: wrap;
-        }
-        .btn {
-            padding: 0.75rem 1.5rem;
-            border: none;
-            border-radius: 0.5rem;
-            font-size: 1rem;
-            font-weight: 500;
-            cursor: pointer;
-            transition: all 0.3s;
-        }
-        .btn-primary {
-            background: var(--primary-color);
-            color: white;
-        }
-        .btn-primary:hover {
-            background: var(--primary-dark);
-        }
-        .btn-danger {
-            background: var(--error-color);
-            color: white;
-        }
-        .btn-danger:hover {
-            background: #dc2626;
-        }
-        .btn-outline {
-            background: transparent;
-            color: var(--primary-color);
-            border: 2px solid var(--primary-color);
-        }
-        .btn-outline:hover {
-            background: var(--primary-color);
-            color: white;
-        }
-        .registrations-table {
-            background: white;
-            border-radius: 0.75rem;
-            box-shadow: var(--shadow-lg);
-            overflow: hidden;
-        }
-        .table-header {
-            background: var(--bg-light);
-            padding: 1rem;
-            font-weight: 600;
-            border-bottom: 2px solid var(--border-color);
-        }
-        .table-container {
-            overflow-x: auto;
-        }
-        table {
-            width: 100%;
-            border-collapse: collapse;
-        }
-        th {
-            background: var(--bg-light);
-            padding: 1rem;
-            text-align: left;
-            font-weight: 600;
-            color: var(--text-dark);
-            border-bottom: 2px solid var(--border-color);
-            position: sticky;
-            top: 0;
-        }
-        td {
-            padding: 1rem;
-            border-bottom: 1px solid var(--border-color);
-            color: var(--text-dark);
-        }
-        tr:hover {
-            background: var(--bg-light);
-        }
-        .status-badge {
-            display: inline-block;
-            padding: 0.25rem 0.75rem;
-            border-radius: 1rem;
-            font-size: 0.875rem;
-            font-weight: 500;
-        }
-        .status-completed {
-            background: #d1fae5;
-            color: #065f46;
-        }
-        .status-pending {
-            background: #fef3c7;
-            color: #92400e;
-        }
-        .empty-state {
-            text-align: center;
-            padding: 4rem 2rem;
-            color: var(--text-light);
-        }
-        .empty-state-icon {
-            font-size: 4rem;
-            margin-bottom: 1rem;
-        }
-        .export-section {
-            background: white;
-            padding: 1.5rem;
-            border-radius: 0.75rem;
-            box-shadow: var(--shadow-md);
-            margin-bottom: 2rem;
-        }
-        .search-box {
-            width: 100%;
-            padding: 0.75rem;
-            border: 2px solid var(--border-color);
-            border-radius: 0.5rem;
-            font-size: 1rem;
-            margin-bottom: 1rem;
-        }
-        .search-box:focus {
-            outline: none;
-            border-color: var(--primary-color);
-        }
-        .auth-card {
-            background: white;
-            border-radius: 0.75rem;
-            box-shadow: var(--shadow-lg);
-            padding: 1.5rem;
-            max-width: 520px;
-            margin: 0 auto 2rem;
-        }
-        .auth-card h2 {
-            margin-top: 0;
-        }
-        .auth-row {
-            display: grid;
-            grid-template-columns: 1fr;
-            gap: 0.75rem;
-            margin-top: 1rem;
-        }
-        .auth-row label {
-            font-weight: 600;
-            color: var(--text-dark);
-        }
-        .auth-row input {
-            width: 100%;
-            padding: 0.75rem;
-            border: 2px solid var(--border-color);
-            border-radius: 0.5rem;
-            font-size: 1rem;
-        }
-        .auth-row input:focus {
-            outline: none;
-            border-color: var(--primary-color);
-        }
-        .auth-actions {
-            display: flex;
-            gap: 0.75rem;
-            flex-wrap: wrap;
-            margin-top: 1rem;
-        }
-        .auth-hint {
-            color: var(--text-light);
-            font-size: 0.95rem;
-            margin-top: 0.5rem;
-        }
-        .auth-error {
-            background: #fef2f2;
-            border: 1px solid #fecaca;
-            color: #991b1b;
-            padding: 0.75rem;
-            border-radius: 0.5rem;
-            margin-top: 0.75rem;
-            display: none;
-        }
-        .hidden {
-            display: none !important;
-        }
-        .small-note {
-            color: var(--text-light);
-            font-size: 0.9rem;
-            margin-top: 0.75rem;
-        }
-        .challenge {
-            display: flex;
-            align-items: center;
-            gap: 0.75rem;
-            flex-wrap: wrap;
-            margin-top: 0.5rem;
-        }
-        .challenge code {
-            background: var(--bg-light);
-            padding: 0.25rem 0.5rem;
-            border-radius: 0.375rem;
-            border: 1px solid var(--border-color);
-            font-size: 0.95rem;
-        }
-        .file-import {
-            display: inline-block;
-        }
-        .file-import input[type="file"] {
-            display: none;
-        }
+        .admin-container { max-width: 1400px; margin: 2rem auto; padding: 2rem; }
+        .admin-header { background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%); color: white; padding: 2rem; border-radius: 0.75rem; margin-bottom: 2rem; text-align: center; }
+        .admin-header h1 { margin: 0 0 0.5rem 0; font-size: 2rem; }
+        .admin-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-bottom: 2rem; }
+        .stat-card { background: white; padding: 1.5rem; border-radius: 0.5rem; box-shadow: var(--shadow-md); text-align: center; }
+        .stat-card h3 { margin: 0 0 0.5rem 0; color: var(--text-light); font-size: 0.875rem; text-transform: uppercase; }
+        .stat-card .number { font-size: 2rem; font-weight: 700; color: var(--primary-color); }
+        .controls { display: flex; gap: 1rem; margin-bottom: 1rem; flex-wrap: wrap; }
+        .btn { padding: 0.75rem 1.5rem; border: none; border-radius: 0.5rem; font-size: 1rem; font-weight: 500; cursor: pointer; transition: all 0.3s; }
+        .btn-primary { background: var(--primary-color); color: white; }
+        .btn-primary:hover { background: var(--primary-dark); }
+        .btn-danger { background: var(--error-color); color: white; }
+        .btn-danger:hover { background: #dc2626; }
+        .btn-outline { background: transparent; color: var(--primary-color); border: 2px solid var(--primary-color); }
+        .btn-outline:hover { background: var(--primary-color); color: white; }
+        .registrations-table { background: white; border-radius: 0.75rem; box-shadow: var(--shadow-lg); overflow: hidden; }
+        .table-header { background: var(--bg-light); padding: 1rem; font-weight: 600; border-bottom: 2px solid var(--border-color); }
+        .table-container { overflow-x: auto; }
+        table { width: 100%; border-collapse: collapse; }
+        th { background: var(--bg-light); padding: 1rem; text-align: left; font-weight: 600; color: var(--text-dark); border-bottom: 2px solid var(--border-color); position: sticky; top: 0; }
+        td { padding: 1rem; border-bottom: 1px solid var(--border-color); color: var(--text-dark); }
+        tr:hover { background: var(--bg-light); }
+        .status-badge { display: inline-block; padding: 0.25rem 0.75rem; border-radius: 1rem; font-size: 0.875rem; font-weight: 500; }
+        .status-completed { background: #d1fae5; color: #065f46; }
+        .status-pending { background: #fef3c7; color: #92400e; }
+        .empty-state { text-align: center; padding: 4rem 2rem; color: var(--text-light); }
+        .empty-state-icon { font-size: 4rem; margin-bottom: 1rem; }
+        .export-section { background: white; padding: 1.5rem; border-radius: 0.75rem; box-shadow: var(--shadow-md); margin-bottom: 2rem; }
+        .search-box { width: 100%; padding: 0.75rem; border: 2px solid var(--border-color); border-radius: 0.5rem; font-size: 1rem; margin-bottom: 1rem; }
+        .search-box:focus { outline: none; border-color: var(--primary-color); }
+        .auth-card { background: white; border-radius: 0.75rem; box-shadow: var(--shadow-lg); padding: 1.5rem; max-width: 520px; margin: 0 auto 2rem; }
+        .auth-card h2 { margin-top: 0; }
+        .auth-row { display: grid; grid-template-columns: 1fr; gap: 0.75rem; margin-top: 1rem; }
+        .auth-row label { font-weight: 600; color: var(--text-dark); }
+        .auth-row input { width: 100%; padding: 0.75rem; border: 2px solid var(--border-color); border-radius: 0.5rem; font-size: 1rem; }
+        .auth-row input:focus { outline: none; border-color: var(--primary-color); }
+        .auth-actions { display: flex; gap: 0.75rem; flex-wrap: wrap; margin-top: 1rem; }
+        .auth-hint { color: var(--text-light); font-size: 0.95rem; margin-top: 0.5rem; }
+        .auth-error { background: #fef2f2; border: 1px solid #fecaca; color: #991b1b; padding: 0.75rem; border-radius: 0.5rem; margin-top: 0.75rem; display: none; }
+        .hidden { display: none !important; }
+        .small-note { color: var(--text-light); font-size: 0.9rem; margin-top: 0.75rem; }
+        .challenge { display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap; margin-top: 0.5rem; }
+        .challenge code { background: var(--bg-light); padding: 0.25rem 0.5rem; border-radius: 0.375rem; border: 1px solid var(--border-color); font-size: 0.95rem; }
+        .file-import { display: inline-block; }
+        .file-import input[type="file"] { display: none; }
     </style>
 </head>
 <body>
@@ -333,22 +139,10 @@
 
         <div id="admin-app" class="hidden">
             <div class="admin-stats" id="stats">
-                <div class="stat-card">
-                    <h3>Total Registrations</h3>
-                    <div class="number" id="total-count">0</div>
-                </div>
-                <div class="stat-card">
-                    <h3>Completed</h3>
-                    <div class="number" id="completed-count">0</div>
-                </div>
-                <div class="stat-card">
-                    <h3>Pending</h3>
-                    <div class="number" id="pending-count">0</div>
-                </div>
-                <div class="stat-card">
-                    <h3>Total Revenue</h3>
-                    <div class="number" id="total-revenue">$0.00</div>
-                </div>
+                <div class="stat-card"><h3>Total Registrations</h3><div class="number" id="total-count">0</div></div>
+                <div class="stat-card"><h3>Completed</h3><div class="number" id="completed-count">0</div></div>
+                <div class="stat-card"><h3>Pending</h3><div class="number" id="pending-count">0</div></div>
+                <div class="stat-card"><h3>Total Revenue</h3><div class="number" id="total-revenue">$0.00</div></div>
             </div>
 
             <div class="export-section">
@@ -357,10 +151,7 @@
                     <button class="btn btn-primary" id="refresh-btn">Refresh</button>
                     <button class="btn btn-outline" id="export-csv-btn">Export to CSV</button>
                     <button class="btn btn-outline" id="export-json-btn">Export to JSON</button>
-                    <label class="btn btn-outline file-import">
-                        Import JSON
-                        <input type="file" id="import-json-input" accept="application/json">
-                    </label>
+                    <label class="btn btn-outline file-import">Import JSON <input type="file" id="import-json-input" accept="application/json"></label>
                     <button class="btn btn-danger" id="clear-data-btn">Clear Registration Data</button>
                     <button class="btn btn-outline" id="logout-btn">Logout</button>
                 </div>
@@ -370,21 +161,12 @@
             </div>
 
             <div class="registrations-table">
-                <div class="table-header">
-                    <h2>Registrations</h2>
-                </div>
+                <div class="table-header"><h2>Registrations</h2></div>
                 <div class="table-container">
                     <table id="registrations-table">
                         <thead>
                             <tr>
-                                <th>Date</th>
-                                <th>Name</th>
-                                <th>Email</th>
-                                <th>Phone</th>
-                                <th>Church</th>
-                                <th>Amount</th>
-                                <th>Payment ID</th>
-                                <th>Status</th>
+                                <th>Date</th><th>Name</th><th>Email</th><th>Phone</th><th>Church</th><th>Amount</th><th>Payment ID</th><th>Status</th>
                             </tr>
                         </thead>
                         <tbody id="registrations-tbody">
@@ -405,27 +187,14 @@
         const ADMIN_AUTH_KEY = 'wcdmr_admin_auth_v1';
         const ADMIN_SESSION_KEY = 'wcdmr_admin_session_v1';
         const REGISTRATIONS_KEY = 'wcdmr_registrations';
-
         let allRegistrations = [];
 
         function $(id) { return document.getElementById(id); }
-
         function show(el) { el.classList.remove('hidden'); }
         function hide(el) { el.classList.add('hidden'); }
-
-        function setError(el, msg) {
-            el.textContent = msg;
-            el.style.display = msg ? 'block' : 'none';
-        }
-
-        function isBotTrapTriggered(trapValue) {
-            return typeof trapValue === 'string' && trapValue.trim().length > 0;
-        }
-
-        function randomInt(min, max) {
-            return Math.floor(Math.random() * (max - min + 1)) + min;
-        }
-
+        function setError(el, msg) { el.textContent = msg; el.style.display = msg ? 'block' : 'none'; }
+        function isBotTrapTriggered(trapValue) { return typeof trapValue === 'string' && trapValue.trim().length > 0; }
+        function randomInt(min, max) { return Math.floor(Math.random() * (max - min + 1)) + min; }
         function makeChallenge() {
             const a = randomInt(2, 12);
             const b = randomInt(2, 12);
@@ -433,7 +202,6 @@
             const answer = op === '+' ? (a + b) : (a * b);
             return { q: `${a} ${op} ${b}`, answer, createdAt: Date.now() };
         }
-
         function fallbackHashHex(input) {
             // Works even on non-secure contexts (e.g. file://). Not cryptographically strong.
             const str = String(input ?? '');
@@ -462,50 +230,22 @@
             }
             return fallbackHashHex(input);
         }
-
         function getStoredAuth() {
-            try {
-                const raw = localStorage.getItem(ADMIN_AUTH_KEY);
-                return raw ? JSON.parse(raw) : null;
-            } catch {
-                return null;
-            }
+            try { const raw = localStorage.getItem(ADMIN_AUTH_KEY); return raw ? JSON.parse(raw) : null; } catch { return null; }
         }
-
-        function setStoredAuth(auth) {
-            localStorage.setItem(ADMIN_AUTH_KEY, JSON.stringify(auth));
-        }
-
-        function clearStoredAuth() {
-            localStorage.removeItem(ADMIN_AUTH_KEY);
-            sessionStorage.removeItem(ADMIN_SESSION_KEY);
-        }
-
+        function setStoredAuth(auth) { localStorage.setItem(ADMIN_AUTH_KEY, JSON.stringify(auth)); }
+        function clearStoredAuth() { localStorage.removeItem(ADMIN_AUTH_KEY); sessionStorage.removeItem(ADMIN_SESSION_KEY); }
         function isLoggedIn() {
             try {
                 const raw = sessionStorage.getItem(ADMIN_SESSION_KEY);
                 if (!raw) return false;
                 const s = JSON.parse(raw);
-                // 8 hour session
                 return s && s.loggedIn === true && (Date.now() - s.at) < (8 * 60 * 60 * 1000);
-            } catch {
-                return false;
-            }
+            } catch { return false; }
         }
-
-        function setLoggedIn() {
-            sessionStorage.setItem(ADMIN_SESSION_KEY, JSON.stringify({ loggedIn: true, at: Date.now() }));
-        }
-
-        function logout() {
-            sessionStorage.removeItem(ADMIN_SESSION_KEY);
-            location.reload();
-        }
-
-        function safeParseJSON(raw, fallback) {
-            try { return JSON.parse(raw); } catch { return fallback; }
-        }
-
+        function setLoggedIn() { sessionStorage.setItem(ADMIN_SESSION_KEY, JSON.stringify({ loggedIn: true, at: Date.now() })); }
+        function logout() { sessionStorage.removeItem(ADMIN_SESSION_KEY); location.reload(); }
+        function safeParseJSON(raw, fallback) { try { return JSON.parse(raw); } catch { return fallback; } }
         function loadRegistrations() {
             const stored = localStorage.getItem(REGISTRATIONS_KEY);
             allRegistrations = stored ? safeParseJSON(stored, []) : [];
@@ -513,37 +253,20 @@
             displayRegistrations();
             updateStats();
         }
-
         function displayRegistrations(filtered = null) {
             const tbody = $('registrations-tbody');
             const registrations = filtered || allRegistrations;
-
             if (!registrations || registrations.length === 0) {
                 tbody.innerHTML = `
-                    <tr>
-                        <td colspan="8" class="empty-state">
-                            <div class="empty-state-icon">📋</div>
-                            <p>No registrations found.</p>
-                        </td>
-                    </tr>
+                    <tr><td colspan="8" class="empty-state"><div class="empty-state-icon">📋</div><p>No registrations found.</p></td></tr>
                 `;
                 return;
             }
-
             tbody.innerHTML = registrations.map(reg => {
-                const date = new Date(reg.timestamp).toLocaleDateString('en-US', {
-                    year: 'numeric',
-                    month: 'short',
-                    day: 'numeric',
-                    hour: '2-digit',
-                    minute: '2-digit'
-                });
-                const amount = typeof reg.amount === 'number'
-                    ? (reg.amount / 100).toFixed(2)
-                    : (parseFloat(reg.amount) || 0).toFixed(2);
+                const date = new Date(reg.timestamp).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+                const amount = typeof reg.amount === 'number' ? (reg.amount / 100).toFixed(2) : (parseFloat(reg.amount) || 0).toFixed(2);
                 const statusClass = reg.status === 'completed' ? 'status-completed' : 'status-pending';
                 const statusText = reg.status === 'completed' ? 'Completed' : 'Pending';
-
                 const name = reg.fullName || `${reg.firstName || ''} ${reg.lastName || ''}`.trim();
                 return `
                     <tr data-ts="${String(reg.timestamp).replace(/"/g, '&quot;')}" style="cursor: pointer;">
@@ -559,11 +282,9 @@
                 `;
             }).join('');
         }
-
         function showDetailsByTimestamp(timestamp) {
             const reg = allRegistrations.find(r => String(r.timestamp) === String(timestamp));
             if (!reg) return;
-
             const details = `
 Registration Details
 ===================
@@ -590,32 +311,23 @@ Payment:
 - Amount: $${typeof reg.amount === 'number' ? (reg.amount / 100).toFixed(2) : (parseFloat(reg.amount) || 0).toFixed(2)}
 - Payment ID: ${reg.paymentId || '-'}
             `;
-
             alert(details);
         }
-
         function updateStats() {
             const total = allRegistrations.length;
             const completed = allRegistrations.filter(r => r.status === 'completed').length;
             const pending = allRegistrations.filter(r => r.status === 'pending').length;
-            const revenue = allRegistrations
-                .filter(r => r.status === 'completed')
-                .reduce((sum, r) => {
-                    const amount = typeof r.amount === 'number' ? r.amount / 100 : parseFloat(r.amount);
-                    return sum + (Number.isFinite(amount) ? amount : 0);
-                }, 0);
-
+            const revenue = allRegistrations.filter(r => r.status === 'completed').reduce((sum, r) => {
+                const amount = typeof r.amount === 'number' ? r.amount / 100 : parseFloat(r.amount);
+                return sum + (Number.isFinite(amount) ? amount : 0);
+            }, 0);
             $('total-count').textContent = String(total);
             $('completed-count').textContent = String(completed);
             $('pending-count').textContent = String(pending);
             $('total-revenue').textContent = `$${revenue.toFixed(2)}`;
         }
-
         function exportToJSON() {
-            if (allRegistrations.length === 0) {
-                alert('No registrations to export');
-                return;
-            }
+            if (allRegistrations.length === 0) { alert('No registrations to export'); return; }
             const json = JSON.stringify(allRegistrations, null, 2);
             const blob = new Blob([json], { type: 'application/json' });
             const url = window.URL.createObjectURL(blob);
@@ -625,38 +337,15 @@ Payment:
             a.click();
             window.URL.revokeObjectURL(url);
         }
-
         function exportToCSV() {
-            if (allRegistrations.length === 0) {
-                alert('No registrations to export');
-                return;
-            }
+            if (allRegistrations.length === 0) { alert('No registrations to export'); return; }
             const headers = ['Date', 'First Name', 'Last Name', 'Email', 'Phone', 'Videophone', 'Address', 'Church', 'Emergency Name', 'Emergency Phone', 'Bunk Selection', 'Youth Info', 'Amount', 'Payment ID', 'Status'];
             const rows = allRegistrations.map(reg => {
                 const date = new Date(reg.timestamp).toLocaleString();
                 const amount = typeof reg.amount === 'number' ? (reg.amount / 100).toFixed(2) : (parseFloat(reg.amount) || 0).toFixed(2);
-                return [
-                    date,
-                    reg.firstName || '',
-                    reg.lastName || '',
-                    reg.email || '',
-                    reg.phone || '',
-                    reg.videophone || '',
-                    reg.fullAddress || '',
-                    reg.churchName || '',
-                    reg.emergencyName || '',
-                    reg.emergencyPhone || '',
-                    reg.bunkSelection || '',
-                    reg.youthInfo || '',
-                    amount,
-                    reg.paymentId || '',
-                    reg.status || ''
-                ];
+                return [date, reg.firstName || '', reg.lastName || '', reg.email || '', reg.phone || '', reg.videophone || '', reg.fullAddress || '', reg.churchName || '', reg.emergencyName || '', reg.emergencyPhone || '', reg.bunkSelection || '', reg.youthInfo || '', amount, reg.paymentId || '', reg.status || ''];
             });
-            const csv = [headers, ...rows].map(row =>
-                row.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(',')
-            ).join('\n');
-
+            const csv = [headers, ...rows].map(row => row.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(',')).join('\n');
             const blob = new Blob([csv], { type: 'text/csv' });
             const url = window.URL.createObjectURL(blob);
             const a = document.createElement('a');
@@ -665,7 +354,6 @@ Payment:
             a.click();
             window.URL.revokeObjectURL(url);
         }
-
         function clearAllRegistrationData() {
             const ok = confirm('Delete ALL registration data from this browser?\n\nThis cannot be undone.');
             if (!ok) return;
@@ -675,25 +363,17 @@ Payment:
             updateStats();
             alert('Registration data cleared from this browser.');
         }
-
         function mergeRegistrations(existing, incoming) {
             const byKey = new Map();
             const keyFor = (r) => `${r.email || ''}::${r.paymentId || ''}::${r.timestamp || ''}`;
-            [...existing, ...incoming].forEach(r => {
-                if (!r || typeof r !== 'object') return;
-                byKey.set(keyFor(r), r);
-            });
+            [...existing, ...incoming].forEach(r => { if (r && typeof r === 'object') byKey.set(keyFor(r), r); });
             return Array.from(byKey.values());
         }
-
         function importFromJSONFile(file) {
             const reader = new FileReader();
             reader.onload = () => {
                 const incoming = safeParseJSON(reader.result, null);
-                if (!Array.isArray(incoming)) {
-                    alert('Invalid JSON file. Expected an array of registrations.');
-                    return;
-                }
+                if (!Array.isArray(incoming)) { alert('Invalid JSON file. Expected an array of registrations.'); return; }
                 const existing = safeParseJSON(localStorage.getItem(REGISTRATIONS_KEY) || '[]', []);
                 const merged = mergeRegistrations(existing, incoming).slice(-500);
                 localStorage.setItem(REGISTRATIONS_KEY, JSON.stringify(merged));
@@ -702,66 +382,29 @@ Payment:
             };
             reader.readAsText(file);
         }
-
         let setupChallenge = makeChallenge();
         let loginChallenge = makeChallenge();
-
-        function renderChallenges() {
-            $('setup-challenge-q').textContent = setupChallenge.q;
-            $('login-challenge-q').textContent = loginChallenge.q;
-        }
-
+        function renderChallenges() { $('setup-challenge-q').textContent = setupChallenge.q; $('login-challenge-q').textContent = loginChallenge.q; }
         function verifyChallenge(ch, answerRaw) {
             const answer = Number(String(answerRaw || '').trim());
             if (!Number.isFinite(answer)) return false;
             if (answer !== ch.answer) return false;
-            // basic timing check: humans take at least a moment
             return (Date.now() - ch.createdAt) >= 800;
         }
-
         function showSetupOrLogin() {
             const auth = getStoredAuth();
-            if (!auth) {
-                show($('setup-card'));
-                hide($('login-card'));
-                hide($('admin-app'));
-                return;
-            }
-            hide($('setup-card'));
-            show($('login-card'));
-            hide($('admin-app'));
+            if (!auth) { show($('setup-card')); hide($('login-card')); hide($('admin-app')); return; }
+            hide($('setup-card')); show($('login-card')); hide($('admin-app'));
         }
+        function enterAdminApp() { hide($('setup-card')); hide($('login-card')); show($('admin-app')); loadRegistrations(); }
 
-        function enterAdminApp() {
-            hide($('setup-card'));
-            hide($('login-card'));
-            show($('admin-app'));
-            loadRegistrations();
-        }
-
-        // Event wiring
         document.addEventListener('DOMContentLoaded', () => {
             renderChallenges();
-
-            // If already logged in, skip login
-            if (isLoggedIn()) {
-                enterAdminApp();
-                return;
-            }
-
+            if (isLoggedIn()) { enterAdminApp(); return; }
             showSetupOrLogin();
 
-            $('setup-challenge-refresh').addEventListener('click', () => {
-                setupChallenge = makeChallenge();
-                $('setup-challenge-answer').value = '';
-                renderChallenges();
-            });
-            $('login-challenge-refresh').addEventListener('click', () => {
-                loginChallenge = makeChallenge();
-                $('login-challenge-answer').value = '';
-                renderChallenges();
-            });
-
+            $('setup-challenge-refresh').addEventListener('click', () => { setupChallenge = makeChallenge(); $('setup-challenge-answer').value = ''; renderChallenges(); });
+            $('login-challenge-refresh').addEventListener('click', () => { loginChallenge = makeChallenge(); $('login-challenge-answer').value = ''; renderChallenges(); });
             $('reset-admin').addEventListener('click', () => {
                 const ok = confirm('Reset admin username/password on this browser?\n\nYou will need to set up admin access again.');
                 if (!ok) return;
@@ -772,33 +415,17 @@ Payment:
             $('setup-form').addEventListener('submit', async (e) => {
                 e.preventDefault();
                 setError($('setup-error'), '');
-
                 if (isBotTrapTriggered($('setup-website').value)) return;
-
                 const username = $('setup-username').value.trim();
                 const pass1 = $('setup-password').value;
                 const pass2 = $('setup-password2').value;
-
-                if (username.length < 3) {
-                    setError($('setup-error'), 'Username must be at least 3 characters.');
-                    return;
-                }
-                if (pass1.length < 8) {
-                    setError($('setup-error'), 'Password must be at least 8 characters.');
-                    return;
-                }
-                if (pass1 !== pass2) {
-                    setError($('setup-error'), 'Passwords do not match.');
-                    return;
-                }
+                if (username.length < 3) { setError($('setup-error'), 'Username must be at least 3 characters.'); return; }
+                if (pass1.length < 8) { setError($('setup-error'), 'Password must be at least 8 characters.'); return; }
+                if (pass1 !== pass2) { setError($('setup-error'), 'Passwords do not match.'); return; }
                 if (!verifyChallenge(setupChallenge, $('setup-challenge-answer').value)) {
                     setError($('setup-error'), 'Human verification failed. Please try again.');
-                    setupChallenge = makeChallenge();
-                    $('setup-challenge-answer').value = '';
-                    renderChallenges();
-                    return;
+                    setupChallenge = makeChallenge(); $('setup-challenge-answer').value = ''; renderChallenges(); return;
                 }
-
                 try {
                     const usernameHash = await sha256Hex(username.toLowerCase());
                     const passwordHash = await sha256Hex(pass1);
@@ -817,34 +444,21 @@ Payment:
             $('login-form').addEventListener('submit', async (e) => {
                 e.preventDefault();
                 setError($('login-error'), '');
-
                 if (isBotTrapTriggered($('login-website').value)) return;
-
                 const auth = getStoredAuth();
-                if (!auth) {
-                    showSetupOrLogin();
-                    return;
-                }
+                if (!auth) { showSetupOrLogin(); return; }
                 if (!verifyChallenge(loginChallenge, $('login-challenge-answer').value)) {
                     setError($('login-error'), 'Human verification failed. Please try again.');
-                    loginChallenge = makeChallenge();
-                    $('login-challenge-answer').value = '';
-                    renderChallenges();
-                    return;
+                    loginChallenge = makeChallenge(); $('login-challenge-answer').value = ''; renderChallenges(); return;
                 }
-
                 const username = $('login-username').value.trim().toLowerCase();
                 const password = $('login-password').value;
-
                 try {
                     const usernameHash = await sha256Hex(username);
                     const passwordHash = await sha256Hex(password);
                     if (usernameHash !== auth.usernameHash || passwordHash !== auth.passwordHash) {
                         setError($('login-error'), 'Invalid username or password.');
-                        loginChallenge = makeChallenge();
-                        $('login-challenge-answer').value = '';
-                        renderChallenges();
-                        return;
+                        loginChallenge = makeChallenge(); $('login-challenge-answer').value = ''; renderChallenges(); return;
                     }
                     setLoggedIn();
                     enterAdminApp();
@@ -854,28 +468,15 @@ Payment:
                 }
             });
 
-            $('refresh-btn').addEventListener('click', () => {
-                loadRegistrations();
-                alert('Data refreshed!');
-            });
+            $('refresh-btn').addEventListener('click', () => { loadRegistrations(); alert('Data refreshed!'); });
             $('export-csv-btn').addEventListener('click', exportToCSV);
             $('export-json-btn').addEventListener('click', exportToJSON);
             $('clear-data-btn').addEventListener('click', clearAllRegistrationData);
             $('logout-btn').addEventListener('click', logout);
-
-            $('import-json-input').addEventListener('change', (e) => {
-                const file = e.target.files && e.target.files[0];
-                if (!file) return;
-                importFromJSONFile(file);
-                e.target.value = '';
-            });
-
+            $('import-json-input').addEventListener('change', (e) => { const f = e.target.files && e.target.files[0]; if (!f) return; importFromJSONFile(f); e.target.value = ''; });
             $('search-box').addEventListener('input', (e) => {
                 const searchTerm = e.target.value.toLowerCase();
-                if (!searchTerm) {
-                    displayRegistrations();
-                    return;
-                }
+                if (!searchTerm) { displayRegistrations(); return; }
                 const filtered = allRegistrations.filter(reg => {
                     const fullName = (reg.fullName || `${reg.firstName || ''} ${reg.lastName || ''}`).toLowerCase();
                     const email = (reg.email || '').toLowerCase();
@@ -884,20 +485,10 @@ Payment:
                 });
                 displayRegistrations(filtered);
             });
-
-            $('registrations-tbody').addEventListener('click', (e) => {
-                const tr = e.target.closest('tr[data-ts]');
-                if (!tr) return;
-                showDetailsByTimestamp(tr.getAttribute('data-ts'));
-            });
-
-            // Auto-refresh every 30 seconds while logged in
-            setInterval(() => {
-                if (isLoggedIn() && !$('admin-app').classList.contains('hidden')) {
-                    loadRegistrations();
-                }
-            }, 30000);
+            $('registrations-tbody').addEventListener('click', (e) => { const tr = e.target.closest('tr[data-ts]'); if (!tr) return; showDetailsByTimestamp(tr.getAttribute('data-ts')); });
+            setInterval(() => { if (isLoggedIn() && !$('admin-app').classList.contains('hidden')) loadRegistrations(); }, 30000);
         });
     </script>
 </body>
 </html>
+
