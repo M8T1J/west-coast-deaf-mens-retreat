@@ -2961,12 +2961,21 @@ body {
 .impact-card {
     display: flex;
     flex-direction: column;
-    align-items: flex-start;
+    align-items: center;
+    text-align: center;
+}
+
+.opportunity-card {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
 }
 
 .impact-donate-btn {
     margin-top: 1rem;
-    width: 100%;
+    width: auto;
+    min-width: 140px;
     text-align: center;
 }
 
@@ -2974,6 +2983,14 @@ body {
     color: var(--accent-color) !important;
     font-weight: 800;
     margin-bottom: 0.75rem !important;
+    text-align: center;
+}
+
+.opportunity-donate-btn {
+    margin-top: 1rem;
+    width: auto;
+    min-width: 140px;
+    text-align: center;
 }
 
 .thank-you-section {
