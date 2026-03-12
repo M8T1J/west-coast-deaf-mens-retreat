@@ -2841,3 +2841,55 @@ html {
         line-height: 1.3;
     }
 }
+/* Video Section */
+.video-section {
+    padding: 4rem 0;
+    background: var(--bg-light);
+}
+
+.video-section h2 {
+    text-align: center;
+    font-size: 2.5rem;
+    margin-bottom: 0.75rem;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--primary-dark);
+}
+
+.video-subtitle {
+    text-align: center;
+    color: var(--text-light);
+    margin-bottom: 1.5rem;
+}
+
+.video-subtitle code {
+    background: var(--white);
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    padding: 0.1rem 0.4rem;
+    font-size: 0.95rem;
+}
+
+.video-wrapper {
+    max-width: 900px;
+    margin: 0 auto;
+    border: 3px solid var(--border-color);
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: var(--shadow-lg);
+    background: #000;
+}
+
+.video-wrapper video {
+    display: block;
+    width: 100%;
+    height: auto;
+    max-height: 70vh;
+}
+
+@media (max-width: 768px) {
+    .video-section h2 {
+        font-size: 2rem;
+    }
+}
