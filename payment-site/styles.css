@@ -3378,3 +3378,187 @@ textarea:focus {
         border-radius: 22px;
     }
 }
+
+/* Premium minimalist refinement */
+:root {
+    --premium-navy: #0f2f57;
+    --premium-blue: #1d5fa8;
+    --premium-gold: #ffb84d;
+    --premium-surface: #ffffff;
+    --premium-surface-muted: #f7f9fc;
+    --premium-line: #e1e8f2;
+}
+
+.container {
+    max-width: 1240px;
+}
+
+.header {
+    background: rgba(255, 255, 255, 0.9);
+    border-bottom: 1px solid var(--premium-line);
+}
+
+.nav-content {
+    padding: 0.85rem 0;
+}
+
+.nav-links {
+    gap: 0.8rem;
+}
+
+.nav-links a {
+    border-radius: 999px;
+    padding: 0.45rem 0.8rem;
+    font-size: 0.9rem;
+    font-weight: 650;
+    color: #1b3454;
+    text-transform: none;
+    letter-spacing: 0;
+}
+
+.nav-links a::after {
+    display: none;
+}
+
+.nav-links a:hover,
+.nav-links a:focus {
+    background: rgba(29, 95, 168, 0.1);
+    color: var(--premium-blue);
+}
+
+.hero {
+    padding: 7.2rem 0 5.2rem;
+    background:
+        radial-gradient(circle at 12% 18%, rgba(255, 184, 77, 0.22) 0%, transparent 36%),
+        radial-gradient(circle at 88% 10%, rgba(80, 148, 226, 0.2) 0%, transparent 34%),
+        linear-gradient(132deg, #0a1f39 0%, var(--premium-navy) 45%, var(--premium-blue) 100%);
+}
+
+.hero-content {
+    max-width: 920px;
+    border-radius: 30px;
+    padding: 2.6rem 2.3rem;
+    background: linear-gradient(150deg, rgba(8, 27, 49, 0.78), rgba(15, 47, 87, 0.66));
+    border: 1px solid rgba(255, 255, 255, 0.24);
+}
+
+.hero-logo-image {
+    filter: drop-shadow(0 12px 22px rgba(0, 0, 0, 0.35));
+}
+
+.event-dates {
+    background: rgba(255, 184, 77, 0.14);
+    border-color: rgba(255, 184, 77, 0.48);
+    color: #ffe0b3;
+}
+
+.hero-content h1 {
+    letter-spacing: -0.02em;
+}
+
+.about-section,
+.registration-section,
+.schedule-section,
+.speakers-section,
+.venue-section {
+    padding-top: 5.4rem;
+    padding-bottom: 5.4rem;
+}
+
+.payment-form,
+.feature-item,
+.committee-member,
+.schedule-day,
+.speaker-card,
+.venue-info,
+.donation-cta-card,
+.impact-card,
+.opportunity-card,
+.thank-you-card {
+    background: linear-gradient(180deg, var(--premium-surface), var(--premium-surface-muted));
+    border: 1px solid var(--premium-line);
+    border-radius: 22px;
+    box-shadow: 0 20px 38px -32px rgba(15, 47, 87, 0.6);
+    transition: transform 0.24s ease, box-shadow 0.24s ease, border-color 0.24s ease;
+}
+
+.feature-item:hover,
+.committee-member:hover,
+.schedule-day:hover,
+.speaker-card:hover,
+.impact-card:hover,
+.opportunity-card:hover {
+    border-color: #bfd0e7;
+    box-shadow: 0 26px 44px -30px rgba(15, 47, 87, 0.72);
+}
+
+.btn {
+    border-radius: 14px;
+    font-weight: 700;
+    padding: 0.85rem 1.35rem;
+}
+
+.btn-primary {
+    background: linear-gradient(135deg, var(--premium-blue) 0%, #2b78cd 100%);
+    border-color: #2067b5;
+}
+
+.btn-primary:hover {
+    background: linear-gradient(135deg, #18569a 0%, #246ab5 100%);
+}
+
+.btn-outline {
+    border: 1px solid #b7c9e0;
+    color: var(--premium-navy);
+    background: #f8fbff;
+}
+
+.btn-outline:hover {
+    border-color: #91add0;
+    background: #edf4fd;
+}
+
+input,
+select,
+textarea {
+    background: #fbfcff;
+    border-color: #d3deec;
+}
+
+input:focus,
+select:focus,
+textarea:focus {
+    border-color: #6b9fd6;
+    box-shadow: 0 0 0 4px rgba(50, 120, 197, 0.15);
+}
+
+.donation-hero {
+    background:
+        radial-gradient(circle at 16% 15%, rgba(255, 184, 77, 0.2), transparent 38%),
+        linear-gradient(135deg, #0c294a 0%, #154377 48%, #1f5fa6 100%);
+}
+
+.footer {
+    background: linear-gradient(158deg, #0c223f 0%, #13365f 48%, #1d4f85 100%);
+}
+
+@media (max-width: 900px) {
+    .nav-links {
+        gap: 0.25rem;
+    }
+
+    .nav-links a {
+        padding: 0.35rem 0.62rem;
+    }
+}
+
+@media (max-width: 768px) {
+    .hero {
+        padding: 6.3rem 0 4.2rem;
+    }
+
+    .hero-content {
+        padding: 1.75rem 1.2rem;
+        border-radius: 22px;
+    }
+}
