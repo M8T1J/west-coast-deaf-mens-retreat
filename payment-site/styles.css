@@ -3957,31 +3957,31 @@ textarea {
 
 /* High-contrast donate link treatment */
 .nav-links a.nav-donate {
-    background: #ffbf5a;
-    color: #0e2747;
-    border: 1px solid #f1b24a;
+    background: #1f74c7;
+    color: #ffffff;
+    border: 1px solid #1a64ab;
     font-weight: 760;
 }
 
 .nav-links a.nav-donate:hover,
 .nav-links a.nav-donate:focus {
-    background: #ffd28b;
-    color: #0b213d;
+    background: #175ea5;
+    color: #ffffff;
 }
 
 .footer-donate {
     display: inline-block;
     padding: 0.28rem 0.6rem;
     border-radius: 999px;
-    border: 1px solid rgba(255, 201, 112, 0.9);
-    background: rgba(255, 184, 77, 0.24);
+    border: 1px solid rgba(75, 156, 235, 0.88);
+    background: rgba(31, 116, 199, 0.42);
     color: #ffffff !important;
     font-weight: 700;
 }
 
 .footer-donate:hover,
 .footer-donate:focus {
-    background: rgba(255, 184, 77, 0.36);
+    background: rgba(31, 116, 199, 0.6);
     color: #ffffff !important;
     text-decoration: none;
 }
