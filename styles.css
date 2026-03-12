@@ -4317,3 +4317,52 @@ textarea {
         width: 100%;
     }
 }
+
+/* Footer readability fix */
+.footer,
+.site-footer {
+    color: #f4f8ff;
+}
+
+.footer p,
+.footer li,
+.site-footer p,
+.site-footer li {
+    color: #e6efff;
+}
+
+.footer h2,
+.footer h3,
+.footer h4,
+.site-footer h2,
+.site-footer h3,
+.site-footer h4 {
+    color: #ffffff;
+}
+
+.footer a,
+.site-footer a,
+.footer-section a,
+.footer-social a {
+    color: #f2f7ff !important;
+    font-weight: 650;
+    text-decoration: underline;
+    text-underline-offset: 2px;
+}
+
+.footer a:hover,
+.footer a:focus,
+.site-footer a:hover,
+.site-footer a:focus,
+.footer-section a:hover,
+.footer-section a:focus,
+.footer-social a:hover,
+.footer-social a:focus {
+    color: #ffffff !important;
+}
+
+.footer-bottom p,
+.copyright {
+    color: #d7e7ff !important;
+    font-size: 0.95rem;
+}
