@@ -4,9 +4,9 @@
 
 ### Option 1: Admin Page (Recommended)
 1. Open your website
-2. Scroll to the footer
-3. Click **"Admin: View Registrations"** link
-4. Or go directly to: `admin.html` in your browser
+2. Go directly to: `admin.html` in your browser
+3. The first time on a new browser/device, you will be asked to create an admin username/password and pass a quick human-verification check
+4. After that, sign in to view registrations
 
 ### Option 2: Direct File
 1. Open Finder
@@ -72,17 +72,16 @@ Click on any registration row to see:
 - If you clear browser data, registrations are lost
 - For production, set up a backend database
 
-⚠️ **Security:** The admin page is not password protected
-- Anyone with the link can view registrations
-- For production, add password protection
+⚠️ **Security:** The admin page now requires an admin username/password + human verification
+- Admin credentials are stored only in that browser (static site limitation)
+- If you use multiple devices, export JSON on each device and import into the admin page to combine lists
 
 ## For Production
 
 When you deploy to your live website:
-1. Add password protection to `admin.html`
-2. Set up a backend database (MySQL, MongoDB, etc.)
-3. Store registrations server-side
-4. Create a secure admin login system
+1. Set up a backend database (MySQL, MongoDB, etc.)
+2. Store registrations server-side
+3. Protect admin access server-side (not just in the browser)
 
 ## Quick Test
 
