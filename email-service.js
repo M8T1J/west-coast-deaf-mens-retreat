@@ -48,8 +48,7 @@ function normalizeRegistrationData(formData, paymentId) {
     const fullName = formData.fullName || `${formData.firstName || ''} ${formData.lastName || ''}`.trim();
     const rawAmount = typeof formData.amount === 'number' ? formData.amount : parseFloat(formData.amount || '0');
     const amount = rawAmount > 1000 ? (rawAmount / 100).toFixed(2) : rawAmount.toFixed(2);
-    const websiteUrl = typeof window !== 'undefined' ? window.location.origin : 'https://www.wcdmr.com';
-    const logoUrl = `${websiteUrl}/images/logo.JPG`;
+    const logoUrl = 'https://www.wcdmr.com/images/logo-enhanced.JPG';
 
     return {
         fullName,

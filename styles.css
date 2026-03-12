@@ -1170,9 +1170,11 @@ textarea[aria-invalid="true"]:focus {
     border-radius: 8px;
     font-size: 18px;
     font-weight: bold;
+    border: none;
     text-decoration: none;
     transition: background 0.3s ease, transform 0.2s ease;
     cursor: pointer;
+    font-family: inherit;
 }
 
 .paypal-payment-button:hover {
@@ -1381,6 +1383,15 @@ legend {
     border-top-color: transparent;
     border-radius: 50%;
     animation: spin 0.6s linear infinite;
+}
+
+.paypal-redirect-spinner {
+    margin: 1rem auto;
+}
+
+.paypal-redirect-message {
+    text-align: center;
+    color: var(--text-light);
 }
 
 .hidden {

@@ -36,27 +36,6 @@ const ZELLE_RECIPIENT = 'WEST COAST DEAF MEN\'S RETREAT'; // Zelle recipient nam
 const PAYPAL_REDIRECT_DELAY_MS = 1200;
 const DUPLICATE_REGISTRATION_MESSAGE = 'A registration with this same name and email already exists. Please contact the admin team if you need to make changes.';
 
-// Generate PayPal payment link with amount
-function generatePayPalLink(amount) {
-    // PayPal payment links can include amount in the URL
-    // Note: You may need to create dynamic payment links in PayPal dashboard
-    // For now, we'll use the base link and handle amount via form data
-    
-    // Store form data in sessionStorage before redirecting
-    const formData = {
-        fullName: document.getElementById('full-name').value.trim(),
-        email: document.getElementById('email').value.trim(),
-        phone: document.getElementById('phone').value.trim(),
-        amount: amount,
-        timestamp: Date.now()
-    };
-    
-    sessionStorage.setItem('wcdmr_registration', JSON.stringify(formData));
-    
-    // Return the PayPal link
-    return PAYPAL_BASE_LINK;
-}
-
 // Update PayPal button when amount changes
 function updatePayPalButton() {
     const amountInput = document.getElementById('amount');
@@ -71,27 +50,15 @@ function updatePayPalButton() {
             type="button"
             id="paypal-payment-link"
             class="paypal-payment-button"
-            onclick="handlePayPalClick(event)"
-            style="
-                display: inline-block;
-                background: #0070ba;
-                color: #ffffff;
-                padding: 16px 34px;
-                border-radius: 8px;
-                font-size: 18px;
-                font-weight: bold;
-                text-decoration: none;
-                transition: background 0.3s ease;
-                border: none;
-                cursor: pointer;
-                font-family: inherit;
-            "
-            onmouseover="this.style.background='#005ea6'"
-            onmouseout="this.style.background='#0070ba'"
         >
             Complete Registration & Pay $${amount.toFixed(2)} with PayPal
         </button>
     `;
+
+    const payPalButton = document.getElementById('paypal-payment-link');
+    if (payPalButton) {
+        payPalButton.addEventListener('click', handlePayPalClick);
+    }
 }
 
 function persistPendingRegistration(formData) {
@@ -118,8 +85,8 @@ function showPayPalRedirectState(message) {
     if (!container) return;
 
     container.innerHTML = `
-        <div class="spinner" style="margin: 1rem auto;"></div>
-        <p style="text-align: center; color: var(--text-light);">${message}</p>
+        <div class="spinner paypal-redirect-spinner"></div>
+        <p class="paypal-redirect-message">${message}</p>
     `;
 }
 
@@ -708,7 +675,10 @@ function validateField(fieldId, validator) {
 
 // Screen reader announcement function
 function announceToScreenReader(message) {
-    const announcement = document.getElementById('sr-announcements');
+    const announcement =
+        document.getElementById('sr-announcements-global') ||
+        document.getElementById('sr-announcements-form') ||
+        document.getElementById('sr-announcements');
     if (announcement) {
         announcement.textContent = message;
         // Clear after a moment so it can be announced again
@@ -966,10 +936,6 @@ function resetForm() {
     if (registrationSection) {
         registrationSection.scrollIntoView({ behavior: 'smooth' });
     }
-}
-
-function scrollToPayment() {
-    document.getElementById('registration').scrollIntoView({ behavior: 'smooth' });
 }
 
 // No longer needed - removed selectPlan function
