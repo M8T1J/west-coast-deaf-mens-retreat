@@ -3011,6 +3011,33 @@ body {
     width: auto !important;
 }
 
+/* Force center alignment for all donation cards */
+.impact-section .impact-card,
+.opportunities-section .opportunity-card {
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    text-align: center !important;
+}
+
+.impact-section .impact-card h3,
+.impact-section .impact-card p,
+.impact-section .impact-card .btn,
+.opportunities-section .opportunity-card h3,
+.opportunities-section .opportunity-card p,
+.opportunities-section .opportunity-card .btn,
+.opportunities-section .opportunity-card .opportunity-range {
+    text-align: center !important;
+    align-self: center !important;
+    margin-left: auto !important;
+    margin-right: auto !important;
+}
+
+.impact-section .impact-card .btn,
+.opportunities-section .opportunity-card .btn {
+    margin-top: 1rem !important;
+}
+
 .thank-you-section {
     background: var(--white);
 }
