@@ -3955,6 +3955,37 @@ textarea {
     }
 }
 
+/* High-contrast donate link treatment */
+.nav-links a.nav-donate {
+    background: #ffbf5a;
+    color: #0e2747;
+    border: 1px solid #f1b24a;
+    font-weight: 760;
+}
+
+.nav-links a.nav-donate:hover,
+.nav-links a.nav-donate:focus {
+    background: #ffd28b;
+    color: #0b213d;
+}
+
+.footer-donate {
+    display: inline-block;
+    padding: 0.28rem 0.6rem;
+    border-radius: 999px;
+    border: 1px solid rgba(255, 201, 112, 0.9);
+    background: rgba(255, 184, 77, 0.24);
+    color: #ffffff !important;
+    font-weight: 700;
+}
+
+.footer-donate:hover,
+.footer-donate:focus {
+    background: rgba(255, 184, 77, 0.36);
+    color: #ffffff !important;
+    text-decoration: none;
+}
+
 .share-link-btn {
     min-width: 166px;
 }
