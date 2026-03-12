@@ -35,6 +35,67 @@ const ZELLE_CONTACT = 'wcdmrpayments@gmail.com'; // Zelle email for payments
 const ZELLE_RECIPIENT = 'WEST COAST DEAF MEN\'S RETREAT'; // Zelle recipient name
 const PAYPAL_REDIRECT_DELAY_MS = 1200;
 const DUPLICATE_REGISTRATION_MESSAGE = 'A registration with this same name and email already exists. Please contact the admin team if you need to make changes.';
+const RETREAT_START_ISO = '2026-11-06T15:00:00-08:00';
+const COUNTDOWN_INTERVAL_MS = 1000;
+
+function padCountdownValue(value) {
+    return String(Math.max(0, value)).padStart(2, '0');
+}
+
+function startRetreatCountdown() {
+    const countdownRoot = document.getElementById('retreat-countdown');
+    if (!countdownRoot) return;
+
+    const daysEl = document.getElementById('count-days');
+    const hoursEl = document.getElementById('count-hours');
+    const minutesEl = document.getElementById('count-minutes');
+    const secondsEl = document.getElementById('count-seconds');
+    const statusEl = document.getElementById('countdown-status');
+    const retreatStartTime = new Date(RETREAT_START_ISO).getTime();
+
+    if (Number.isNaN(retreatStartTime)) {
+        if (statusEl) {
+            statusEl.textContent = 'Countdown unavailable right now.';
+        }
+        return;
+    }
+
+    const updateCountdown = () => {
+        const remainingMs = retreatStartTime - Date.now();
+
+        if (remainingMs <= 0) {
+            if (daysEl) daysEl.textContent = '000';
+            if (hoursEl) hoursEl.textContent = '00';
+            if (minutesEl) minutesEl.textContent = '00';
+            if (secondsEl) secondsEl.textContent = '00';
+            if (statusEl) statusEl.textContent = 'Retreat has begun!';
+            countdownRoot.classList.add('countdown-complete');
+            return true;
+        }
+
+        const totalSeconds = Math.floor(remainingMs / 1000);
+        const days = Math.floor(totalSeconds / 86400);
+        const hours = Math.floor((totalSeconds % 86400) / 3600);
+        const minutes = Math.floor((totalSeconds % 3600) / 60);
+        const seconds = totalSeconds % 60;
+
+        if (daysEl) daysEl.textContent = String(days).padStart(3, '0');
+        if (hoursEl) hoursEl.textContent = padCountdownValue(hours);
+        if (minutesEl) minutesEl.textContent = padCountdownValue(minutes);
+        if (secondsEl) secondsEl.textContent = padCountdownValue(seconds);
+        if (statusEl) statusEl.textContent = 'Until Friday, Nov 6, 2026';
+        return false;
+    };
+
+    const isComplete = updateCountdown();
+    if (isComplete) return;
+
+    const timerId = setInterval(() => {
+        if (updateCountdown()) {
+            clearInterval(timerId);
+        }
+    }, COUNTDOWN_INTERVAL_MS);
+}
 
 // Update PayPal button when amount changes
 function updatePayPalButton() {
@@ -595,6 +656,7 @@ function initializeZelleInfo() {
 document.addEventListener('DOMContentLoaded', function() {
     updatePayPalButton();
     checkPayPalReturn();
+    startRetreatCountdown();
     
     // Update button when amount changes
     const amountInput = document.getElementById('amount');
