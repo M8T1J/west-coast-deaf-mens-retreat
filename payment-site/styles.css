@@ -4366,3 +4366,34 @@ textarea {
     color: #d7e7ff !important;
     font-size: 0.95rem;
 }
+
+/* Final footer accessibility override */
+.footer,
+.site-footer {
+    background: #0d2a4a !important;
+}
+
+.footer-section p,
+.footer-section li,
+.footer-social a,
+.footer a,
+.site-footer a {
+    color: #ffffff !important;
+    font-size: 1rem;
+    line-height: 1.65;
+}
+
+.footer-section h4,
+.footer h4,
+.site-footer h4 {
+    color: #ffffff !important;
+    font-size: 1.1rem;
+    font-weight: 760;
+}
+
+.footer-bottom p,
+.copyright {
+    color: #ffffff !important;
+    font-size: 1rem !important;
+    font-weight: 620;
+}
