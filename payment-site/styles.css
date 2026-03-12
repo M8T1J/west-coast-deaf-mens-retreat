@@ -3188,3 +3188,193 @@ body {
         max-width: 320px;
     }
 }
+
+/* Modern UI polish */
+:root {
+    --surface-0: #f4f7fb;
+    --surface-1: #ffffff;
+    --surface-2: #eef3fa;
+    --line-soft: #d7e0ec;
+    --radius-lg: 20px;
+    --radius-xl: 28px;
+}
+
+body {
+    background:
+        radial-gradient(1200px 700px at 15% -10%, rgba(34, 102, 193, 0.14), transparent 50%),
+        radial-gradient(1000px 600px at 90% 0%, rgba(255, 176, 0, 0.1), transparent 45%),
+        var(--surface-0);
+    color: var(--text-dark);
+}
+
+.header {
+    background: rgba(255, 255, 255, 0.86);
+    border-bottom: 1px solid var(--line-soft);
+    box-shadow: 0 12px 26px -20px rgba(8, 26, 49, 0.55);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+}
+
+.hero {
+    padding: 7rem 0 5rem;
+}
+
+.hero-content {
+    max-width: 880px;
+    margin: 0 auto;
+    padding: 2.25rem 2rem;
+    border-radius: var(--radius-xl);
+    background: linear-gradient(145deg, rgba(6, 20, 38, 0.76), rgba(18, 59, 107, 0.62));
+    border: 1px solid rgba(255, 255, 255, 0.22);
+    box-shadow: 0 30px 60px -36px rgba(2, 10, 21, 0.85);
+}
+
+.hero-content h1 {
+    font-size: clamp(2.1rem, 4.2vw, 3.7rem);
+    line-height: 1.12;
+    text-transform: none;
+    letter-spacing: -0.01em;
+}
+
+.event-dates {
+    display: inline-block;
+    margin-bottom: 0.75rem;
+    padding: 0.35rem 0.8rem;
+    border-radius: 999px;
+    border: 1px solid rgba(255, 255, 255, 0.28);
+    background: rgba(255, 255, 255, 0.12);
+    font-size: 0.95rem;
+    font-weight: 700;
+}
+
+.venue-name,
+.tagline {
+    color: rgba(255, 255, 255, 0.88);
+}
+
+.social-link {
+    border-radius: 50%;
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    background: rgba(255, 255, 255, 0.12);
+    backdrop-filter: blur(5px);
+    -webkit-backdrop-filter: blur(5px);
+}
+
+.social-link:hover {
+    transform: translateY(-3px);
+}
+
+.about-section,
+.registration-section,
+.schedule-section,
+.speakers-section,
+.venue-section,
+.donation-cta-section,
+.video-section,
+.impact-section,
+.opportunities-section,
+.thank-you-section {
+    position: relative;
+}
+
+.about-section h2,
+.registration-section h2,
+.schedule-section h2,
+.speakers-section h2,
+.venue-section h2,
+.donation-cta-card h2,
+.impact-section h2,
+.opportunities-section h2,
+.thank-you-section h2,
+.video-section h2 {
+    text-transform: none;
+    letter-spacing: -0.01em;
+}
+
+.payment-form,
+.feature-item,
+.committee-member,
+.schedule-day,
+.speaker-card,
+.venue-info,
+.donation-cta-card,
+.impact-card,
+.opportunity-card,
+.thank-you-card {
+    border: 1px solid var(--line-soft);
+    border-radius: var(--radius-lg);
+    background: linear-gradient(180deg, var(--surface-1), var(--surface-2));
+    box-shadow: 0 18px 34px -30px rgba(8, 26, 49, 0.62);
+}
+
+.feature-item:hover,
+.committee-member:hover,
+.schedule-day:hover,
+.speaker-card:hover,
+.impact-card:hover,
+.opportunity-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 22px 40px -30px rgba(8, 26, 49, 0.72);
+}
+
+.speaker-photo,
+.committee-photo {
+    border-radius: 14px;
+}
+
+.btn {
+    border-radius: 999px;
+    text-transform: none;
+    letter-spacing: 0.01em;
+    font-weight: 700;
+}
+
+.btn-primary {
+    background: linear-gradient(135deg, #1556a8 0%, #1f74c7 100%);
+    border-color: #1556a8;
+}
+
+.btn-primary:hover {
+    background: linear-gradient(135deg, #12488d 0%, #1a63aa 100%);
+}
+
+input,
+select,
+textarea {
+    border-radius: 12px;
+    border: 1px solid #c9d4e2;
+    background: #f9fbff;
+}
+
+input:focus,
+select:focus,
+textarea:focus {
+    border-color: #4f8fd6;
+    box-shadow: 0 0 0 4px rgba(43, 115, 198, 0.14);
+}
+
+.footer {
+    background: linear-gradient(160deg, #0c213c 0%, #112f56 52%, #184980 100%);
+    border-top: 1px solid rgba(255, 255, 255, 0.15);
+}
+
+.footer-section h4 {
+    letter-spacing: 0.01em;
+    text-transform: none;
+}
+
+.video-wrapper {
+    border: 1px solid var(--line-soft);
+    border-radius: var(--radius-lg);
+}
+
+@media (max-width: 768px) {
+    .hero {
+        padding: 5.75rem 0 4rem;
+    }
+
+    .hero-content {
+        padding: 1.6rem 1.25rem;
+        border-radius: 22px;
+    }
+}
