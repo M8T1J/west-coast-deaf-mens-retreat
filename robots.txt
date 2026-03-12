@@ -1,0 +1,7 @@
+User-agent: *
+Allow: /
+Disallow: /admin.html
+Disallow: /payment-site/admin.html
+Disallow: /payment-site/email-template-for-emailjs.html
+
+Sitemap: https://www.wcdmr.com/sitemap.xml
