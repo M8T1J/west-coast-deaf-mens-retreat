@@ -3155,8 +3155,25 @@ body {
     max-height: 70vh;
 }
 
+.video-wrapper iframe {
+    display: block;
+    width: 100%;
+    height: 100%;
+    border: 0;
+}
+
+.video-wrapper.short-video {
+    width: 100%;
+    max-width: 420px;
+    aspect-ratio: 9 / 16;
+}
+
 @media (max-width: 768px) {
     .video-section h2 {
         font-size: 2rem;
+    }
+
+    .video-wrapper.short-video {
+        max-width: 320px;
     }
 }
