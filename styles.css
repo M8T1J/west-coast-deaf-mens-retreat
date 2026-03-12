@@ -3952,3 +3952,20 @@ textarea {
         padding-bottom: 4rem;
     }
 }
+
+.share-link-btn {
+    min-width: 166px;
+}
+
+.share-link-status {
+    margin-top: 0.7rem;
+    text-align: center;
+    min-height: 1.2rem;
+    color: #315784;
+    font-weight: 600;
+    font-size: 0.9rem;
+}
+
+.share-link-status-error {
+    color: #a33232;
+}

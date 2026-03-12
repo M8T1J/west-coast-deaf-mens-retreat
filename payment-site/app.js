@@ -37,6 +37,9 @@ const PAYPAL_REDIRECT_DELAY_MS = 1200;
 const DUPLICATE_REGISTRATION_MESSAGE = 'A registration with this same name and email already exists. Please contact the admin team if you need to make changes.';
 const RETREAT_START_ISO = '2026-11-06T15:00:00-08:00';
 const COUNTDOWN_INTERVAL_MS = 1000;
+const SHARE_RETREAT_URL = 'https://www.wcdmr.com/';
+const SHARE_RETREAT_TITLE = "West Coast Deaf Men's Retreat 2026";
+const SHARE_RETREAT_TEXT = "Join me at West Coast Deaf Men's Retreat on Nov 6-8, 2026.";
 
 function padCountdownValue(value) {
     return String(Math.max(0, value)).padStart(2, '0');
@@ -95,6 +98,52 @@ function startRetreatCountdown() {
             clearInterval(timerId);
         }
     }, COUNTDOWN_INTERVAL_MS);
+}
+
+function setShareStatus(message, isError = false) {
+    const statusEl = document.getElementById('share-site-status');
+    if (!statusEl) return;
+    statusEl.textContent = message;
+    statusEl.classList.toggle('share-link-status-error', isError);
+}
+
+async function shareRetreatLink() {
+    const shareData = {
+        title: SHARE_RETREAT_TITLE,
+        text: SHARE_RETREAT_TEXT,
+        url: SHARE_RETREAT_URL
+    };
+
+    try {
+        if (navigator.share) {
+            await navigator.share(shareData);
+            setShareStatus('Thanks for sharing the retreat!');
+            announceToScreenReader('Retreat link shared.');
+            return;
+        }
+
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+            await navigator.clipboard.writeText(SHARE_RETREAT_URL);
+            setShareStatus('Share link copied to clipboard.');
+            announceToScreenReader('Retreat link copied to clipboard.');
+            return;
+        }
+
+        setShareStatus(`Copy this link: ${SHARE_RETREAT_URL}`);
+    } catch (error) {
+        console.error('Share action failed:', error);
+        setShareStatus('Unable to share right now. Please try again.', true);
+    }
+}
+
+function initializeShareButton() {
+    const shareButton = document.getElementById('share-site-btn');
+    if (!shareButton) return;
+
+    shareButton.addEventListener('click', () => {
+        setShareStatus('');
+        shareRetreatLink();
+    });
 }
 
 // Update PayPal button when amount changes
@@ -657,6 +706,7 @@ document.addEventListener('DOMContentLoaded', function() {
     updatePayPalButton();
     checkPayPalReturn();
     startRetreatCountdown();
+    initializeShareButton();
     
     // Update button when amount changes
     const amountInput = document.getElementById('amount');
