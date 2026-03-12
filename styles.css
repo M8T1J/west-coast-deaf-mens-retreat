@@ -2929,8 +2929,10 @@ body {
 
 .opportunities-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-    gap: 1.5rem;
+    grid-template-columns: 1fr;
+    gap: 1rem;
+    max-width: 760px;
+    margin: 0 auto;
 }
 
 .impact-card,
@@ -2964,6 +2966,8 @@ body {
 
 .impact-donate-btn {
     margin-top: 1rem;
+    width: 100%;
+    text-align: center;
 }
 
 .opportunity-range {
