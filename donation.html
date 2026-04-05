@@ -6,7 +6,7 @@
     <meta name="description" content="Donate to WCDMR 2026 — The Forge. Support the West Coast Deaf Men's Retreat and strengthen Deaf men for Christ.">
     <link rel="canonical" href="https://www.wcdmr.com/donation.html">
     <title>Donate | WCDMR 2026 — The Forge</title>
-    <link rel="stylesheet" href="styles.css?v=20260405c-forge-video">
+    <link rel="stylesheet" href="styles.css?v=20260405d-donation-youtube">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Bitter:wght@400;700&display=swap" rel="stylesheet">
@@ -44,19 +44,6 @@
         </nav>
     </header>
 
-    <div class="scripture-banner" role="region" aria-label="Theme scripture Isaiah chapter 54 verses 16 and 17">
-        <div class="scripture-scroll">
-            <div class="scripture-text">
-                <span class="scripture-reference">Isaiah 54:16–17</span>
-                <span class="scripture-verse">The Forge · “No weapon forged against you will prevail, and you will refute every tongue that accuses you.”</span>
-            </div>
-            <div class="scripture-text" aria-hidden="true">
-                <span class="scripture-reference">Isaiah 54:16–17</span>
-                <span class="scripture-verse">The Forge · “No weapon forged against you will prevail, and you will refute every tongue that accuses you.”</span>
-            </div>
-        </div>
-    </div>
-
     <main id="main-content">
         <section class="donation-hero" aria-labelledby="donation-title">
             <div class="container">
@@ -79,16 +66,21 @@
             </div>
         </section>
 
-        <section id="video" class="video-section" aria-labelledby="video-heading">
+        <section id="video" class="video-section video-section--donation" aria-labelledby="video-heading">
             <div class="container">
-                <h2 id="video-heading">Watch the Retreat Video</h2>
-                <p class="video-subtitle">Add your video file at <code>videos/retreat.mp4</code> to play it here. Turn on captions (CC) if available.</p>
-                <div class="video-wrapper">
-                    <video controls preload="metadata" playsinline>
-                        <source src="videos/retreat.mp4" type="video/mp4">
-                        Your browser does not support the video tag.
-                    </video>
+                <h2 id="video-heading">Watch the video</h2>
+                <p class="video-subtitle">Use the CC button on the player for captions if you need them.</p>
+                <div class="video-wrapper short-video video-wrapper--youtube">
+                    <iframe
+                        src="https://www.youtube.com/embed/cHgYEo_0CPE?rel=0"
+                        title="WCDMR — donation page video (YouTube)"
+                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                        allowfullscreen
+                        loading="lazy"
+                        referrerpolicy="strict-origin-when-cross-origin"
+                    ></iframe>
                 </div>
+                <p class="video-fallback-link"><a href="https://www.youtube.com/shorts/cHgYEo_0CPE" target="_blank" rel="noopener noreferrer">Open on YouTube</a> if the video does not load.</p>
             </div>
         </section>
 

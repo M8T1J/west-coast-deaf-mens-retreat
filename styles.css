@@ -3176,7 +3176,28 @@ body {
 .video-wrapper.short-video {
     width: 100%;
     max-width: 420px;
+    margin-left: auto;
+    margin-right: auto;
     aspect-ratio: 9 / 16;
+    position: relative;
+}
+
+.video-wrapper.short-video iframe {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+}
+
+.video-section--donation .video-fallback-link {
+    text-align: center;
+    margin-top: 1rem;
+    font-size: 0.95rem;
+}
+
+.video-section--donation .video-fallback-link a {
+    color: var(--primary);
+    font-weight: 600;
 }
 
 @media (max-width: 768px) {
