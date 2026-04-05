@@ -35,7 +35,10 @@ const ZELLE_CONTACT = 'wcdmrpayments@gmail.com'; // Zelle email for payments
 const ZELLE_RECIPIENT = 'WEST COAST DEAF MEN\'S RETREAT'; // Zelle recipient name
 const PAYPAL_REDIRECT_DELAY_MS = 1200;
 const DUPLICATE_REGISTRATION_MESSAGE = 'A registration with this same name and email already exists. Please contact the admin team if you need to make changes.';
-const RETREAT_START_ISO = '2026-11-06T15:00:00-08:00';
+/** Retreat starts: Fri Nov 6, 2026 3:00 PM (local time — matches camp check-in window) */
+function getRetreatStartTimeMs() {
+    return new Date(2026, 10, 6, 15, 0, 0).getTime();
+}
 const COUNTDOWN_INTERVAL_MS = 1000;
 const SHARE_RETREAT_URL = 'https://www.wcdmr.com/';
 const SHARE_RETREAT_TITLE = "West Coast Deaf Men's Retreat 2026";
@@ -54,7 +57,7 @@ function startRetreatCountdown() {
     const minutesEl = document.getElementById('count-minutes');
     const secondsEl = document.getElementById('count-seconds');
     const statusEl = document.getElementById('countdown-status');
-    const retreatStartTime = new Date(RETREAT_START_ISO).getTime();
+    const retreatStartTime = getRetreatStartTimeMs();
 
     if (Number.isNaN(retreatStartTime)) {
         if (statusEl) {
@@ -703,10 +706,26 @@ function initializeZelleInfo() {
 
 // Initialize PayPal button on page load
 document.addEventListener('DOMContentLoaded', function() {
-    updatePayPalButton();
-    checkPayPalReturn();
-    startRetreatCountdown();
-    initializeShareButton();
+    try {
+        updatePayPalButton();
+    } catch (e) {
+        console.error('updatePayPalButton', e);
+    }
+    try {
+        checkPayPalReturn();
+    } catch (e) {
+        console.error('checkPayPalReturn', e);
+    }
+    try {
+        startRetreatCountdown();
+    } catch (e) {
+        console.error('startRetreatCountdown', e);
+    }
+    try {
+        initializeShareButton();
+    } catch (e) {
+        console.error('initializeShareButton', e);
+    }
     
     // Update button when amount changes
     const amountInput = document.getElementById('amount');

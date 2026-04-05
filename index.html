@@ -82,7 +82,7 @@
     }
     </script>
     <title>WCDMR 2026 — The Forge | West Coast Deaf Men's Retreat</title>
-    <link rel="stylesheet" href="styles.css?v=20260405-forge-static">
+    <link rel="stylesheet" href="styles.css?v=20260405b-ticker">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Bitter:wght@400;700&display=swap" rel="stylesheet">
@@ -121,17 +121,19 @@
         </nav>
     </header>
 
-    <!-- Theme scripture — Isaiah 54:16–17 (readable; NIV-style wording) -->
-    <section class="scripture-static" aria-labelledby="scripture-static-heading">
-        <div class="container scripture-static-inner">
-            <h2 id="scripture-static-heading" class="scripture-static-heading">2026 Theme · The Forge</h2>
-            <p class="scripture-static-ref">Isaiah 54:16–17 (NIV)</p>
-            <div class="scripture-static-body">
-                <p class="scripture-static-verse"><span class="vnum">16</span> “See, it is I who have created the blacksmith who fans the coals into flame and forges a weapon fit for its work. And I have created the destroyer to wreak havoc.”</p>
-                <p class="scripture-static-verse"><span class="vnum">17</span> “No weapon forged against you will prevail, and you will refute every tongue that accuses you. This is the heritage of the servants of the <span class="lord-smallcaps">Lord</span>, and this is their vindication from me,” declares the <span class="lord-smallcaps">Lord</span>.</p>
+    <!-- Theme line — same live ticker style as before (one line, scrolls) -->
+    <div class="scripture-banner" role="region" aria-label="Theme scripture Isaiah chapter 54 verses 16 and 17">
+        <div class="scripture-scroll">
+            <div class="scripture-text">
+                <span class="scripture-reference">Isaiah 54:16–17</span>
+                <span class="scripture-verse">The Forge · “No weapon forged against you will prevail, and you will refute every tongue that accuses you.”</span>
+            </div>
+            <div class="scripture-text" aria-hidden="true">
+                <span class="scripture-reference">Isaiah 54:16–17</span>
+                <span class="scripture-verse">The Forge · “No weapon forged against you will prevail, and you will refute every tongue that accuses you.”</span>
             </div>
         </div>
-    </section>
+    </div>
 
     <main id="main-content">
         <section id="home" class="hero">
@@ -140,12 +142,10 @@
                     <div class="hero-logo">
                         <img src="images/logo-enhanced.JPG" alt="West Coast Deaf Men's Retreat Logo" class="hero-logo-image" onerror="this.style.display='none';">
                     </div>
-                    <p class="hero-theme" aria-hidden="false">The Forge</p>
                     <p class="event-dates" aria-label="Event dates">November 6–8, 2026</p>
                     <h1>West Coast Deaf Men's Retreat</h1>
                     <p class="venue-name" aria-label="Venue location">Pine Crest Camp · Twin Peaks, California</p>
-                    <p class="hero-scripture-ref" aria-label="Theme scripture reference">Isaiah 54:16–17</p>
-                    <p class="tagline">Forged in faith together — prayer, worship, and fellowship</p>
+                    <p class="tagline"><span class="theme-word">The Forge</span> — prayer, worship, and fellowship</p>
                     <div class="hero-actions">
                         <a href="#registration" class="btn btn-hero-primary">Register &amp; pay</a>
                         <a href="#about" class="btn btn-hero-secondary">About the retreat</a>
@@ -196,7 +196,7 @@
         <section id="registration" class="registration-section registration-section--priority" aria-labelledby="registration-heading">
             <div class="container">
                 <h2 id="registration-heading">Register &amp; pay — WCDMR 2026</h2>
-                <p class="registration-lead">The Forge · Isaiah 54:16–17 · Use PayPal, Zelle, or money order below. Fields match our registration records.</p>
+                <p class="registration-lead">Fill out your details and pay with PayPal, Zelle, or money order.</p>
                 <div class="registration-container">
                     <form id="registration-form" class="payment-form" aria-label="WCDMR 2026 Registration Form" novalidate>
                         <h3>WCDMR 2026 Registration</h3>
@@ -786,14 +786,15 @@
         <div class="container">
             <div class="footer-content">
                 <div class="footer-section">
-                    <h4>WCDMR 2026 — The Forge</h4>
+                    <h4>WCDMR 2026</h4>
                     <p>West Coast Deaf Men's Retreat</p>
-                    <p class="footer-theme">Isaiah 54:16–17 · Forged in faith together</p>
+                    <p class="footer-theme">The Forge · Pine Crest Camp · Nov 6–8, 2026</p>
                 </div>
                 <div class="footer-section">
                     <h4>Quick Links</h4>
                     <ul>
                         <li><a href="#home">Home</a></li>
+                        <li><a href="#registration">Register &amp; pay</a></li>
                         <li><a href="#quick-info">At a Glance</a></li>
                         <li><a href="#about">About</a></li>
                         <li><a href="#registration">Registration</a></li>

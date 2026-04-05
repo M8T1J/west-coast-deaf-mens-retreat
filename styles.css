@@ -4398,91 +4398,11 @@ textarea {
     font-weight: 620;
 }
 
-/* === The Forge theme + static Isaiah scripture (2026-04) === */
+/* === The Forge accents (ticker + CTAs) === */
 :root {
     --forge-ember: #c45c26;
     --forge-ember-dark: #8f3d18;
     --forge-glow: #e8a060;
-}
-
-/* Readable theme scripture (replaces marquee banner) */
-.scripture-static {
-    background: linear-gradient(180deg, #0f1f35 0%, #1a2d4a 100%);
-    color: #f0f4fa;
-    padding: 1.75rem 0 2rem;
-    border-bottom: 4px solid var(--forge-ember);
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
-}
-
-.scripture-static-inner {
-    max-width: 48rem;
-}
-
-.scripture-static-heading {
-    font-family: 'Bitter', Georgia, serif;
-    font-size: 1.35rem;
-    font-weight: 800;
-    letter-spacing: 0.06em;
-    text-transform: uppercase;
-    color: var(--forge-glow);
-    margin-bottom: 0.35rem;
-}
-
-.scripture-static-ref {
-    font-size: 0.95rem;
-    font-weight: 700;
-    color: #b8c9e0;
-    margin-bottom: 1.25rem;
-    letter-spacing: 0.04em;
-}
-
-.scripture-static-body {
-    font-size: 1.0625rem;
-    line-height: 1.65;
-    color: #eef3f9;
-}
-
-.scripture-static-verse {
-    margin-bottom: 1rem;
-}
-
-.scripture-static-verse:last-child {
-    margin-bottom: 0;
-}
-
-.scripture-static .vnum {
-    display: inline-block;
-    min-width: 1.75rem;
-    font-weight: 800;
-    color: var(--forge-glow);
-    margin-right: 0.25rem;
-}
-
-.lord-smallcaps {
-    font-variant: small-caps;
-    letter-spacing: 0.04em;
-}
-
-/* Hero: Forge labels + CTAs */
-.hero .hero-theme {
-    font-family: 'Bitter', Georgia, serif;
-    font-size: 2rem;
-    font-weight: 800;
-    letter-spacing: 0.22em;
-    text-transform: uppercase;
-    color: var(--forge-glow);
-    margin-bottom: 0.5rem;
-    text-shadow: 0 2px 10px rgba(0, 0, 0, 0.35);
-}
-
-.hero .hero-scripture-ref {
-    font-family: 'Bitter', Georgia, serif;
-    font-size: 1.05rem;
-    font-weight: 700;
-    color: #c9a961;
-    margin: 0.35rem 0 0.75rem;
-    letter-spacing: 0.1em;
-    text-transform: uppercase;
 }
 
 .hero-actions {
@@ -4560,20 +4480,34 @@ textarea {
     margin-top: 0.35rem;
 }
 
+.hero .theme-word {
+    color: var(--forge-glow);
+    font-weight: 800;
+    letter-spacing: 0.06em;
+}
+
+/* Slightly slower ticker for longer Isaiah line */
+.scripture-banner .scripture-scroll {
+    animation-duration: 42s;
+}
+
+.donation-theme-line {
+    font-size: 1.05rem;
+    font-weight: 700;
+    margin: 0 auto 1rem;
+    color: rgba(255, 255, 255, 0.92);
+    letter-spacing: 0.03em;
+}
+
+.donation-hero .donation-theme-line .theme-word {
+    color: var(--forge-glow);
+}
+
+.donation-back-link {
+    margin-top: 0.5rem;
+}
+
 @media (max-width: 768px) {
-    .scripture-static-heading {
-        font-size: 1.15rem;
-    }
-
-    .scripture-static-body {
-        font-size: 1rem;
-    }
-
-    .hero .hero-theme {
-        font-size: 1.35rem;
-        letter-spacing: 0.14em;
-    }
-
     .hero-actions {
         flex-direction: column;
         width: 100%;
