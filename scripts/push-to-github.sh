@@ -5,6 +5,8 @@
 
 set -e
 
+cd "$(cd "$(dirname "$0")/.." && pwd)"
+
 echo "🚀 Pushing West Coast Deaf Men's Retreat site to GitHub..."
 echo ""
 

@@ -3,7 +3,7 @@
 ## Just Run This One Command:
 
 ```bash
-./start-public-link.sh
+./scripts/start-public-link.sh
 ```
 
 Then **copy the link** it shows you and share it with your team!
@@ -27,6 +27,6 @@ Then **copy the link** it shows you and share it with your team!
 | Method | Time | Permanent? | Easiest? |
 |--------|------|------------|----------|
 | **Netlify** | 2 min | ✅ Yes | ⭐⭐⭐⭐⭐ |
-| **start-public-link.sh** | 1 min | ❌ No (stops when you close) | ⭐⭐⭐⭐ |
+| **`scripts/start-public-link.sh`** | 1 min | ❌ No (stops when you close) | ⭐⭐⭐⭐ |
 
 **Recommendation:** Use Netlify for a permanent link your team can access anytime!

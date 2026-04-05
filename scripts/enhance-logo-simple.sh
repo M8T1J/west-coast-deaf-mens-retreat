@@ -1,8 +1,9 @@
 #!/bin/bash
 # Simple logo enhancement using macOS tools
 
-INPUT="/Users/thomas/payment-site/images/logo.JPG"
-OUTPUT="/Users/thomas/payment-site/images/logo-enhanced.JPG"
+ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+INPUT="$ROOT/images/logo.JPG"
+OUTPUT="$ROOT/images/logo-enhanced.JPG"
 
 echo "Creating enhanced logo..."
 

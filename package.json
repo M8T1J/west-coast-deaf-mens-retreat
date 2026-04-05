@@ -4,7 +4,10 @@
   "description": "West Coast Deaf Men's Retreat 2026 website with payment and email automation",
   "scripts": {
     "dev": "npx serve .",
-    "build": "echo 'No build step required for static site'"
+    "build": "echo 'No build step required for static site'",
+    "share": "bash scripts/share.sh",
+    "public-link": "bash scripts/start-public-link.sh",
+    "test-mobile": "bash scripts/test-mobile.sh"
   },
   "dependencies": {
     "@sendgrid/mail": "^8.1.0"

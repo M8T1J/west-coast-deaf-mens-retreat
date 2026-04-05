@@ -10,6 +10,7 @@ The West Coast Deaf Men's Retreat is a three-day summit of Prayer, worship, and 
 
 - 🎨 Modern, responsive design
 - 💳 Stripe payment integration for registration fees
+- 📧 **Email automation for registration confirmations**
 - 📱 Mobile-friendly interface
 - ⚡ Fast and lightweight
 - 🔒 Secure payment processing
@@ -37,7 +38,16 @@ The West Coast Deaf Men's Retreat is a three-day summit of Prayer, worship, and 
 const stripe = Stripe('pk_test_your_actual_key_here');
 ```
 
-### 2. Backend Setup (Required for Production)
+### 2. Email Automation Setup
+
+The site includes email automation that sends confirmation emails after successful registration and payment. See [docs/EMAIL_SETUP.md](docs/EMAIL_SETUP.md) for detailed setup instructions.
+
+**Quick Setup Options:**
+- **EmailJS** (Development/Testing): Free tier, easy setup, client-side
+- **SendGrid** (Production): Recommended, 100 emails/day free, requires backend
+- **Custom SMTP**: Use your own email server
+
+### 3. Backend Setup (Required for Production)
 
 The current implementation includes a client-side example. For production use, you **must** set up a backend server to securely handle payment processing. Here's why:
 
@@ -45,7 +55,7 @@ The current implementation includes a client-side example. For production use, y
 - **PCI Compliance**: Backend handles sensitive payment data
 - **Validation**: Server-side validation of payments
 
-#### Option A: Node.js Backend
+#### Option A: Node.js Backend (with Email Support)
 
 Create a backend endpoint to handle PaymentIntent creation:
 
@@ -136,15 +146,28 @@ git push -u origin main
 ## File Structure
 
 ```
-payment-site/
-├── index.html      # Main HTML file with all sections
-├── styles.css      # Stylesheet with responsive design
-├── app.js          # JavaScript and Stripe integration
-├── README.md       # This file
-├── DEPLOYMENT.md   # Detailed deployment guide
-├── .gitignore      # Git ignore file
-└── .nojekyll       # GitHub Pages configuration
+├── index.html              # Main HTML file with all sections
+├── admin.html              # Admin / registrations view
+├── styles.css              # Stylesheet with responsive design
+├── app.js                  # JavaScript and Stripe integration
+├── email-service.js        # Email automation service
+├── registration-handler.js
+├── api/
+│   └── send-email.js       # Serverless function (Vercel)
+├── netlify/
+│   └── functions/
+│       └── send-email.js   # Netlify function
+├── scripts/                # Helper shell scripts (deploy, share, test on mobile, logo)
+├── docs/                   # Setup and deployment guides (see docs/README.md)
+├── README.md               # This file
+├── package.json            # Dependencies for serverless functions
+├── vercel.json             # Vercel configuration
+├── .env.example            # Environment variables template
+├── .gitignore
+└── .nojekyll               # GitHub Pages configuration
 ```
+
+**Documentation:** All detailed guides (Stripe, PayPal, email, deployment, sharing) live under [`docs/`](docs/README.md) so the repository root stays easy to scan on GitHub.
 
 ## Integration Points
 

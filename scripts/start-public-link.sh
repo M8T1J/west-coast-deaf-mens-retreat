@@ -8,9 +8,9 @@ echo "  Creating Public Link for Your Team"
 echo "=========================================="
 echo ""
 
-# Get the directory where the script is located
-SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
-cd "$SCRIPT_DIR"
+# Repository root (static site files live here)
+ROOT="$( cd "$( dirname "${BASH_SOURCE[0]}" )/.." && pwd )"
+cd "$ROOT"
 
 # Check if ngrok is installed
 if ! command -v ngrok &> /dev/null; then

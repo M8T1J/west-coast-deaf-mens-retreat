@@ -57,7 +57,7 @@ ifconfig | grep "inet " | grep -v 127.0.0.1
 ### Using the Script I Created:
 ```bash
 cd /Users/thomas/payment-site
-./start-public-link.sh
+./scripts/start-public-link.sh
 ```
 
 This creates a public link you can open on any phone, anywhere!
@@ -79,7 +79,7 @@ I'll create a simple script that does everything for you!
 
 ```bash
 cd /Users/thomas/payment-site
-./test-mobile.sh
+./scripts/test-mobile.sh
 ```
 
 This will:
@@ -142,7 +142,7 @@ ifconfig | grep "inet " | grep -v 127.0.0.1
 
 **Create public link:**
 ```bash
-./start-public-link.sh
+./scripts/start-public-link.sh
 ```
 
 ---

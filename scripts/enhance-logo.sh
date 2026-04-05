@@ -3,8 +3,9 @@
 # Script to enhance the logo image
 # This will create a bolder, sharper version of the original logo
 
-LOGO_INPUT="/Users/thomas/payment-site/images/logo.JPG"
-LOGO_OUTPUT="/Users/thomas/payment-site/images/logo-enhanced.JPG"
+ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+LOGO_INPUT="$ROOT/images/logo.JPG"
+LOGO_OUTPUT="$ROOT/images/logo-enhanced.JPG"
 
 echo "Enhancing logo image..."
 

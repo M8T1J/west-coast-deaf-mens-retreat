@@ -14,9 +14,10 @@ if ! command -v git &> /dev/null; then
     exit 1
 fi
 
-# Navigate to project directory
-cd "$(dirname "$0")"
-PROJECT_DIR=$(pwd)
+# Navigate to repository root (parent of scripts/)
+ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+cd "$ROOT"
+PROJECT_DIR="$ROOT"
 
 echo "📁 Project directory: $PROJECT_DIR"
 echo ""

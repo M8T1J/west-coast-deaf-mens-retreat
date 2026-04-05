@@ -21,7 +21,7 @@ After creating the repository, run this command in the terminal:
 
 ```bash
 cd /Users/thomas/payment-site
-./push-to-github.sh
+./scripts/push-to-github.sh
 ```
 
 Or manually run:
@@ -97,4 +97,4 @@ Make sure you:
 
 ## Need Help?
 
-Check the main [README.md](README.md) and [DEPLOYMENT.md](DEPLOYMENT.md) files for more detailed information.
+Check the main [README.md](../README.md) and [DEPLOYMENT.md](DEPLOYMENT.md) files for more detailed information.

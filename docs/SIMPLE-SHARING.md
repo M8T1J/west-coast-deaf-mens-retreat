@@ -5,7 +5,7 @@
 ### Step 1: Run This Script
 ```bash
 cd /Users/thomas/payment-site
-./start-public-link.sh
+./scripts/start-public-link.sh
 ```
 
 ### Step 2: Copy the Link
@@ -33,7 +33,7 @@ The script will try to install it automatically. If that doesn't work:
    ```bash
    sudo mv ngrok /usr/local/bin/
    ```
-5. Run the script again: `./start-public-link.sh`
+5. Run the script again: `./scripts/start-public-link.sh`
 
 ### Option B: Use Free Hosting (Even Easier!)
 
@@ -55,7 +55,7 @@ The script will try to install it automatically. If that doesn't work:
 
 ## Which Method Should You Use?
 
-- **For Quick Testing (1-2 hours)**: Use `start-public-link.sh` (ngrok)
+- **For Quick Testing (1-2 hours)**: Use `./scripts/start-public-link.sh` (ngrok)
 - **For Permanent Link**: Use Netlify (drag & drop, takes 2 minutes)
 - **For Team Access Anytime**: Use Netlify or Vercel
 
@@ -66,8 +66,8 @@ The script will try to install it automatically. If that doesn't work:
 Just run this:
 ```bash
 cd /Users/thomas/payment-site
-chmod +x start-public-link.sh
-./start-public-link.sh
+chmod +x scripts/start-public-link.sh
+./scripts/start-public-link.sh
 ```
 
 Then copy and share the link it gives you! 🎉

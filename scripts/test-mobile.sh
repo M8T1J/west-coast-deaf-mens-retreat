@@ -8,9 +8,9 @@ echo "  Mobile Testing Helper"
 echo "=========================================="
 echo ""
 
-# Get the directory where the script is located
-SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
-cd "$SCRIPT_DIR"
+# Repository root (static site files live here)
+ROOT="$( cd "$( dirname "${BASH_SOURCE[0]}" )/.." && pwd )"
+cd "$ROOT"
 
 # Check if Python is available
 if command -v python3 &> /dev/null; then

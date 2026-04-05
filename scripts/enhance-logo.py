@@ -8,10 +8,10 @@ Requires Pillow: pip3 install Pillow
 try:
     from PIL import Image, ImageEnhance, ImageFilter
     import os
-    
-    # Paths
-    logo_input = "/Users/thomas/payment-site/images/logo.JPG"
-    logo_output = "/Users/thomas/payment-site/images/logo-enhanced.JPG"
+
+    root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    logo_input = os.path.join(root, "images", "logo.JPG")
+    logo_output = os.path.join(root, "images", "logo-enhanced.JPG")
     
     if not os.path.exists(logo_input):
         print(f"Error: Logo file not found at {logo_input}")

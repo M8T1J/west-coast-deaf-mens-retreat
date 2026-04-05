@@ -62,11 +62,11 @@ Share this URL with your team - they can access it from anywhere!
 
 ## Option 3: Quick Share Script
 
-I've created a `share.sh` script you can run:
+Run the sharing helper script:
 
 ```bash
-chmod +x share.sh
-./share.sh
+chmod +x scripts/share.sh
+./scripts/share.sh
 ```
 
 This will automatically:
