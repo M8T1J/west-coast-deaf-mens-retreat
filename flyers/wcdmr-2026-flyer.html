@@ -14,7 +14,6 @@
             --forge-ember-dark: #8f3d18;
             --night: #0a2949;
             --night-mid: #144172;
-            --paper: #f8fafc;
             --ink: #0f172a;
         }
 
@@ -24,7 +23,7 @@
 
         @page {
             size: letter;
-            margin: 0.4in;
+            margin: 0.35in;
         }
 
         body {
@@ -38,10 +37,12 @@
         }
 
         .flyer {
+            position: relative;
             width: 8.5in;
             min-height: 11in;
             margin: 1rem auto;
-            padding: 0.55in 0.6in;
+            padding: 0.5in 0.55in 0.45in;
+            padding-bottom: 1.15in;
             background:
                 radial-gradient(ellipse 90% 50% at 50% -10%, rgba(232, 160, 96, 0.35), transparent 55%),
                 linear-gradient(165deg, var(--night) 0%, var(--night-mid) 45%, #1f67b8 100%);
@@ -53,17 +54,12 @@
             text-align: center;
         }
 
-        .logo-wrap {
+        .flyer-main {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
             width: 100%;
-            max-width: 4.2in;
-            margin-bottom: 0.35rem;
-        }
-
-        .logo-wrap img {
-            width: 100%;
-            height: auto;
-            display: block;
-            filter: drop-shadow(0 6px 12px rgba(0, 0, 0, 0.35));
         }
 
         .eyebrow {
@@ -72,12 +68,12 @@
             letter-spacing: 0.28em;
             text-transform: uppercase;
             color: rgba(255, 255, 255, 0.78);
-            margin: 0.2rem 0 0.5rem;
+            margin: 0 0 0.35rem;
         }
 
         .theme {
             font-family: Bitter, Georgia, serif;
-            font-size: clamp(2.4rem, 6vw, 3.4rem);
+            font-size: clamp(2.15rem, 5vw, 3.1rem);
             font-weight: 900;
             letter-spacing: 0.14em;
             text-transform: uppercase;
@@ -88,19 +84,19 @@
         }
 
         .scripture-ref {
-            font-size: 0.95rem;
+            font-size: 0.9rem;
             font-weight: 700;
             color: #ffd99a;
-            margin: 0.35rem 0 0.15rem;
+            margin: 0.3rem 0 0.1rem;
             letter-spacing: 0.06em;
         }
 
         .scripture-line {
-            font-size: 0.82rem;
+            font-size: 0.78rem;
             font-style: italic;
             color: rgba(255, 255, 255, 0.88);
             max-width: 6.2in;
-            margin: 0 0 1rem;
+            margin: 0 0 0.65rem;
             line-height: 1.45;
         }
 
@@ -109,97 +105,173 @@
             height: 3px;
             border-radius: 999px;
             background: linear-gradient(90deg, transparent, var(--forge-glow), var(--forge-ember), transparent);
-            margin: 0.4rem 0 0.85rem;
+            margin: 0.25rem 0 0.65rem;
             opacity: 0.95;
         }
 
         .when {
             font-family: Bitter, Georgia, serif;
-            font-size: 1.35rem;
+            font-size: 1.28rem;
             font-weight: 800;
             letter-spacing: 0.04em;
-            margin: 0 0 0.25rem;
+            margin: 0 0 0.2rem;
         }
 
         .where {
-            font-size: 0.95rem;
+            font-size: 0.9rem;
             font-weight: 600;
             color: rgba(255, 255, 255, 0.9);
-            margin: 0 0 1.1rem;
+            margin: 0 0 0.75rem;
+        }
+
+        .speaker-row {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: stretch;
+            justify-content: center;
+            gap: 0.85rem;
+            width: 100%;
+            max-width: 6.75in;
+            margin: 0 auto 0.75rem;
+            text-align: left;
+        }
+
+        .speaker-photo-wrap {
+            flex: 0 0 auto;
+            width: 2.65in;
+            min-height: 2.85in;
+            border-radius: 14px;
+            overflow: hidden;
+            border: 3px solid rgba(255, 255, 255, 0.28);
+            box-shadow: 0 12px 28px rgba(0, 0, 0, 0.35);
+            background: rgba(0, 0, 0, 0.2);
+        }
+
+        .speaker-photo-wrap img {
+            width: 100%;
+            height: 100%;
+            min-height: 2.85in;
+            object-fit: cover;
+            object-position: center 15%;
+            display: block;
         }
 
         .speaker-box {
-            width: 100%;
-            max-width: 6.5in;
-            padding: 0.75rem 1rem;
+            flex: 1 1 220px;
+            min-width: 0;
+            padding: 0.65rem 0.85rem;
             border-radius: 12px;
             background: rgba(255, 255, 255, 0.1);
             border: 1px solid rgba(255, 255, 255, 0.22);
             backdrop-filter: blur(6px);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
         }
 
         .speaker-label {
-            font-size: 0.7rem;
+            font-size: 0.65rem;
             font-weight: 700;
             letter-spacing: 0.2em;
             text-transform: uppercase;
             color: var(--forge-glow);
-            margin: 0 0 0.35rem;
+            margin: 0 0 0.3rem;
         }
 
         .speaker-name {
             font-family: Bitter, Georgia, serif;
-            font-size: 1.65rem;
+            font-size: 1.45rem;
             font-weight: 800;
             margin: 0;
             letter-spacing: 0.02em;
+            line-height: 1.15;
         }
 
         .speaker-note {
-            font-size: 0.88rem;
-            color: rgba(255, 255, 255, 0.82);
-            margin: 0.4rem 0 0;
+            font-size: 0.82rem;
+            color: rgba(255, 255, 255, 0.84);
+            margin: 0.35rem 0 0;
             line-height: 1.4;
         }
 
-        .price-row {
-            margin-top: auto;
-            padding-top: 1rem;
+        .price-block {
+            margin: 0.35rem 0 0.5rem;
         }
 
         .price {
             display: inline-block;
             font-family: Bitter, Georgia, serif;
-            font-size: 2rem;
+            font-size: 1.75rem;
             font-weight: 900;
             color: #fff;
             background: linear-gradient(180deg, var(--forge-glow) 0%, var(--forge-ember) 55%, var(--forge-ember-dark) 100%);
-            padding: 0.45rem 1.25rem;
+            padding: 0.38rem 1.1rem;
             border-radius: 8px;
             border: 2px solid rgba(255, 255, 255, 0.35);
             box-shadow: 0 8px 20px rgba(196, 92, 38, 0.4);
         }
 
         .price-sub {
-            font-size: 0.8rem;
-            margin-top: 0.45rem;
+            font-size: 0.75rem;
+            margin-top: 0.35rem;
             color: rgba(255, 255, 255, 0.75);
         }
 
-        .url {
-            margin-top: 0.75rem;
-            font-size: 1rem;
+        /* Bottom corner: logo + QR */
+        .flyer-footer {
+            position: absolute;
+            left: 0.45in;
+            right: 0.45in;
+            bottom: 0.35in;
+            display: flex;
+            align-items: flex-end;
+            justify-content: space-between;
+            gap: 1rem;
+            padding-top: 0.5rem;
+            border-top: 1px solid rgba(255, 255, 255, 0.18);
+        }
+
+        .footer-logo {
+            flex: 0 0 auto;
+        }
+
+        .footer-logo img {
+            width: 1.25in;
+            height: auto;
+            display: block;
+            filter: drop-shadow(0 2px 6px rgba(0, 0, 0, 0.35));
+        }
+
+        .footer-qr {
+            flex: 0 0 auto;
+            text-align: center;
+        }
+
+        .footer-qr img {
+            width: 1.35in;
+            height: 1.35in;
+            display: block;
+            margin: 0 auto;
+            border-radius: 6px;
+            background: #fff;
+            padding: 4px;
+        }
+
+        .footer-qr .qr-label {
+            display: block;
+            font-size: 0.62rem;
             font-weight: 700;
-            letter-spacing: 0.04em;
+            letter-spacing: 0.06em;
+            text-transform: uppercase;
+            color: rgba(255, 255, 255, 0.82);
+            margin-top: 0.25rem;
         }
 
-        .url a {
+        .footer-qr .qr-url {
+            font-size: 0.72rem;
+            font-weight: 600;
             color: #93c5fd;
-            text-decoration: none;
-        }
-
-        .url a:hover {
-            text-decoration: underline;
+            margin-top: 0.1rem;
         }
 
         @media print {
@@ -210,46 +282,85 @@
             .flyer {
                 margin: 0;
                 box-shadow: none;
-                min-height: 10.2in;
+                min-height: 10.25in;
             }
         }
 
-        @media screen and (max-width: 600px) {
+        @media screen and (max-width: 640px) {
             .flyer {
                 width: 100%;
                 min-height: auto;
                 margin: 0;
-                padding: 1.25rem 1rem 2rem;
+                padding: 1rem 1rem 5.5rem;
+                position: relative;
+            }
+
+            .speaker-row {
+                flex-direction: column;
+                align-items: center;
+                text-align: center;
+            }
+
+            .speaker-box {
+                text-align: center;
+            }
+
+            .speaker-photo-wrap {
+                width: min(85vw, 3.2in);
+            }
+
+            .flyer-footer {
+                position: relative;
+                left: auto;
+                right: auto;
+                bottom: auto;
+                margin-top: 1rem;
+                flex-wrap: wrap;
+                justify-content: center;
             }
         }
     </style>
 </head>
 <body>
     <article class="flyer" aria-label="WCDMR 2026 event flyer">
-        <div class="logo-wrap">
-            <img src="../images/logo-enhanced.JPG" alt="West Coast Deaf Men's Retreat" width="800" height="400">
+        <div class="flyer-main">
+            <p class="eyebrow">West Coast Deaf Men’s Retreat · 2026</p>
+            <h1 class="theme">The Forge</h1>
+            <p class="scripture-ref">Isaiah 54:16–17</p>
+            <p class="scripture-line">“No weapon forged against you will prevail, and you will refute every tongue that accuses you.”</p>
+
+            <div class="rule" role="presentation"></div>
+
+            <p class="when">November 6–8, 2026</p>
+            <p class="where">Pine Crest Camp · Twin Peaks, California</p>
+
+            <div class="speaker-row">
+                <div class="speaker-photo-wrap">
+                    <img src="../images/Jesse%20Macias.JPEG" alt="Jesse Macias, guest speaker" width="400" height="500">
+                </div>
+                <div class="speaker-box">
+                    <p class="speaker-label">Guest speaker</p>
+                    <h2 class="speaker-name">Jesse Macias</h2>
+                    <p class="speaker-note">20 years in Deaf ministry, evangelism, and outreach leadership.</p>
+                </div>
+            </div>
+
+            <div class="price-block">
+                <div class="price" aria-label="Registration price">$245</div>
+                <p class="price-sub">Standard adult registration · Register &amp; pay online</p>
+            </div>
         </div>
-        <p class="eyebrow">West Coast Deaf Men’s Retreat · 2026</p>
-        <h1 class="theme">The Forge</h1>
-        <p class="scripture-ref">Isaiah 54:16–17</p>
-        <p class="scripture-line">“No weapon forged against you will prevail, and you will refute every tongue that accuses you.”</p>
 
-        <div class="rule" role="presentation"></div>
-
-        <p class="when">November 6–8, 2026</p>
-        <p class="where">Pine Crest Camp · Twin Peaks, California</p>
-
-        <div class="speaker-box">
-            <p class="speaker-label">Guest speaker</p>
-            <h2 class="speaker-name">Jesse Macias</h2>
-            <p class="speaker-note">20 years in Deaf ministry, evangelism, and outreach leadership.</p>
-        </div>
-
-        <div class="price-row">
-            <div class="price" aria-label="Registration price">$245</div>
-            <p class="price-sub">Standard adult registration · Register &amp; pay online</p>
-            <p class="url"><a href="https://www.wcdmr.com/">www.wcdmr.com</a></p>
-        </div>
+        <footer class="flyer-footer">
+            <div class="footer-logo">
+                <img src="../images/logo-enhanced.JPG" alt="WCDMR logo" width="200" height="100">
+            </div>
+            <div class="footer-qr">
+                <img src="wcdmr-site-qr.png" alt="QR code: https://www.wcdmr.com/" width="160" height="160">
+                <span class="qr-label">Scan to register</span>
+                <span class="qr-url">www.wcdmr.com</span>
+            </div>
+        </footer>
     </article>
 </body>
 </html>
