@@ -4480,27 +4480,39 @@ textarea {
     margin-top: 0.35rem;
 }
 
-.hero .theme-word {
+/* Prominent theme title — sits immediately above event dates */
+.hero-content .hero-theme,
+.donation-hero .hero-theme {
+    font-family: 'Bitter', Georgia, serif;
+    font-size: clamp(2.5rem, 6.5vw, 4.25rem);
+    font-weight: 900;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
     color: var(--forge-glow);
-    font-weight: 800;
-    letter-spacing: 0.06em;
+    margin: 0.25rem 0 0.6rem;
+    line-height: 1.08;
+    text-shadow:
+        0 4px 28px rgba(0, 0, 0, 0.55),
+        0 0 48px rgba(212, 175, 55, 0.28);
+    position: relative;
+    z-index: 1;
+}
+
+.donation-hero .hero-theme {
+    margin-bottom: 0.35rem;
+}
+
+.donation-dates-line {
+    font-size: 1.05rem;
+    font-weight: 700;
+    margin: 0 auto 1rem;
+    color: rgba(255, 255, 255, 0.92);
+    letter-spacing: 0.04em;
 }
 
 /* Slightly slower ticker for longer Isaiah line */
 .scripture-banner .scripture-scroll {
     animation-duration: 42s;
-}
-
-.donation-theme-line {
-    font-size: 1.05rem;
-    font-weight: 700;
-    margin: 0 auto 1rem;
-    color: rgba(255, 255, 255, 0.92);
-    letter-spacing: 0.03em;
-}
-
-.donation-hero .donation-theme-line .theme-word {
-    color: var(--forge-glow);
 }
 
 .donation-back-link {
