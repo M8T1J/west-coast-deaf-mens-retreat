@@ -4559,9 +4559,3 @@ textarea {
         margin: 0.25rem 0;
     }
 }
-
-/* Donation page only: hide theme/scrolling scripture even if old HTML is cached */
-body.page-donation .scripture-banner,
-body.page-donation .hero-theme {
-    display: none !important;
-}
