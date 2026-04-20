@@ -107,55 +107,177 @@ Payment:
     alert(details);
 }
 
+function escapeHtml(value) {
+    return String(value ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
+
+function ensureEditDialog() {
+    let dialog = document.getElementById('edit-registration-dialog');
+    if (dialog) return dialog;
+
+    dialog = document.createElement('dialog');
+    dialog.id = 'edit-registration-dialog';
+    dialog.style.maxWidth = '820px';
+    dialog.style.width = '95%';
+    dialog.style.border = 'none';
+    dialog.style.borderRadius = '12px';
+    dialog.style.padding = '0';
+    dialog.innerHTML = `
+        <form method="dialog" style="margin:0;">
+            <div style="padding: 1.25rem 1.25rem 0.75rem 1.25rem; border-bottom: 1px solid #e5e7eb;">
+                <div style="display:flex; justify-content: space-between; gap: 1rem; align-items: baseline;">
+                    <div>
+                        <div style="font-size: 1.25rem; font-weight: 700;">Edit registration</div>
+                        <div style="color:#6b7280; font-size: 0.9rem;" id="edit-reg-subtitle"></div>
+                    </div>
+                    <button value="cancel" class="btn btn-outline" style="padding: 0.4rem 0.7rem; font-size: 0.9rem;">Close</button>
+                </div>
+            </div>
+            <div style="padding: 1rem 1.25rem; max-height: 70vh; overflow:auto;">
+                <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 0.85rem 1rem;">
+                    <label>Full name<br><input id="edit-fullName" class="search-box" style="margin:0;" /></label>
+                    <label>Email<br><input id="edit-email" class="search-box" style="margin:0;" /></label>
+                    <label>Phone<br><input id="edit-phone" class="search-box" style="margin:0;" /></label>
+                    <label>Videophone<br><input id="edit-videophone" class="search-box" style="margin:0;" /></label>
+                    <label style="grid-column: 1 / -1;">Full address<br><input id="edit-fullAddress" class="search-box" style="margin:0;" /></label>
+                    <label>Church name<br><input id="edit-churchName" class="search-box" style="margin:0;" /></label>
+                    <label>Bunk selection<br><input id="edit-bunkSelection" class="search-box" style="margin:0;" /></label>
+                    <label style="grid-column: 1 / -1;">Youth info<br><input id="edit-youthInfo" class="search-box" style="margin:0;" /></label>
+                    <label>Emergency name<br><input id="edit-emergencyName" class="search-box" style="margin:0;" /></label>
+                    <label>Emergency phone<br><input id="edit-emergencyPhone" class="search-box" style="margin:0;" /></label>
+                    <label>Payment ID<br><input id="edit-paymentId" class="search-box" style="margin:0;" /></label>
+                    <label>Status<br>
+                        <select id="edit-status" class="search-box" style="margin:0;">
+                            <option value="completed">completed</option>
+                            <option value="pending">pending</option>
+                        </select>
+                    </label>
+                    <label>Amount (dollars)<br><input id="edit-amount" class="search-box" style="margin:0;" inputmode="decimal" /></label>
+                    <label>Payment method<br><input id="edit-paymentMethod" class="search-box" style="margin:0;" placeholder="paypal / zelle / money_order" /></label>
+                </div>
+                <div id="edit-reg-error" style="margin-top: 0.85rem; color: #b91c1c; display:none;"></div>
+            </div>
+            <div style="padding: 0.9rem 1.25rem; border-top: 1px solid #e5e7eb; display:flex; justify-content:flex-end; gap: 0.75rem;">
+                <button value="cancel" class="btn btn-outline">Cancel</button>
+                <button id="edit-save-btn" value="default" class="btn btn-primary" type="button">Save</button>
+            </div>
+        </form>
+    `;
+    document.body.appendChild(dialog);
+    return dialog;
+}
+
 function editRegistration(timestamp) {
     const idx = allRegistrations.findIndex(r => r.timestamp === timestamp);
     if (idx === -1) return;
 
     const reg = allRegistrations[idx];
 
-    const nextAmountRaw = prompt(
-        'Edit amount (dollars). Example: 245 or 245.00',
-        reg.amount != null ? String(reg.amount) : ''
-    );
-    if (nextAmountRaw === null) return;
+    const dialog = ensureEditDialog();
 
-    const amountNum = parseFloat(String(nextAmountRaw).trim());
-    if (!Number.isFinite(amountNum) || amountNum < 0) {
-        alert('Amount must be a valid number in dollars (example: 245.00).');
-        return;
+    const subtitle = dialog.querySelector('#edit-reg-subtitle');
+    if (subtitle) {
+        subtitle.textContent = `Saved on ${new Date(reg.timestamp).toLocaleString()}`;
     }
 
-    const nextStatusRaw = prompt('Edit status: completed or pending', reg.status || 'completed');
-    if (nextStatusRaw === null) return;
-    const status = String(nextStatusRaw).trim().toLowerCase();
-    if (!['completed', 'pending'].includes(status)) {
-        alert('Status must be "completed" or "pending".');
-        return;
-    }
-
-    const nextPaymentId = prompt('Edit Payment ID (optional)', reg.paymentId || '');
-    if (nextPaymentId === null) return;
-
-    const nextEmail = prompt('Edit email (optional)', reg.email || '');
-    if (nextEmail === null) return;
-
-    const nextName = prompt('Edit full name (optional)', reg.fullName || `${reg.firstName || ''} ${reg.lastName || ''}`.trim());
-    if (nextName === null) return;
-
-    const updated = {
-        ...reg,
-        fullName: String(nextName || '').trim(),
-        email: String(nextEmail || '').trim(),
-        paymentId: String(nextPaymentId || '').trim(),
-        amount: Number(amountNum.toFixed(2)),
-        status
+    const setVal = (id, value) => {
+        const el = dialog.querySelector(id);
+        if (!el) return;
+        el.value = value ?? '';
     };
 
-    const next = [...allRegistrations];
-    next[idx] = updated;
-    persistRegistrations(next);
-    loadRegistrations();
-    alert('Registration updated.');
+    setVal('#edit-fullName', reg.fullName || `${reg.firstName || ''} ${reg.lastName || ''}`.trim());
+    setVal('#edit-email', reg.email || '');
+    setVal('#edit-phone', reg.phone || '');
+    setVal('#edit-videophone', reg.videophone || '');
+    setVal('#edit-fullAddress', reg.fullAddress || '');
+    setVal('#edit-churchName', reg.churchName || '');
+    setVal('#edit-bunkSelection', reg.bunkSelection || '');
+    setVal('#edit-youthInfo', reg.youthInfo || '');
+    setVal('#edit-emergencyName', reg.emergencyName || '');
+    setVal('#edit-emergencyPhone', reg.emergencyPhone || '');
+    setVal('#edit-paymentId', reg.paymentId || '');
+    setVal('#edit-status', (reg.status || 'completed').toLowerCase());
+    setVal('#edit-amount', reg.amount != null ? String(reg.amount) : '');
+    setVal('#edit-paymentMethod', reg.paymentMethod || '');
+
+    const errorEl = dialog.querySelector('#edit-reg-error');
+    const setError = (msg) => {
+        if (!errorEl) return;
+        if (!msg) {
+            errorEl.textContent = '';
+            errorEl.style.display = 'none';
+            return;
+        }
+        errorEl.innerHTML = escapeHtml(msg);
+        errorEl.style.display = 'block';
+    };
+    setError('');
+
+    const saveBtn = dialog.querySelector('#edit-save-btn');
+    if (saveBtn) {
+        saveBtn.onclick = () => {
+            const fullName = String(dialog.querySelector('#edit-fullName')?.value || '').trim();
+            const email = String(dialog.querySelector('#edit-email')?.value || '').trim();
+            const phone = String(dialog.querySelector('#edit-phone')?.value || '').trim();
+            const videophone = String(dialog.querySelector('#edit-videophone')?.value || '').trim();
+            const fullAddress = String(dialog.querySelector('#edit-fullAddress')?.value || '').trim();
+            const churchName = String(dialog.querySelector('#edit-churchName')?.value || '').trim();
+            const bunkSelection = String(dialog.querySelector('#edit-bunkSelection')?.value || '').trim();
+            const youthInfo = String(dialog.querySelector('#edit-youthInfo')?.value || '').trim();
+            const emergencyName = String(dialog.querySelector('#edit-emergencyName')?.value || '').trim();
+            const emergencyPhone = String(dialog.querySelector('#edit-emergencyPhone')?.value || '').trim();
+            const paymentId = String(dialog.querySelector('#edit-paymentId')?.value || '').trim();
+            const status = String(dialog.querySelector('#edit-status')?.value || '').trim().toLowerCase();
+            const amountRaw = String(dialog.querySelector('#edit-amount')?.value || '').trim();
+            const paymentMethod = String(dialog.querySelector('#edit-paymentMethod')?.value || '').trim();
+
+            if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+                setError('Email looks invalid.');
+                return;
+            }
+            if (!['completed', 'pending'].includes(status)) {
+                setError('Status must be completed or pending.');
+                return;
+            }
+            const amountNum = parseFloat(amountRaw);
+            if (!Number.isFinite(amountNum) || amountNum < 0) {
+                setError('Amount must be a valid dollar amount (example: 245.00).');
+                return;
+            }
+
+            const updated = {
+                ...reg,
+                fullName,
+                email,
+                phone,
+                videophone,
+                fullAddress,
+                churchName,
+                bunkSelection,
+                youthInfo,
+                emergencyName,
+                emergencyPhone,
+                paymentId,
+                status,
+                amount: Number(amountNum.toFixed(2)),
+                paymentMethod
+            };
+
+            const next = [...allRegistrations];
+            next[idx] = updated;
+            persistRegistrations(next);
+            loadRegistrations();
+            dialog.close();
+        };
+    }
+
+    dialog.showModal();
 }
 
 function updateStats() {
