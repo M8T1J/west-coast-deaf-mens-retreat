@@ -15,25 +15,31 @@ const EMAILJS_CONFIG = {
     enabled: true // Email automation is now enabled!
 };
 
-// Initialize EmailJS when public key is available
+// Initialize EmailJS when public key is available (@emailjs/browser v4)
 function initEmailJS() {
-    if (typeof emailjs !== 'undefined' && EMAILJS_CONFIG.publicKey && EMAILJS_CONFIG.publicKey !== 'YOUR_PUBLIC_KEY' && !emailjsInitialized) {
-        try {
-            emailjs.init(EMAILJS_CONFIG.publicKey);
-            emailjsInitialized = true;
-            console.log('EmailJS initialized successfully');
-        } catch (error) {
-            console.error('Error initializing EmailJS:', error);
-        }
+    const ej = typeof emailjs !== 'undefined' ? emailjs : (typeof window !== 'undefined' ? window.emailjs : undefined);
+    if (!ej || !EMAILJS_CONFIG.publicKey || EMAILJS_CONFIG.publicKey === 'YOUR_PUBLIC_KEY' || emailjsInitialized) {
+        return;
     }
+    try {
+        ej.init(EMAILJS_CONFIG.publicKey);
+        emailjsInitialized = true;
+        console.log('EmailJS initialized successfully');
+    } catch (error) {
+        console.error('Error initializing EmailJS:', error);
+    }
+}
+
+function getEmailClient() {
+    if (typeof emailjs !== 'undefined') return emailjs;
+    if (typeof window !== 'undefined' && window.emailjs) return window.emailjs;
+    return undefined;
 }
 
 // Initialize EmailJS when page loads
 if (typeof window !== 'undefined') {
     window.addEventListener('DOMContentLoaded', () => {
-        if (typeof emailjs !== 'undefined') {
-            initEmailJS();
-        }
+        initEmailJS();
     });
 }
 
@@ -46,9 +52,22 @@ const BACKEND_API_URL = 'https://your-backend-url.com/api/send-email'; // Replac
  * @param {string} paymentId - Payment transaction ID
  * @returns {Promise<boolean>} - Success status
  */
+/**
+ * Normalize to dollar display string. app.js passes `amount * 100` (cents) for email paths;
+ * plain dollars (e.g. 245) are also accepted.
+ */
+function normalizeAmountDollarsString(formData) {
+    const raw = formData.amount;
+    if (raw == null || raw === '') return '0.00';
+    const n = typeof raw === 'number' ? raw : parseFloat(raw);
+    if (Number.isNaN(n)) return '0.00';
+    if (Number.isInteger(n) && n >= 1000) return (n / 100).toFixed(2);
+    return n.toFixed(2);
+}
+
 async function sendConfirmationEmail(formData, paymentId) {
-    const fullName = formData.fullName || `${formData.firstName || ''} ${formData.lastName || ''}`.trim();
-    const amount = typeof formData.amount === 'number' ? (formData.amount / 100).toFixed(2) : parseFloat(formData.amount).toFixed(2);
+    const fullName = (formData.fullName || `${formData.firstName || ''} ${formData.lastName || ''}`.trim()).trim() || 'Registrant';
+    const amount = normalizeAmountDollarsString(formData);
     
     // Get website URL for logo (you'll need to update this with your actual website URL)
     const websiteUrl = typeof window !== 'undefined' ? window.location.origin : 'https://your-website-url.com';
@@ -105,31 +124,36 @@ async function sendConfirmationEmail(formData, paymentId) {
         }
 
         // Fallback to EmailJS (development/testing)
-        if (EMAILJS_CONFIG.enabled && typeof emailjs !== 'undefined') {
+        const ej = getEmailClient();
+        if (EMAILJS_CONFIG.enabled && ej) {
             try {
-                // Initialize EmailJS if not already done
                 initEmailJS();
-                
-                await emailjs.send(
-                    EMAILJS_CONFIG.serviceId,
-                    EMAILJS_CONFIG.templateId,
-                    {
-                        to_email: formData.email,
-                        to_name: formData.fullName,
-                        from_name: 'WCDMR 2026',
-                        from_email: 'wcdeafmr@gmail.com',
-                        subject: emailData.subject,
-                        message: generateEmailHTML(emailData.data),
-                        amount: emailData.data.amount,
-                        payment_id: paymentId,
-                        event_dates: emailData.data.eventDates,
-                        venue: emailData.data.venue,
-                        venue_address: emailData.data.venueAddress,
-                        rsvp_link: emailData.data.rsvpLink,
-                        facebook_link: emailData.data.facebookLink,
-                        instagram_link: emailData.data.instagramLink
-                    }
-                );
+
+                // Template params: match email-template-for-emailjs.html + {{{message}}} for HTML body.
+                // Do NOT send from_email — Gmail-linked EmailJS services reject spoofed From.
+                const messageHtml = generateEmailHTML(emailData.data);
+                const templateParams = {
+                    to_email: formData.email,
+                    user_email: formData.email,
+                    email: formData.email,
+                    user_name: fullName,
+                    to_name: fullName,
+                    full_name: fullName,
+                    from_name: 'WCDMR 2026',
+                    reply_to: formData.email,
+                    subject: emailData.subject,
+                    message: messageHtml,
+                    amount: amount,
+                    payment_id: paymentId,
+                    event_dates: emailData.data.eventDates,
+                    venue: emailData.data.venue,
+                    venue_address: emailData.data.venueAddress,
+                    rsvp_link: emailData.data.rsvpLink,
+                    facebook_link: emailData.data.facebookLink,
+                    instagram_link: emailData.data.instagramLink
+                };
+
+                await ej.send(EMAILJS_CONFIG.serviceId, EMAILJS_CONFIG.templateId, templateParams);
                 console.log('Confirmation email sent via EmailJS');
                 return true;
             } catch (emailjsError) {

@@ -970,7 +970,10 @@ function showPaymentSuccess(formData, paymentId, emailSent = null) {
     if (emailSent === true) {
         emailStatus = 'A confirmation email has been sent to your email address.';
     } else if (emailSent === false) {
-        emailStatus = 'Registration is complete, but we could not send the confirmation email. Please contact the admin team.';
+        const rawEmail = (formData && formData.email) ? String(formData.email) : '';
+        const safeEmail = rawEmail.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+        const mailto = encodeURIComponent(`WCDMR registration confirmation — ${paymentId || ''}`);
+        emailStatus = `Registration is complete, but we could not send the confirmation email automatically. Please email <a href="mailto:wcdeafmr@gmail.com?subject=${mailto}">wcdeafmr@gmail.com</a> with your name and reference${safeEmail ? ` (registered as ${safeEmail})` : ''}.`;
     } else if (typeof sendConfirmationEmail === 'function') {
         emailStatus = 'Registration is complete. A confirmation email will be sent if email service is available.';
     } else {
