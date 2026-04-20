@@ -133,7 +133,10 @@ async function sendConfirmationEmail(formData, paymentId) {
                 console.log('Confirmation email sent via EmailJS');
                 return true;
             } catch (emailjsError) {
-                console.error('EmailJS error:', emailjsError);
+                const err = emailjsError && typeof emailjsError === 'object'
+                    ? { text: emailjsError.text, status: emailjsError.status, message: emailjsError.message }
+                    : String(emailjsError);
+                console.error('EmailJS error:', JSON.stringify(err), emailjsError);
                 return false;
             }
         }
