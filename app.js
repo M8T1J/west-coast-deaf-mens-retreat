@@ -498,14 +498,14 @@ async function handleZellePayment() {
     // Generate payment ID for Zelle
     const paymentId = `ZELLE-${formData.timestamp}`;
     
-    // Convert amount to cents for email service
+    // Email + success UI expect dollars (same as PayPal path). Do not multiply by 100.
     const emailFormData = {
         ...formData,
-        amount: formData.amount * 100,
+        amount: formData.amount,
         name: formData.fullName,
         zip: formData.zipCode || ''
     };
-    
+
     // Complete registration
     if (typeof completeRegistration === 'function') {
         await completeRegistration(formData, paymentId);
@@ -581,7 +581,7 @@ async function handleMoneyOrderPayment() {
 
     const emailFormData = {
         ...formData,
-        amount: formData.amount * 100,
+        amount: formData.amount,
         name: formData.fullName,
         zip: formData.zipCode || ''
     };
