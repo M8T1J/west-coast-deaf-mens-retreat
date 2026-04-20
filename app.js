@@ -993,10 +993,13 @@ function showPaymentSuccess(formData, paymentId, emailSent = null) {
         announcementSummary = `Registration successful. Zelle payment of $${amountDisplay} recorded.`;
     }
     
+    const mailHelp = '<p style="margin-top: 0.75rem; font-size: 0.9rem; color: #4b5563;">If you don’t see a confirmation email within a few minutes, check Spam or Promotions. Still nothing? Email <a href="mailto:wcdeafmr@gmail.com">wcdeafmr@gmail.com</a> with your name and the reference below.</p>';
+
     if (successMessage) {
         successMessage.innerHTML = `
             <p>${paymentSummary}</p>
             <p>${emailStatus}</p>
+            ${mailHelp}
             <p style="margin-top: 1rem; font-size: 0.9rem; color: #6b7280;">
                 ${transactionLabel}: <code style="background: #f3f4f6; padding: 2px 6px; border-radius: 4px;">${paymentId || 'N/A'}</code>
             </p>
