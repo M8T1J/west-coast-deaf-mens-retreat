@@ -10,7 +10,7 @@
 
 const SENDGRID_API_KEY = process.env.SENDGRID_API_KEY;
 const FROM_EMAIL = process.env.FROM_EMAIL || 'noreply@wcdmr.com';
-const FROM_NAME = process.env.FROM_NAME || 'WCDMR 2026';
+const FROM_NAME = process.env.FROM_NAME || "West Coast Deaf Men's Retreat";
 
 // Alternative: Using Nodemailer with SMTP
 // const nodemailer = require('nodemailer');

@@ -7,11 +7,14 @@
 // Initialize EmailJS - will be initialized when public key is set
 let emailjsInitialized = false;
 
+const WCDMR_EMAIL_SENDER_NAME = "West Coast Deaf Men's Retreat";
+
 // Option 1: EmailJS (Quick setup for development/testing)
 const EMAILJS_CONFIG = {
     serviceId: 'service_ai2qmh6', // Your EmailJS Service ID
     templateId: 'template_jwhfmxk', // EmailJS Template ID (dashboard)
     publicKey: 'U4HrVI_T_57CG3MQF', // Your EmailJS Public Key
+    senderName: WCDMR_EMAIL_SENDER_NAME,
     enabled: true // Email automation is now enabled!
 };
 if (typeof window !== 'undefined' && window.WCDMR_EMAILJS_CONFIG) {
@@ -102,6 +105,7 @@ async function sendConfirmationEmail(formData, paymentId) {
 
     const fullName = (formData.fullName || `${formData.firstName || ''} ${formData.lastName || ''}`.trim()).trim() || 'Registrant';
     const amount = normalizeAmountDollarsString(formData);
+    const senderName = String(EMAILJS_CONFIG.senderName || WCDMR_EMAIL_SENDER_NAME).trim() || WCDMR_EMAIL_SENDER_NAME;
     
     // Get website URL for logo (you'll need to update this with your actual website URL)
     const websiteUrl = typeof window !== 'undefined' ? window.location.origin : 'https://your-website-url.com';
@@ -180,10 +184,14 @@ async function sendConfirmationEmail(formData, paymentId) {
                 to_email: toAddr,
                 user_email: toAddr,
                 email: toAddr,
+                name: senderName,
                 user_name: fullName,
                 to_name: fullName,
                 full_name: fullName,
-                from_name: 'WCDMR 2026',
+                from_name: senderName,
+                from_title: senderName,
+                sender_name: senderName,
+                organization_name: senderName,
                 subject: emailData.subject,
                 amount: amount,
                 payment_id: paymentId,
