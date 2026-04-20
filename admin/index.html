@@ -48,8 +48,8 @@
         </div>
 
         <div style="background:#fff8e6;border:2px solid #c9a961;border-radius:0.5rem;padding:1rem 1.25rem;margin-bottom:1.5rem;line-height:1.55;">
-            <strong style="display:block;margin-bottom:0.35rem;">Why the list can look empty</strong>
-            This page only shows registrations stored in <strong>this browser</strong> on <strong>www.wcdmr.com</strong>. If someone registered on another device, another browser, private mode, or you cleared site data, you will see <strong>no rows</strong> here—that is normal. It is not a server-wide “backend” list. Use <strong>Import JSON</strong> if you previously exported a backup from another computer.
+            <strong style="display:block;margin-bottom:0.35rem;">Admin list sync note</strong>
+            Registrations are now synced to a shared admin data store so entries from other devices should appear here after a refresh. If your list still looks outdated, click <strong>Refresh</strong> once and hard refresh the page (Ctrl/Cmd + Shift + R) to bypass cached scripts.
         </div>
 
         <div class="admin-stats" id="stats">
@@ -84,7 +84,7 @@
 
         <div class="registrations-table">
             <div class="table-header">
-                <h2>Registrations in this browser</h2>
+                <h2>All synced registrations</h2>
             </div>
             <div class="table-container">
                 <table id="registrations-table">
@@ -114,7 +114,7 @@
         </div>
     </div>
 
-    <script defer src="https://cdn.jsdelivr.net/gh/M8T1J/west-coast-deaf-mens-retreat@40ed23e651e89d613bffa918c0c67341cd6916b9/admin-app.js"></script>
+    <script defer src="../admin-app.js?v=20260312-sync"></script>
 </body>
 </html>
 

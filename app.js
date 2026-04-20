@@ -192,11 +192,11 @@ function updatePayPalButton() {
     }
 }
 
-function persistPendingRegistration(formData) {
+async function persistPendingRegistration(formData) {
     try {
         // Persist "pending" registration first so the user is recorded before payment.
         if (typeof storeRegistrationData === 'function') {
-            storeRegistrationData(formData, 'PENDING');
+            await storeRegistrationData(formData, 'PENDING');
         }
     } catch (error) {
         console.error('Unable to store pending registration:', error);
@@ -318,7 +318,7 @@ async function handlePayPalClick(event) {
         return false;
     }
     
-    const registrationSaved = persistPendingRegistration(formData);
+    const registrationSaved = await persistPendingRegistration(formData);
     if (!registrationSaved) {
         const errorDiv = document.getElementById('payment-errors');
         if (errorDiv) {
@@ -436,7 +436,7 @@ async function checkPayPalReturn() {
             await completeRegistration(formData, paymentId);
         } else if (typeof storeRegistrationData === 'function') {
             // Fallback: store registration data
-            storeRegistrationData(formData, paymentId);
+            await storeRegistrationData(formData, paymentId);
         }
 
         const prePaymentEmailSent = sessionStorage.getItem('wcdmr_registration_email_sent') === '1';

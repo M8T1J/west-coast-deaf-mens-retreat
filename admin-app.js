@@ -1,9 +1,142 @@
 /**
- * WCDMR registration admin (loaded from GitHub via jsDelivr when admin.html is cached on www).
+ * WCDMR registration admin with shared cross-device sync.
  */
 let allRegistrations = [];
 
 const WCDMR_DEFAULT_FEE_ANCHOR = 245;
+const WCDMR_REGISTRATION_STORAGE_KEY = 'wcdmr_registrations';
+const WCDMR_REGISTRATION_SYNC_URL = 'https://mantledb.sh/v2/wcdmr-reg-2026/registrations';
+const WCDMR_REGISTRATION_LIMIT = 500;
+
+function safeParseRegistrations(rawValue) {
+    if (!rawValue) return [];
+
+    try {
+        const parsed = JSON.parse(rawValue);
+        return Array.isArray(parsed) ? parsed.filter((item) => item && typeof item === 'object') : [];
+    } catch {
+        return [];
+    }
+}
+
+function toTimestampValue(value) {
+    const parsed = Date.parse(value || '');
+    return Number.isFinite(parsed) ? parsed : 0;
+}
+
+function sortRegistrationsNewestFirst(registrations) {
+    return [...registrations].sort((a, b) => toTimestampValue(b.timestamp) - toTimestampValue(a.timestamp));
+}
+
+function limitRegistrations(registrations) {
+    const sorted = sortRegistrationsNewestFirst(registrations);
+    return sorted.slice(0, WCDMR_REGISTRATION_LIMIT);
+}
+
+function buildRegistrationKey(registration, fallbackIndex) {
+    if (registration.timestamp) return `timestamp:${registration.timestamp}`;
+
+    const email = String(registration.email || '').trim().toLowerCase();
+    const paymentId = String(registration.paymentId || '').trim();
+    if (email || paymentId) return `identity:${email}|${paymentId}|${registration.status || ''}`;
+
+    return `fallback:${fallbackIndex}`;
+}
+
+function shouldReplaceRegistration(existing, incoming) {
+    if (!existing) return true;
+
+    if (existing.status === 'pending' && incoming.status === 'completed') {
+        return true;
+    }
+
+    return toTimestampValue(incoming.timestamp) >= toTimestampValue(existing.timestamp);
+}
+
+function mergeRegistrations(...sources) {
+    const merged = new Map();
+    let fallbackIndex = 0;
+
+    for (const source of sources) {
+        if (!Array.isArray(source)) continue;
+
+        for (const item of source) {
+            if (!item || typeof item !== 'object') continue;
+
+            const key = buildRegistrationKey(item, fallbackIndex++);
+            const existing = merged.get(key);
+            if (shouldReplaceRegistration(existing, item)) {
+                merged.set(key, item);
+            }
+        }
+    }
+
+    return limitRegistrations(Array.from(merged.values()));
+}
+
+function readLocalRegistrations() {
+    try {
+        return safeParseRegistrations(localStorage.getItem(WCDMR_REGISTRATION_STORAGE_KEY));
+    } catch {
+        return [];
+    }
+}
+
+function persistLocalRegistrations(registrations) {
+    const limited = limitRegistrations(registrations);
+    try {
+        localStorage.setItem(WCDMR_REGISTRATION_STORAGE_KEY, JSON.stringify(limited));
+    } catch (error) {
+        console.warn('Unable to persist registration backup in this browser:', error);
+    }
+    return limited;
+}
+
+function normalizeRemotePayload(payload) {
+    if (Array.isArray(payload)) return payload;
+    if (payload && Array.isArray(payload.registrations)) return payload.registrations;
+    return [];
+}
+
+async function fetchSharedRegistrations() {
+    try {
+        const response = await fetch(WCDMR_REGISTRATION_SYNC_URL, {
+            method: 'GET',
+            headers: { Accept: 'application/json' },
+            cache: 'no-store'
+        });
+
+        if (!response.ok) {
+            throw new Error(`Request failed with status ${response.status}`);
+        }
+
+        const payload = await response.json();
+        return limitRegistrations(normalizeRemotePayload(payload));
+    } catch (error) {
+        console.warn('Unable to fetch shared registrations. Falling back to local data only.', error);
+        return null;
+    }
+}
+
+async function pushSharedRegistrations(registrations) {
+    try {
+        const response = await fetch(WCDMR_REGISTRATION_SYNC_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                registrations: limitRegistrations(registrations)
+            })
+        });
+
+        if (!response.ok) {
+            throw new Error(`Request failed with status ${response.status}`);
+        }
+        return true;
+    } catch (error) {
+        console.warn('Unable to update shared registrations right now.', error);
+        return false;
+    }
+}
 
 function amountToDollarsNumber(raw) {
     if (raw == null || raw === '') return 0;
@@ -25,14 +158,16 @@ function formatAmountDisplay(raw) {
 }
 
 function persistRegistrations(next) {
-    allRegistrations = Array.isArray(next) ? next : [];
-    localStorage.setItem('wcdmr_registrations', JSON.stringify(allRegistrations.slice(-100)));
+    allRegistrations = persistLocalRegistrations(Array.isArray(next) ? next : []);
+    pushSharedRegistrations(allRegistrations);
 }
 
-function loadRegistrations() {
-    const stored = localStorage.getItem('wcdmr_registrations');
-    allRegistrations = stored ? JSON.parse(stored) : [];
-    allRegistrations.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+async function loadRegistrations() {
+    const localRegistrations = readLocalRegistrations();
+    const sharedRegistrations = await fetchSharedRegistrations();
+
+    allRegistrations = mergeRegistrations(sharedRegistrations || [], localRegistrations);
+    persistLocalRegistrations(allRegistrations);
     displayRegistrations();
     updateStats();
 }
@@ -46,7 +181,7 @@ function displayRegistrations(filtered = null) {
                     <tr>
                         <td colspan="9" class="empty-state">
                             <div class="empty-state-icon">📋</div>
-                            <p>No registrations found.</p>
+                            <p>No synced registrations found yet.</p>
                         </td>
                     </tr>
                 `;
@@ -432,28 +567,27 @@ function importRegistrationsJSON() {
                 byTs.set(row.timestamp, row);
             }
         }
-        const merged = Array.from(byTs.values()).sort(
-            (a, b) => new Date(b.timestamp) - new Date(a.timestamp)
-        );
+        const merged = sortRegistrationsNewestFirst(Array.from(byTs.values()));
         persistRegistrations(merged);
-        loadRegistrations();
-        alert(`Import finished. ${merged.length} registration(s) in this browser.`);
+        await loadRegistrations();
+        alert(`Import finished. ${merged.length} synced registration(s) available now.`);
     };
     input.click();
 }
 
 function clearAllData() {
     if (confirm('Are you sure you want to delete ALL registration data? This cannot be undone!')) {
-        localStorage.removeItem('wcdmr_registrations');
+        localStorage.removeItem(WCDMR_REGISTRATION_STORAGE_KEY);
         allRegistrations = [];
+        pushSharedRegistrations([]);
         displayRegistrations();
         updateStats();
         alert('All registration data has been cleared.');
     }
 }
 
-function refreshData() {
-    loadRegistrations();
+async function refreshData() {
+    await loadRegistrations();
     alert('Data refreshed!');
 }
 
@@ -462,4 +596,6 @@ if (typeof window !== 'undefined') {
 }
 
 loadRegistrations();
-setInterval(loadRegistrations, 30000);
+setInterval(() => {
+    loadRegistrations();
+}, 30000);

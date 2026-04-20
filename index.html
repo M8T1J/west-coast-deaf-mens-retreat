@@ -818,10 +818,10 @@
         publicKey: 'U4HrVI_T_57CG3MQF'
     };
     </script>
-    <!-- Site JS/CSS pinned to one Git commit (same as admin) so jsDelivr + browser cache stay in sync -->
+    <!-- Local scripts prevent stale pinned-commit cache from hiding urgent fixes -->
     <script defer src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
-    <script defer src="https://cdn.jsdelivr.net/gh/M8T1J/west-coast-deaf-mens-retreat@40ed23e651e89d613bffa918c0c67341cd6916b9/registration-handler.js"></script>
-    <script defer src="https://cdn.jsdelivr.net/gh/M8T1J/west-coast-deaf-mens-retreat@40ed23e651e89d613bffa918c0c67341cd6916b9/email-service.js"></script>
-    <script defer src="https://cdn.jsdelivr.net/gh/M8T1J/west-coast-deaf-mens-retreat@40ed23e651e89d613bffa918c0c67341cd6916b9/app.js"></script>
+    <script defer src="registration-handler.js?v=20260312-sync"></script>
+    <script defer src="email-service.js?v=20260312-sync"></script>
+    <script defer src="app.js?v=20260312-sync"></script>
 </body>
 </html>
