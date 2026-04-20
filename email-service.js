@@ -39,6 +39,20 @@ function getEmailClient() {
     return undefined;
 }
 
+/**
+ * Wait for @emailjs/browser to finish loading (defer order or slow CDN).
+ */
+async function ensureEmailJsReady(timeoutMs = 10000) {
+    const deadline = Date.now() + timeoutMs;
+    while (Date.now() < deadline) {
+        const ej = getEmailClient();
+        if (ej) return ej;
+        await new Promise((r) => setTimeout(r, 40));
+    }
+    console.error('EmailJS SDK did not load in time. Check that @emailjs/browser script is not blocked.');
+    return undefined;
+}
+
 // Initialize EmailJS when page loads
 if (typeof window !== 'undefined') {
     window.addEventListener('DOMContentLoaded', () => {
@@ -69,6 +83,12 @@ function normalizeAmountDollarsString(formData) {
 }
 
 async function sendConfirmationEmail(formData, paymentId) {
+    const toAddr = formData.email != null ? String(formData.email).trim() : '';
+    if (!toAddr || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(toAddr)) {
+        console.warn('sendConfirmationEmail: invalid or missing email address');
+        return false;
+    }
+
     const fullName = (formData.fullName || `${formData.firstName || ''} ${formData.lastName || ''}`.trim()).trim() || 'Registrant';
     const amount = normalizeAmountDollarsString(formData);
     
@@ -77,7 +97,7 @@ async function sendConfirmationEmail(formData, paymentId) {
     const logoUrl = `${websiteUrl}/images/logo.JPG`;
     
     const emailData = {
-        to: formData.email,
+        to: toAddr,
         toName: fullName,
         subject: 'WCDMR 2026 - Registration Confirmed!',
         template: 'confirmation',
@@ -85,7 +105,7 @@ async function sendConfirmationEmail(formData, paymentId) {
             fullName: fullName,
             firstName: formData.firstName || '',
             lastName: formData.lastName || '',
-            email: formData.email,
+            email: toAddr,
             phone: formData.phone,
             videophone: formData.videophone || '',
             fullAddress: formData.fullAddress || '',
@@ -126,50 +146,72 @@ async function sendConfirmationEmail(formData, paymentId) {
             }
         }
 
-        // Fallback to EmailJS (development/testing)
-        const ej = getEmailClient();
-        if (EMAILJS_CONFIG.enabled && ej) {
+        // EmailJS (same template/service as dashboard test — must match EmailJS template variable names)
+        if (!EMAILJS_CONFIG.enabled) {
+            console.warn('EmailJS disabled in config.');
+            return false;
+        }
+
+        const ej = await ensureEmailJsReady();
+        if (!ej) {
+            console.warn('EmailJS client unavailable.');
+            return false;
+        }
+
+        const sendOnce = async () => {
+            initEmailJS();
+
+            const messageHtml = generateEmailHTML(emailData.data);
+            const templateParams = {
+                to_email: toAddr,
+                user_email: toAddr,
+                email: toAddr,
+                user_name: fullName,
+                to_name: fullName,
+                full_name: fullName,
+                from_name: 'WCDMR 2026',
+                subject: emailData.subject,
+                message: messageHtml,
+                amount: amount,
+                payment_id: paymentId,
+                event_dates: emailData.data.eventDates,
+                venue: emailData.data.venue,
+                venue_address: emailData.data.venueAddress,
+                rsvp_link: emailData.data.rsvpLink,
+                facebook_link: emailData.data.facebookLink,
+                instagram_link: emailData.data.instagramLink
+            };
+
+            await ej.send(
+                EMAILJS_CONFIG.serviceId,
+                EMAILJS_CONFIG.templateId,
+                templateParams,
+                { publicKey: EMAILJS_CONFIG.publicKey }
+            );
+        };
+
+        try {
+            await sendOnce();
+            console.log('Confirmation email sent via EmailJS');
+            return true;
+        } catch (emailjsError) {
+            const err = emailjsError && typeof emailjsError === 'object'
+                ? { text: emailjsError.text, status: emailjsError.status, message: emailjsError.message }
+                : String(emailjsError);
+            console.error('EmailJS error (will retry once):', JSON.stringify(err), emailjsError);
             try {
-                initEmailJS();
-
-                // Template params: match email-template-for-emailjs.html + {{{message}}} for HTML body.
-                // Do NOT send from_email — Gmail-linked EmailJS services reject spoofed From.
-                const messageHtml = generateEmailHTML(emailData.data);
-                const templateParams = {
-                    to_email: formData.email,
-                    user_email: formData.email,
-                    email: formData.email,
-                    user_name: fullName,
-                    to_name: fullName,
-                    full_name: fullName,
-                    from_name: 'WCDMR 2026',
-                    reply_to: formData.email,
-                    subject: emailData.subject,
-                    message: messageHtml,
-                    amount: amount,
-                    payment_id: paymentId,
-                    event_dates: emailData.data.eventDates,
-                    venue: emailData.data.venue,
-                    venue_address: emailData.data.venueAddress,
-                    rsvp_link: emailData.data.rsvpLink,
-                    facebook_link: emailData.data.facebookLink,
-                    instagram_link: emailData.data.instagramLink
-                };
-
-                await ej.send(EMAILJS_CONFIG.serviceId, EMAILJS_CONFIG.templateId, templateParams);
-                console.log('Confirmation email sent via EmailJS');
+                await new Promise((r) => setTimeout(r, 400));
+                await sendOnce();
+                console.log('Confirmation email sent via EmailJS (after retry)');
                 return true;
-            } catch (emailjsError) {
-                const err = emailjsError && typeof emailjsError === 'object'
-                    ? { text: emailjsError.text, status: emailjsError.status, message: emailjsError.message }
-                    : String(emailjsError);
-                console.error('EmailJS error:', JSON.stringify(err), emailjsError);
+            } catch (retryErr) {
+                const err2 = retryErr && typeof retryErr === 'object'
+                    ? { text: retryErr.text, status: retryErr.status, message: retryErr.message }
+                    : String(retryErr);
+                console.error('EmailJS error (retry failed):', JSON.stringify(err2), retryErr);
                 return false;
             }
         }
-
-        console.warn('Email service not configured. Email not sent.');
-        return false;
     } catch (error) {
         console.error('Error sending confirmation email:', error);
         // Don't fail the payment if email fails
