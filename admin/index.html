@@ -5,8 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>WCDMR 2026 - Registration Admin</title>
     <meta name="robots" content="noindex">
-    <!-- Keep admin stable even if www serves stale assets -->
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/M8T1J/west-coast-deaf-mens-retreat@59c83be/styles.css?v=admin-cdn-2">
+    <!-- gh-pages branch + cache-bust so latest admin-app.js loads -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/M8T1J/west-coast-deaf-mens-retreat@gh-pages/styles.css?v=admin-cdn-4">
     <style>
         .admin-container { max-width: 1400px; margin: 2rem auto; padding: 2rem; }
         .admin-header { background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%); color: white; padding: 2rem; border-radius: 0.75rem; margin-bottom: 2rem; text-align: center; }
@@ -47,6 +47,11 @@
             <p>Amounts are dollars. Use Edit to correct mistakes.</p>
         </div>
 
+        <div style="background:#fff8e6;border:2px solid #c9a961;border-radius:0.5rem;padding:1rem 1.25rem;margin-bottom:1.5rem;line-height:1.55;">
+            <strong style="display:block;margin-bottom:0.35rem;">Why the list can look empty</strong>
+            This page only shows registrations stored in <strong>this browser</strong> on <strong>www.wcdmr.com</strong>. If someone registered on another device, another browser, private mode, or you cleared site data, you will see <strong>no rows</strong> here—that is normal. It is not a server-wide “backend” list. Use <strong>Import JSON</strong> if you previously exported a backup from another computer.
+        </div>
+
         <div class="admin-stats" id="stats">
             <div class="stat-card">
                 <h3>Total Registrations</h3>
@@ -72,6 +77,7 @@
                 <button class="btn btn-primary" onclick="refreshData()">Refresh</button>
                 <button class="btn btn-outline" onclick="exportToCSV()">Export to CSV</button>
                 <button class="btn btn-outline" onclick="exportToJSON()">Export to JSON</button>
+                <button class="btn btn-outline" onclick="importRegistrationsJSON()">Import JSON</button>
                 <button class="btn btn-danger" onclick="clearAllData()">Clear All Data</button>
             </div>
         </div>
@@ -108,7 +114,7 @@
         </div>
     </div>
 
-    <script defer src="https://cdn.jsdelivr.net/gh/M8T1J/west-coast-deaf-mens-retreat@59c83be/admin-app.js?v=admin-cdn-2"></script>
+    <script defer src="https://cdn.jsdelivr.net/gh/M8T1J/west-coast-deaf-mens-retreat@gh-pages/admin-app.js?v=admin-cdn-4"></script>
 </body>
 </html>
 

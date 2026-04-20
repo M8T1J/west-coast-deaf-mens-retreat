@@ -34,7 +34,7 @@ function displayRegistrations(filtered = null) {
     if (registrations.length === 0) {
         tbody.innerHTML = `
                     <tr>
-                        <td colspan="8" class="empty-state">
+                        <td colspan="9" class="empty-state">
                             <div class="empty-state-icon">📋</div>
                             <p>No registrations found.</p>
                         </td>
@@ -369,6 +369,40 @@ function exportToJSON() {
     window.URL.revokeObjectURL(url);
 }
 
+function importRegistrationsJSON() {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'application/json,.json';
+    input.onchange = async (e) => {
+        const file = e.target.files && e.target.files[0];
+        if (!file) return;
+        let data;
+        try {
+            data = JSON.parse(await file.text());
+        } catch {
+            alert('That file is not valid JSON.');
+            return;
+        }
+        if (!Array.isArray(data)) {
+            alert('The JSON file must be an array of registration objects (same format as Export JSON).');
+            return;
+        }
+        const byTs = new Map(allRegistrations.map((r) => [r.timestamp, r]));
+        for (const row of data) {
+            if (row && row.timestamp) {
+                byTs.set(row.timestamp, row);
+            }
+        }
+        const merged = Array.from(byTs.values()).sort(
+            (a, b) => new Date(b.timestamp) - new Date(a.timestamp)
+        );
+        persistRegistrations(merged);
+        loadRegistrations();
+        alert(`Import finished. ${merged.length} registration(s) in this browser.`);
+    };
+    input.click();
+}
+
 function clearAllData() {
     if (confirm('Are you sure you want to delete ALL registration data? This cannot be undone!')) {
         localStorage.removeItem('wcdmr_registrations');
@@ -382,6 +416,10 @@ function clearAllData() {
 function refreshData() {
     loadRegistrations();
     alert('Data refreshed!');
+}
+
+if (typeof window !== 'undefined') {
+    window.importRegistrationsJSON = importRegistrationsJSON;
 }
 
 loadRegistrations();
