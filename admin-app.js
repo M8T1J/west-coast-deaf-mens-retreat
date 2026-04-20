@@ -7,12 +7,16 @@ function amountToDollarsNumber(raw) {
     if (raw == null || raw === '') return 0;
     const n = typeof raw === 'number' ? raw : parseFloat(raw);
     if (Number.isNaN(n)) return 0;
-    if (Number.isInteger(n) && n >= 10000) return n / 100;
     return n;
 }
 
 function formatAmountDisplay(raw) {
     return amountToDollarsNumber(raw).toFixed(2);
+}
+
+function persistRegistrations(next) {
+    allRegistrations = Array.isArray(next) ? next : [];
+    localStorage.setItem('wcdmr_registrations', JSON.stringify(allRegistrations.slice(-100)));
 }
 
 function loadRegistrations() {
@@ -52,7 +56,7 @@ function displayRegistrations(filtered = null) {
         const statusText = reg.status === 'completed' ? 'Completed' : 'Pending';
 
         return `
-                    <tr onclick="showDetails('${reg.timestamp}')" style="cursor: pointer;">
+                    <tr style="cursor: pointer;" onclick="showDetails('${reg.timestamp}')">
                         <td>${date}</td>
                         <td><strong>${reg.fullName || `${reg.firstName || ''} ${reg.lastName || ''}`.trim()}</strong></td>
                         <td>${reg.email}</td>
@@ -61,6 +65,9 @@ function displayRegistrations(filtered = null) {
                         <td>$${amount}</td>
                         <td><code style="font-size: 0.75rem;">${reg.paymentId || '-'}</code></td>
                         <td><span class="status-badge ${statusClass}">${statusText}</span></td>
+                        <td>
+                            <button class="btn btn-outline" style="padding: 0.35rem 0.6rem; font-size: 0.9rem;" onclick="event.stopPropagation(); editRegistration('${reg.timestamp}')">Edit</button>
+                        </td>
                     </tr>
                 `;
     }).join('');
@@ -98,6 +105,57 @@ Payment:
             `;
 
     alert(details);
+}
+
+function editRegistration(timestamp) {
+    const idx = allRegistrations.findIndex(r => r.timestamp === timestamp);
+    if (idx === -1) return;
+
+    const reg = allRegistrations[idx];
+
+    const nextAmountRaw = prompt(
+        'Edit amount (dollars). Example: 245 or 245.00',
+        reg.amount != null ? String(reg.amount) : ''
+    );
+    if (nextAmountRaw === null) return;
+
+    const amountNum = parseFloat(String(nextAmountRaw).trim());
+    if (!Number.isFinite(amountNum) || amountNum < 0) {
+        alert('Amount must be a valid number in dollars (example: 245.00).');
+        return;
+    }
+
+    const nextStatusRaw = prompt('Edit status: completed or pending', reg.status || 'completed');
+    if (nextStatusRaw === null) return;
+    const status = String(nextStatusRaw).trim().toLowerCase();
+    if (!['completed', 'pending'].includes(status)) {
+        alert('Status must be "completed" or "pending".');
+        return;
+    }
+
+    const nextPaymentId = prompt('Edit Payment ID (optional)', reg.paymentId || '');
+    if (nextPaymentId === null) return;
+
+    const nextEmail = prompt('Edit email (optional)', reg.email || '');
+    if (nextEmail === null) return;
+
+    const nextName = prompt('Edit full name (optional)', reg.fullName || `${reg.firstName || ''} ${reg.lastName || ''}`.trim());
+    if (nextName === null) return;
+
+    const updated = {
+        ...reg,
+        fullName: String(nextName || '').trim(),
+        email: String(nextEmail || '').trim(),
+        paymentId: String(nextPaymentId || '').trim(),
+        amount: Number(amountNum.toFixed(2)),
+        status
+    };
+
+    const next = [...allRegistrations];
+    next[idx] = updated;
+    persistRegistrations(next);
+    loadRegistrations();
+    alert('Registration updated.');
 }
 
 function updateStats() {

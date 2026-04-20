@@ -314,7 +314,8 @@ async function handlePayPalClick(event) {
     const pendingPaymentId = `PENDING-${formData.timestamp}`;
     const emailFormData = {
         ...formData,
-        amount: formData.amount * 100,
+        // Keep amount in dollars everywhere. (Older versions used cents which caused $245 -> $2.45 bugs.)
+        amount: formData.amount,
         name: formData.fullName,
         zip: formData.zipCode || ''
     };
@@ -402,10 +403,9 @@ async function checkPayPalReturn() {
         // Generate payment ID using PayPal data when available.
         const paymentId = paypalReturn.txId || paypalReturn.payerId || `PAYPAL-${formData.timestamp}`;
 
-        // Convert amount to cents for email service
         const emailFormData = {
             ...formData,
-            amount: formData.amount * 100,
+            amount: formData.amount,
             name: formData.fullName,
             zip: formData.zipCode || formData.zip || ''
         };
@@ -960,7 +960,7 @@ function showPaymentSuccess(formData, paymentId, emailSent = null) {
     const paymentSuccess = document.getElementById('payment-success');
     const successMessage = document.getElementById('success-message');
     const amountValue = Number(formData.amount) || 0;
-    const amountDisplay = (amountValue / 100).toFixed(2);
+    const amountDisplay = amountValue.toFixed(2);
     const paymentMethod = formData.paymentMethod || 'paypal';
     
     if (paymentForm) paymentForm.classList.add('hidden');

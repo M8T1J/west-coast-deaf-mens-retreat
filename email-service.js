@@ -69,16 +69,11 @@ const BACKEND_API_URL = 'https://your-backend-url.com/api/send-email'; // Replac
  * @param {string} paymentId - Payment transaction ID
  * @returns {Promise<boolean>} - Success status
  */
-/**
- * Normalize to dollar display string. app.js passes `amount * 100` (cents) for email paths;
- * plain dollars (e.g. 245) are also accepted.
- */
 function normalizeAmountDollarsString(formData) {
     const raw = formData.amount;
     if (raw == null || raw === '') return '0.00';
     const n = typeof raw === 'number' ? raw : parseFloat(raw);
     if (Number.isNaN(n)) return '0.00';
-    if (Number.isInteger(n) && n >= 1000) return (n / 100).toFixed(2);
     return n.toFixed(2);
 }
 
