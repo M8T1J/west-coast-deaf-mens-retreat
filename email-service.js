@@ -14,6 +14,9 @@ const EMAILJS_CONFIG = {
     publicKey: 'U4HrVI_T_57CG3MQF', // Your EmailJS Public Key
     enabled: true // Email automation is now enabled!
 };
+if (typeof window !== 'undefined' && window.WCDMR_EMAILJS_CONFIG) {
+    Object.assign(EMAILJS_CONFIG, window.WCDMR_EMAILJS_CONFIG);
+}
 
 // Initialize EmailJS when public key is available (@emailjs/browser v4)
 function initEmailJS() {

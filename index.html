@@ -810,10 +810,18 @@
         </div>
     </footer>
 
-    <!-- EmailJS for email automation -->
+    <!-- EmailJS: inline config so the correct template ID wins even if a cached JS file is stale. -->
+    <script>
+    window.WCDMR_EMAILJS_CONFIG = {
+        serviceId: 'service_ai2qmh6',
+        templateId: 'template_jwhfmxk',
+        publicKey: 'U4HrVI_T_57CG3MQF'
+    };
+    </script>
+    <!-- Load site JS from jsDelivr (GitHub gh-pages) so www.wcdmr.com CDN cache cannot serve April-era email-service.js -->
     <script defer src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
-    <script defer src="registration-handler.js"></script>
-    <script defer src="email-service.js?v=confirm-gmail-20260420"></script>
-    <script defer src="app.js?v=confirm-fallback-20260420"></script>
+    <script defer src="https://cdn.jsdelivr.net/gh/M8T1J/west-coast-deaf-mens-retreat@gh-pages/registration-handler.js"></script>
+    <script defer src="https://cdn.jsdelivr.net/gh/M8T1J/west-coast-deaf-mens-retreat@gh-pages/email-service.js"></script>
+    <script defer src="https://cdn.jsdelivr.net/gh/M8T1J/west-coast-deaf-mens-retreat@gh-pages/app.js"></script>
 </body>
 </html>
