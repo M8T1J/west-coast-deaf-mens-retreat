@@ -117,34 +117,33 @@ function escapeHtml(value) {
 }
 
 function ensureEditDialog() {
-    let dialog = document.getElementById('edit-registration-dialog');
-    if (dialog) return dialog;
+    let root = document.getElementById('edit-registration-overlay');
+    if (root) return root;
 
-    dialog = document.createElement('dialog');
-    dialog.id = 'edit-registration-dialog';
-    dialog.style.maxWidth = '820px';
-    dialog.style.width = '95%';
-    dialog.style.border = 'none';
-    dialog.style.borderRadius = '12px';
-    dialog.style.padding = '0';
-    dialog.innerHTML = `
-        <form method="dialog" style="margin:0;">
+    // Plain div overlay (not <dialog>) — works in all browsers; Safari can break HTMLDialogElement.showModal().
+    root = document.createElement('div');
+    root.id = 'edit-registration-overlay';
+    root.setAttribute('role', 'dialog');
+    root.setAttribute('aria-modal', 'true');
+    root.style.cssText = 'display:none;position:fixed;inset:0;z-index:99999;background:rgba(17,24,39,0.55);align-items:center;justify-content:center;padding:1rem;box-sizing:border-box;';
+    root.innerHTML = `
+        <div id="edit-registration-panel" style="background:#fff;max-width:820px;width:100%;max-height:92vh;overflow:hidden;border-radius:12px;box-shadow:0 25px 50px -12px rgba(0,0,0,0.25);display:flex;flex-direction:column;">
             <div style="padding: 1.25rem 1.25rem 0.75rem 1.25rem; border-bottom: 1px solid #e5e7eb;">
                 <div style="display:flex; justify-content: space-between; gap: 1rem; align-items: baseline;">
                     <div>
                         <div style="font-size: 1.25rem; font-weight: 700;">Edit registration</div>
                         <div style="color:#6b7280; font-size: 0.9rem;" id="edit-reg-subtitle"></div>
                     </div>
-                    <button value="cancel" class="btn btn-outline" style="padding: 0.4rem 0.7rem; font-size: 0.9rem;">Close</button>
+                    <button type="button" id="edit-close-btn" class="btn btn-outline" style="padding: 0.4rem 0.7rem; font-size: 0.9rem;">Close</button>
                 </div>
             </div>
-            <div style="padding: 1rem 1.25rem; max-height: 70vh; overflow:auto;">
+            <div style="padding: 1rem 1.25rem; overflow-y:auto; flex:1; min-height:0;">
                 <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 0.85rem 1rem;">
-                    <label>Full name<br><input id="edit-fullName" class="search-box" style="margin:0;" /></label>
-                    <label>Email<br><input id="edit-email" class="search-box" style="margin:0;" /></label>
-                    <label>Phone<br><input id="edit-phone" class="search-box" style="margin:0;" /></label>
+                    <label>Full name<br><input id="edit-fullName" class="search-box" style="margin:0;" autocomplete="name" /></label>
+                    <label>Email<br><input id="edit-email" class="search-box" style="margin:0;" autocomplete="email" /></label>
+                    <label>Phone<br><input id="edit-phone" class="search-box" style="margin:0;" autocomplete="tel" /></label>
                     <label>Videophone<br><input id="edit-videophone" class="search-box" style="margin:0;" /></label>
-                    <label style="grid-column: 1 / -1;">Full address<br><input id="edit-fullAddress" class="search-box" style="margin:0;" /></label>
+                    <label style="grid-column: 1 / -1;">Full address<br><input id="edit-fullAddress" class="search-box" style="margin:0;" autocomplete="street-address" /></label>
                     <label>Church name<br><input id="edit-churchName" class="search-box" style="margin:0;" /></label>
                     <label>Bunk selection<br><input id="edit-bunkSelection" class="search-box" style="margin:0;" /></label>
                     <label style="grid-column: 1 / -1;">Youth info<br><input id="edit-youthInfo" class="search-box" style="margin:0;" /></label>
@@ -163,13 +162,23 @@ function ensureEditDialog() {
                 <div id="edit-reg-error" style="margin-top: 0.85rem; color: #b91c1c; display:none;"></div>
             </div>
             <div style="padding: 0.9rem 1.25rem; border-top: 1px solid #e5e7eb; display:flex; justify-content:flex-end; gap: 0.75rem;">
-                <button value="cancel" class="btn btn-outline">Cancel</button>
-                <button id="edit-save-btn" value="default" class="btn btn-primary" type="button">Save</button>
+                <button type="button" id="edit-cancel-btn" class="btn btn-outline">Cancel</button>
+                <button id="edit-save-btn" class="btn btn-primary" type="button">Save</button>
             </div>
-        </form>
+        </div>
     `;
-    document.body.appendChild(dialog);
-    return dialog;
+    document.body.appendChild(root);
+
+    const close = () => {
+        root.style.display = 'none';
+    };
+    root.addEventListener('click', (e) => {
+        if (e.target === root) close();
+    });
+    root.querySelector('#edit-close-btn')?.addEventListener('click', close);
+    root.querySelector('#edit-cancel-btn')?.addEventListener('click', close);
+
+    return root;
 }
 
 function editRegistration(timestamp) {
@@ -179,6 +188,7 @@ function editRegistration(timestamp) {
     const reg = allRegistrations[idx];
 
     const dialog = ensureEditDialog();
+    dialog.style.display = 'flex';
 
     const subtitle = dialog.querySelector('#edit-reg-subtitle');
     if (subtitle) {
@@ -273,11 +283,15 @@ function editRegistration(timestamp) {
             next[idx] = updated;
             persistRegistrations(next);
             loadRegistrations();
-            dialog.close();
+            dialog.style.display = 'none';
         };
     }
 
-    dialog.showModal();
+    try {
+        dialog.querySelector('#edit-fullName')?.focus();
+    } catch {
+        /* ignore */
+    }
 }
 
 function updateStats() {
