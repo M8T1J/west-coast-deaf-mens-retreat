@@ -31,6 +31,24 @@ if (mobileMenuToggle && navLinks) {
 
 const PAYPAL_BASE_LINK = 'https://www.paypal.com/ncp/payment/LNMQ6S8HZWP5C';
 const DEFAULT_AMOUNT = 245.00; // Default registration fee
+window.WCDMR_DEFAULT_REGISTRATION_AMOUNT = DEFAULT_AMOUNT;
+
+/**
+ * Some older sessions or integrations stored the fee as cents (e.g. 24500 for $245).
+ * If the value is ~100× the standard fee, treat it as cents and convert to dollars.
+ */
+function registrationAmountToDollarsNumber(raw) {
+    let n = typeof raw === 'number' ? raw : parseFloat(String(raw).replace(/,/g, ''));
+    if (!Number.isFinite(n) || n <= 0) return 0;
+    if (Number.isInteger(n) && n >= 1000 && DEFAULT_AMOUNT > 0) {
+        const ratio = n / DEFAULT_AMOUNT;
+        if (ratio >= 99 && ratio <= 101) {
+            return n / 100;
+        }
+    }
+    return n;
+}
+window.registrationAmountToDollarsNumber = registrationAmountToDollarsNumber;
 const ZELLE_CONTACT = 'wcdmrpayments@gmail.com'; // Zelle email for payments
 const ZELLE_RECIPIENT = 'WEST COAST DEAF MEN\'S RETREAT'; // Zelle recipient name
 const PAYPAL_REDIRECT_DELAY_MS = 1200;
@@ -289,7 +307,7 @@ async function handlePayPalClick(event) {
         bunkSelection: bunkSelections.join(', '),
         youthInfo: document.getElementById('youth-info').value.trim(),
         paymentUnderstanding: document.getElementById('payment-understanding').checked,
-        amount: amount,
+        amount: registrationAmountToDollarsNumber(amount),
         paymentMethod: 'paypal',
         timestamp: Date.now()
     };
@@ -399,6 +417,9 @@ async function checkPayPalReturn() {
 
     try {
         const formData = JSON.parse(registrationData);
+        if (formData && formData.amount != null) {
+            formData.amount = registrationAmountToDollarsNumber(formData.amount);
+        }
 
         // Generate payment ID using PayPal data when available.
         const paymentId = paypalReturn.txId || paypalReturn.payerId || `PAYPAL-${formData.timestamp}`;
@@ -484,7 +505,7 @@ async function handleZellePayment() {
         bunkSelection: bunkSelections.join(', '),
         youthInfo: document.getElementById('youth-info').value.trim(),
         paymentUnderstanding: document.getElementById('payment-understanding').checked,
-        amount: amount,
+        amount: registrationAmountToDollarsNumber(amount),
         paymentMethod: 'zelle',
         timestamp: Date.now()
     };
@@ -566,7 +587,7 @@ async function handleMoneyOrderPayment() {
         bunkSelection: bunkSelections.join(', '),
         youthInfo: document.getElementById('youth-info').value.trim(),
         paymentUnderstanding: document.getElementById('payment-understanding').checked,
-        amount: amount,
+        amount: registrationAmountToDollarsNumber(amount),
         paymentMethod: 'money_order',
         timestamp: Date.now()
     };
@@ -959,7 +980,7 @@ function showPaymentSuccess(formData, paymentId, emailSent = null) {
     const paymentForm = document.getElementById('registration-form');
     const paymentSuccess = document.getElementById('payment-success');
     const successMessage = document.getElementById('success-message');
-    const amountValue = Number(formData.amount) || 0;
+    const amountValue = registrationAmountToDollarsNumber(formData.amount);
     const amountDisplay = amountValue.toFixed(2);
     const paymentMethod = formData.paymentMethod || 'paypal';
     

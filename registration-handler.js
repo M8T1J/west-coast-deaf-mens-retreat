@@ -66,7 +66,10 @@ function storeRegistrationData(formData, paymentId) {
         bunkSelection: formData.bunkSelection || '',
         youthInfo: formData.youthInfo || '',
         paymentUnderstanding: formData.paymentUnderstanding || false,
-        amount: formData.amount,
+        amount:
+            typeof window !== 'undefined' && typeof window.registrationAmountToDollarsNumber === 'function'
+                ? window.registrationAmountToDollarsNumber(formData.amount)
+                : formData.amount,
         paymentId: paymentId,
         timestamp: new Date().toISOString(),
         status: paymentId === 'PENDING' ? 'pending' : 'completed'

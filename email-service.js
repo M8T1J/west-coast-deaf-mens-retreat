@@ -69,11 +69,27 @@ const BACKEND_API_URL = 'https://your-backend-url.com/api/send-email'; // Replac
  * @param {string} paymentId - Payment transaction ID
  * @returns {Promise<boolean>} - Success status
  */
+function registrationFeeToDollarsNumber(raw) {
+    let n = typeof raw === 'number' ? raw : parseFloat(String(raw).replace(/,/g, ''));
+    if (!Number.isFinite(n) || n <= 0) return 0;
+    const anchor =
+        typeof window !== 'undefined' && Number(window.WCDMR_DEFAULT_REGISTRATION_AMOUNT) > 0
+            ? Number(window.WCDMR_DEFAULT_REGISTRATION_AMOUNT)
+            : 245;
+    if (Number.isInteger(n) && n >= 1000 && anchor > 0) {
+        const ratio = n / anchor;
+        if (ratio >= 99 && ratio <= 101) {
+            return n / 100;
+        }
+    }
+    return n;
+}
+
 function normalizeAmountDollarsString(formData) {
     const raw = formData.amount;
     if (raw == null || raw === '') return '0.00';
-    const n = typeof raw === 'number' ? raw : parseFloat(raw);
-    if (Number.isNaN(n)) return '0.00';
+    const n = registrationFeeToDollarsNumber(raw);
+    if (!Number.isFinite(n) || n <= 0) return '0.00';
     return n.toFixed(2);
 }
 

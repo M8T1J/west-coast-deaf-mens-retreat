@@ -3,10 +3,20 @@
  */
 let allRegistrations = [];
 
+const WCDMR_DEFAULT_FEE_ANCHOR = 245;
+
 function amountToDollarsNumber(raw) {
     if (raw == null || raw === '') return 0;
-    const n = typeof raw === 'number' ? raw : parseFloat(raw);
+    let n = typeof raw === 'number' ? raw : parseFloat(String(raw).replace(/,/g, ''));
     if (Number.isNaN(n)) return 0;
+    if (typeof window !== 'undefined' && typeof window.registrationAmountToDollarsNumber === 'function') {
+        return window.registrationAmountToDollarsNumber(n);
+    }
+    const anchor = WCDMR_DEFAULT_FEE_ANCHOR;
+    if (Number.isInteger(n) && n >= 1000 && anchor > 0) {
+        const ratio = n / anchor;
+        if (ratio >= 99 && ratio <= 101) return n / 100;
+    }
     return n;
 }
 
