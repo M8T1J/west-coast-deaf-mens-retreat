@@ -257,6 +257,22 @@
     <script>
         let allRegistrations = [];
 
+        /**
+         * Registration data stores amount in dollars (e.g. 245 for $245.00).
+         * Older or mistaken cent values may appear as integers >= 10000 (e.g. 24500).
+         */
+        function amountToDollarsNumber(raw) {
+            if (raw == null || raw === '') return 0;
+            const n = typeof raw === 'number' ? raw : parseFloat(raw);
+            if (Number.isNaN(n)) return 0;
+            if (Number.isInteger(n) && n >= 10000) return n / 100;
+            return n;
+        }
+
+        function formatAmountDisplay(raw) {
+            return amountToDollarsNumber(raw).toFixed(2);
+        }
+
         // Load registrations from localStorage
         function loadRegistrations() {
             const stored = localStorage.getItem('wcdmr_registrations');
@@ -291,7 +307,7 @@
                     hour: '2-digit',
                     minute: '2-digit'
                 });
-                const amount = typeof reg.amount === 'number' ? (reg.amount / 100).toFixed(2) : parseFloat(reg.amount).toFixed(2);
+                const amount = formatAmountDisplay(reg.amount);
                 const statusClass = reg.status === 'completed' ? 'status-completed' : 'status-pending';
                 const statusText = reg.status === 'completed' ? 'Completed' : 'Pending';
 
@@ -338,7 +354,7 @@ Accommodation:
 - Youth Info: ${reg.youthInfo || 'N/A'}
 
 Payment:
-- Amount: $${typeof reg.amount === 'number' ? (reg.amount / 100).toFixed(2) : parseFloat(reg.amount).toFixed(2)}
+- Amount: $${formatAmountDisplay(reg.amount)}
 - Payment ID: ${reg.paymentId || '-'}
             `;
 
@@ -352,10 +368,7 @@ Payment:
             const pending = allRegistrations.filter(r => r.status === 'pending').length;
             const revenue = allRegistrations
                 .filter(r => r.status === 'completed')
-                .reduce((sum, r) => {
-                    const amount = typeof r.amount === 'number' ? r.amount / 100 : parseFloat(r.amount);
-                    return sum + amount;
-                }, 0);
+                .reduce((sum, r) => sum + amountToDollarsNumber(r.amount), 0);
 
             document.getElementById('total-count').textContent = total;
             document.getElementById('completed-count').textContent = completed;
@@ -391,7 +404,7 @@ Payment:
             const headers = ['Date', 'First Name', 'Last Name', 'Email', 'Phone', 'Videophone', 'Address', 'Church', 'Emergency Name', 'Emergency Phone', 'Bunk Selection', 'Youth Info', 'Amount', 'Payment ID', 'Status'];
             const rows = allRegistrations.map(reg => {
                 const date = new Date(reg.timestamp).toLocaleString();
-                const amount = typeof reg.amount === 'number' ? (reg.amount / 100).toFixed(2) : parseFloat(reg.amount).toFixed(2);
+                const amount = formatAmountDisplay(reg.amount);
                 return [
                     date,
                     reg.firstName || '',
