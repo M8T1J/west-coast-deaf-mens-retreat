@@ -322,10 +322,8 @@ async function handlePayPalClick(event) {
     showPayPalRedirectState('Registration complete. Sending confirmation email...');
     let prePaymentEmailSent = false;
     try {
-        const emailResult = await Promise.race([
-            sendConfirmationEmailIfAvailable(emailFormData, pendingPaymentId),
-            new Promise((resolve) => setTimeout(() => resolve(null), 2500))
-        ]);
+        // Wait for EmailJS/backend to finish; a short timeout caused false "no email" when the API was slow.
+        const emailResult = await sendConfirmationEmailIfAvailable(emailFormData, pendingPaymentId);
         prePaymentEmailSent = emailResult === true;
     } catch (error) {
         console.error('Error while sending pre-payment confirmation email:', error);

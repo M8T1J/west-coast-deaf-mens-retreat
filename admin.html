@@ -165,13 +165,32 @@
             outline: none;
             border-color: var(--primary-color);
         }
+        .admin-notice {
+            background: #fff8e6;
+            border: 2px solid #c9a961;
+            border-radius: 0.5rem;
+            padding: 1rem 1.25rem;
+            margin-bottom: 1.5rem;
+            color: #1a202c;
+            line-height: 1.55;
+        }
+        .admin-notice strong {
+            display: block;
+            margin-bottom: 0.35rem;
+            font-size: 1.05rem;
+        }
     </style>
 </head>
 <body>
     <div class="admin-container">
         <div class="admin-header">
             <h1>WCDMR 2026 Registration Admin</h1>
-            <p>View and manage all registrations</p>
+            <p>Registrations saved in this browser only (not a live server list)</p>
+        </div>
+
+        <div class="admin-notice" role="status">
+            <strong>Why you might not see today’s registration</strong>
+            This page reads data from <em>this device’s</em> browser storage (the same Chrome/Safari profile where someone filled out the form on this site). It does <em>not</em> pull everyone who registered from the internet. If you registered on another phone, another computer, a different browser, private/incognito mode, or you cleared site data, this list will look empty or outdated. To see a test entry here, complete the form on <strong>this same browser</strong> on this computer, then refresh this page.
         </div>
 
         <div class="admin-stats" id="stats">
@@ -206,7 +225,7 @@
 
         <div class="registrations-table">
             <div class="table-header">
-                <h2>All Registrations</h2>
+                <h2>Registrations in this browser</h2>
             </div>
             <div class="table-container">
                 <table id="registrations-table">
@@ -226,7 +245,7 @@
                         <tr>
                             <td colspan="8" class="empty-state">
                                 <div class="empty-state-icon">📋</div>
-                                <p>No registrations yet. Registrations will appear here after someone completes the form.</p>
+                                <p>No data in this browser yet. Someone must submit the form using this same browser on this device (or use a backend to collect all signups).</p>
                             </td>
                         </tr>
                     </tbody>
