@@ -156,7 +156,10 @@ async function sendConfirmationEmail(formData, paymentId) {
         const sendOnce = async () => {
             initEmailJS();
 
-            const messageHtml = generateEmailHTML(emailData.data);
+            // Do not pass full HTML as `message`: the EmailJS body should be only
+            // emailjs-registration-confirmation-template.html (placeholders). If `message`
+            // contains a second full document, clients show duplicate layouts—especially
+            // broken on narrow screens. Omit `message` unless your template is message-only.
             const templateParams = {
                 to_email: toAddr,
                 user_email: toAddr,
@@ -166,7 +169,6 @@ async function sendConfirmationEmail(formData, paymentId) {
                 full_name: fullName,
                 from_name: 'WCDMR 2026',
                 subject: emailData.subject,
-                message: messageHtml,
                 amount: amount,
                 payment_id: paymentId,
                 event_dates: emailData.data.eventDates,

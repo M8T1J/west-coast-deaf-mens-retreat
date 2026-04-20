@@ -1,4 +1,4 @@
-<!-- Paste into EmailJS template body (HTML). Use Subject: {{subject}}. Do not also use {{message}} in the same template. -->
+<!-- Paste into EmailJS template body (HTML). Subject: {{subject}}. Do not include {{message}} here — the app no longer sends duplicate full-HTML in that field. -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -126,6 +126,34 @@
     }
     li {
       margin: 8px 0;
+    }
+    /* Stack labels on narrow mail clients (avoids cramped two-column rows). */
+    @media only screen and (max-width: 600px) {
+      .content {
+        padding: 20px 16px !important;
+      }
+      .header {
+        padding: 22px 16px 26px !important;
+      }
+      .header h1 {
+        font-size: 22px !important;
+      }
+      .info-box {
+        padding: 16px !important;
+      }
+      .info-label {
+        display: block !important;
+        min-width: 0 !important;
+        margin-bottom: 4px !important;
+      }
+      .info-row {
+        padding: 14px 0 !important;
+        word-wrap: break-word;
+        overflow-wrap: anywhere;
+      }
+      .email-logo {
+        max-width: 100% !important;
+      }
     }
   </style>
 </head>
