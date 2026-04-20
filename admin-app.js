@@ -116,48 +116,56 @@ function escapeHtml(value) {
         .replace(/'/g, '&#39;');
 }
 
+const WCDMR_EDIT_INPUT_STYLE =
+    'width:100%;box-sizing:border-box;padding:0.65rem 0.75rem;border:1px solid #cbd5e1;border-radius:8px;font-size:1rem;background:#fff;';
+const WCDMR_EDIT_LABEL_STYLE = 'display:block;font-weight:600;margin:0 0 0.25rem 0;color:#111827;';
+
+let wcdmrBodyOverflowBeforeEdit = '';
+
 function ensureEditDialog() {
     let root = document.getElementById('edit-registration-overlay');
     if (root) return root;
 
-    // Plain div overlay (not <dialog>) — works in all browsers; Safari can break HTMLDialogElement.showModal().
+    // Block layout + scrollable backdrop (more reliable than flex centering on iOS / some WebViews).
     root = document.createElement('div');
     root.id = 'edit-registration-overlay';
     root.setAttribute('role', 'dialog');
     root.setAttribute('aria-modal', 'true');
-    root.style.cssText = 'display:none;position:fixed;inset:0;z-index:99999;background:rgba(17,24,39,0.55);align-items:center;justify-content:center;padding:1rem;box-sizing:border-box;';
+    root.style.cssText =
+        'display:none;position:fixed;inset:0;z-index:2147483647;overflow-y:auto;-webkit-overflow-scrolling:touch;' +
+        'padding:16px;box-sizing:border-box;background:rgba(17,24,39,0.55);';
     root.innerHTML = `
-        <div id="edit-registration-panel" style="background:#fff;max-width:820px;width:100%;max-height:92vh;overflow:hidden;border-radius:12px;box-shadow:0 25px 50px -12px rgba(0,0,0,0.25);display:flex;flex-direction:column;">
+        <div id="edit-registration-panel" style="background:#fff;max-width:820px;width:100%;margin:24px auto 32px auto;border-radius:12px;box-shadow:0 25px 50px -12px rgba(0,0,0,0.25);overflow:hidden;">
             <div style="padding: 1.25rem 1.25rem 0.75rem 1.25rem; border-bottom: 1px solid #e5e7eb;">
                 <div style="display:flex; justify-content: space-between; gap: 1rem; align-items: baseline;">
                     <div>
-                        <div style="font-size: 1.25rem; font-weight: 700;">Edit registration</div>
+                        <div style="font-size: 1.25rem; font-weight: 700;">Edit registration (all fields)</div>
                         <div style="color:#6b7280; font-size: 0.9rem;" id="edit-reg-subtitle"></div>
                     </div>
                     <button type="button" id="edit-close-btn" class="btn btn-outline" style="padding: 0.4rem 0.7rem; font-size: 0.9rem;">Close</button>
                 </div>
             </div>
-            <div style="padding: 1rem 1.25rem; overflow-y:auto; flex:1; min-height:0;">
-                <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 0.85rem 1rem;">
-                    <label>Full name<br><input id="edit-fullName" class="search-box" style="margin:0;" autocomplete="name" /></label>
-                    <label>Email<br><input id="edit-email" class="search-box" style="margin:0;" autocomplete="email" /></label>
-                    <label>Phone<br><input id="edit-phone" class="search-box" style="margin:0;" autocomplete="tel" /></label>
-                    <label>Videophone<br><input id="edit-videophone" class="search-box" style="margin:0;" /></label>
-                    <label style="grid-column: 1 / -1;">Full address<br><input id="edit-fullAddress" class="search-box" style="margin:0;" autocomplete="street-address" /></label>
-                    <label>Church name<br><input id="edit-churchName" class="search-box" style="margin:0;" /></label>
-                    <label>Bunk selection<br><input id="edit-bunkSelection" class="search-box" style="margin:0;" /></label>
-                    <label style="grid-column: 1 / -1;">Youth info<br><input id="edit-youthInfo" class="search-box" style="margin:0;" /></label>
-                    <label>Emergency name<br><input id="edit-emergencyName" class="search-box" style="margin:0;" /></label>
-                    <label>Emergency phone<br><input id="edit-emergencyPhone" class="search-box" style="margin:0;" /></label>
-                    <label>Payment ID<br><input id="edit-paymentId" class="search-box" style="margin:0;" /></label>
-                    <label>Status<br>
-                        <select id="edit-status" class="search-box" style="margin:0;">
+            <div style="padding: 1rem 1.25rem; max-height: min(75vh, 900px); overflow-y: auto;">
+                <div style="display:grid; grid-template-columns: 1fr; gap: 0.9rem;">
+                    <label><span style="${WCDMR_EDIT_LABEL_STYLE}">Full name</span><input id="edit-fullName" style="${WCDMR_EDIT_INPUT_STYLE}" autocomplete="name" /></label>
+                    <label><span style="${WCDMR_EDIT_LABEL_STYLE}">Email</span><input id="edit-email" style="${WCDMR_EDIT_INPUT_STYLE}" autocomplete="email" /></label>
+                    <label><span style="${WCDMR_EDIT_LABEL_STYLE}">Phone</span><input id="edit-phone" style="${WCDMR_EDIT_INPUT_STYLE}" autocomplete="tel" /></label>
+                    <label><span style="${WCDMR_EDIT_LABEL_STYLE}">Videophone</span><input id="edit-videophone" style="${WCDMR_EDIT_INPUT_STYLE}" /></label>
+                    <label><span style="${WCDMR_EDIT_LABEL_STYLE}">Full address</span><input id="edit-fullAddress" style="${WCDMR_EDIT_INPUT_STYLE}" autocomplete="street-address" /></label>
+                    <label><span style="${WCDMR_EDIT_LABEL_STYLE}">Church name</span><input id="edit-churchName" style="${WCDMR_EDIT_INPUT_STYLE}" /></label>
+                    <label><span style="${WCDMR_EDIT_LABEL_STYLE}">Bunk selection</span><input id="edit-bunkSelection" style="${WCDMR_EDIT_INPUT_STYLE}" /></label>
+                    <label><span style="${WCDMR_EDIT_LABEL_STYLE}">Youth info</span><input id="edit-youthInfo" style="${WCDMR_EDIT_INPUT_STYLE}" /></label>
+                    <label><span style="${WCDMR_EDIT_LABEL_STYLE}">Emergency name</span><input id="edit-emergencyName" style="${WCDMR_EDIT_INPUT_STYLE}" /></label>
+                    <label><span style="${WCDMR_EDIT_LABEL_STYLE}">Emergency phone</span><input id="edit-emergencyPhone" style="${WCDMR_EDIT_INPUT_STYLE}" /></label>
+                    <label><span style="${WCDMR_EDIT_LABEL_STYLE}">Payment ID</span><input id="edit-paymentId" style="${WCDMR_EDIT_INPUT_STYLE}" /></label>
+                    <label><span style="${WCDMR_EDIT_LABEL_STYLE}">Status</span>
+                        <select id="edit-status" style="${WCDMR_EDIT_INPUT_STYLE}">
                             <option value="completed">completed</option>
                             <option value="pending">pending</option>
                         </select>
                     </label>
-                    <label>Amount (dollars)<br><input id="edit-amount" class="search-box" style="margin:0;" inputmode="decimal" /></label>
-                    <label>Payment method<br><input id="edit-paymentMethod" class="search-box" style="margin:0;" placeholder="paypal / zelle / money_order" /></label>
+                    <label><span style="${WCDMR_EDIT_LABEL_STYLE}">Amount (dollars)</span><input id="edit-amount" style="${WCDMR_EDIT_INPUT_STYLE}" inputmode="decimal" /></label>
+                    <label><span style="${WCDMR_EDIT_LABEL_STYLE}">Payment method</span><input id="edit-paymentMethod" style="${WCDMR_EDIT_INPUT_STYLE}" placeholder="paypal / zelle / money_order" /></label>
                 </div>
                 <div id="edit-reg-error" style="margin-top: 0.85rem; color: #b91c1c; display:none;"></div>
             </div>
@@ -171,12 +179,15 @@ function ensureEditDialog() {
 
     const close = () => {
         root.style.display = 'none';
+        document.body.style.overflow = wcdmrBodyOverflowBeforeEdit;
     };
     root.addEventListener('click', (e) => {
         if (e.target === root) close();
     });
-    root.querySelector('#edit-close-btn')?.addEventListener('click', close);
-    root.querySelector('#edit-cancel-btn')?.addEventListener('click', close);
+    const closeBtn = root.querySelector('#edit-close-btn');
+    const cancelBtn = root.querySelector('#edit-cancel-btn');
+    if (closeBtn) closeBtn.addEventListener('click', close);
+    if (cancelBtn) cancelBtn.addEventListener('click', close);
 
     return root;
 }
@@ -188,7 +199,9 @@ function editRegistration(timestamp) {
     const reg = allRegistrations[idx];
 
     const dialog = ensureEditDialog();
-    dialog.style.display = 'flex';
+    wcdmrBodyOverflowBeforeEdit = document.body.style.overflow || '';
+    document.body.style.overflow = 'hidden';
+    dialog.style.display = 'block';
 
     const subtitle = dialog.querySelector('#edit-reg-subtitle');
     if (subtitle) {
@@ -284,11 +297,13 @@ function editRegistration(timestamp) {
             persistRegistrations(next);
             loadRegistrations();
             dialog.style.display = 'none';
+            document.body.style.overflow = wcdmrBodyOverflowBeforeEdit;
         };
     }
 
     try {
-        dialog.querySelector('#edit-fullName')?.focus();
+        const fn = dialog.querySelector('#edit-fullName');
+        if (fn) fn.focus();
     } catch {
         /* ignore */
     }
