@@ -157,6 +157,13 @@ function persistLocalRegistrations(registrations) {
     return limited;
 }
 
+function getAuthoritativeRegistrations(sharedRegistrations, localRegistrations) {
+    if (Array.isArray(sharedRegistrations)) {
+        return limitRegistrations(sharedRegistrations);
+    }
+    return limitRegistrations(Array.isArray(localRegistrations) ? localRegistrations : []);
+}
+
 function normalizeRemotePayload(payload) {
     if (Array.isArray(payload)) return payload;
     if (payload && Array.isArray(payload.registrations)) return payload.registrations;
@@ -193,7 +200,8 @@ async function pushSharedRegistrations(registrations) {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-                registrations: limitRegistrations(registrations)
+                registrations: limitRegistrations(registrations),
+                updatedAt: new Date().toISOString()
             })
         });
 
@@ -235,7 +243,7 @@ async function loadRegistrations() {
     const localRegistrations = readLocalRegistrations();
     const sharedRegistrations = await fetchSharedRegistrations();
 
-    allRegistrations = mergeRegistrations(sharedRegistrations || [], localRegistrations);
+    allRegistrations = getAuthoritativeRegistrations(sharedRegistrations, localRegistrations);
     persistLocalRegistrations(allRegistrations);
     displayRegistrations();
     updateStats();
