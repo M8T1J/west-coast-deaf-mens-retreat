@@ -270,9 +270,6 @@ async function syncCurrentRegistrations(successMessage, pendingMessage) {
     const synced = await pushSharedRegistrations(allRegistrations);
     if (synced) {
         setAdminStatus(successMessage, 'success');
-        setTimeout(() => {
-            loadRegistrations();
-        }, 1200);
     } else {
         setAdminStatus(pendingMessage, 'error');
     }
@@ -794,6 +791,3 @@ if (typeof window !== 'undefined') {
 }
 
 loadRegistrations();
-setInterval(() => {
-    loadRegistrations();
-}, 30000);
