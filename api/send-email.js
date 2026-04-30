@@ -26,36 +26,43 @@ function generateEmailHTML(data) {
             <meta charset="UTF-8">
             <meta name="viewport" content="width=device-width, initial-scale=1.0">
             <style>
-                body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; margin: 0; padding: 0; }
-                .container { max-width: 600px; margin: 0 auto; padding: 20px; }
-                .header { background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%); color: white; padding: 30px; text-align: center; border-radius: 10px 10px 0 0; }
-                .content { background: #f9fafb; padding: 30px; border-radius: 0 0 10px 10px; }
-                .success-icon { font-size: 48px; margin-bottom: 20px; }
-                .info-box { background: white; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #6366f1; }
-                .info-row { margin: 10px 0; }
-                .info-label { font-weight: bold; color: #6366f1; }
-                .button { display: inline-block; background: #6366f1; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; margin: 20px 0; }
-                .footer { text-align: center; margin-top: 30px; padding-top: 20px; border-top: 1px solid #e5e7eb; color: #6b7280; font-size: 14px; }
+                body { font-family: Arial, sans-serif; line-height: 1.6; color: #0a0e14; margin: 0; padding: 0; background: #f5f5f0; }
+                .container { max-width: 600px; margin: 0 auto; padding: 0; background: white; }
+                .header { background: linear-gradient(135deg, #0f1f35 0%, #1e3a5f 50%, #2d4a6b 100%); color: white; padding: 30px 20px 35px; text-align: center; }
+                .content { background: #ffffff; padding: 30px; }
+                .success-icon { font-size: 48px; margin-bottom: 15px; font-weight: 900; }
+                .email-logo { max-width: 350px; width: auto; height: auto; margin: 0 auto 25px; display: block; border-radius: 4px; }
+                .header h1 { font-size: 28px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.1em; margin: 0 0 10px 0; }
+                .header p { font-size: 18px; font-weight: 600; margin: 0; opacity: 0.95; }
+                .info-box { background: #f5f5f0; padding: 20px; border-radius: 4px; margin: 20px 0; border-left: 4px solid #c9a961; border: 2px solid #2d3748; }
+                .info-row { margin: 12px 0; padding: 8px 0; border-bottom: 1px solid #e5e7eb; }
+                .info-row:last-child { border-bottom: none; }
+                .info-label { font-weight: 700; color: #1e3a5f; text-transform: uppercase; font-size: 0.9rem; letter-spacing: 0.05em; display: inline-block; min-width: 140px; }
+                .button { display: inline-block; background: #1e3a5f; color: white; padding: 14px 28px; text-decoration: none; border-radius: 4px; margin: 20px 0; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; border: 2px solid #c9a961; }
+                .footer { text-align: center; margin-top: 30px; padding-top: 20px; border-top: 2px solid #2d3748; color: #4a5568; font-size: 14px; }
+                .social-links { margin: 20px 0; text-align: center; }
+                .social-links a { color: #1e3a5f; text-decoration: none; margin: 0 10px; font-weight: 600; }
             </style>
         </head>
         <body>
             <div class="container">
                 <div class="header">
+                    ${data.logoUrl ? `<img src="${data.logoUrl}" alt="West Coast Deaf Men's Retreat Logo" class="email-logo">` : ''}
                     <div class="success-icon">✓</div>
-                    <h1>Registration Confirmed!</h1>
+                    <h1>Registration confirmed</h1>
                     <p>West Coast Deaf Men's Retreat 2026</p>
                 </div>
                 <div class="content">
                     <p>Dear ${data.fullName},</p>
                     
-                    <p>Thank you for registering for the West Coast Deaf Men's Retreat 2026! We're excited to have you join us for this three-day summit of Prayer, worship, and Fellowship.</p>
+                    <p>Thank you for registering for the West Coast Deaf Men's Retreat 2026. We're glad you'll join us for this time of prayer, worship, and fellowship.</p>
                     
                     <div class="info-box">
                         <div class="info-row">
-                            <span class="info-label">Payment Amount:</span> $${data.amount}
+                            <span class="info-label">Amount:</span> $${data.amount}
                         </div>
                         <div class="info-row">
-                            <span class="info-label">Transaction ID:</span> ${data.paymentId}
+                            <span class="info-label">Reference / ID:</span> ${data.paymentId}
                         </div>
                         <div class="info-row">
                             <span class="info-label">Event Dates:</span> ${data.eventDates}
@@ -68,27 +75,33 @@ function generateEmailHTML(data) {
                         </div>
                     </div>
                     
-                    <p><strong>Next Steps:</strong></p>
+                    <p><strong>Next steps:</strong></p>
                     <ul>
-                        <li>Please complete the RSVP form if you haven't already</li>
-                        <li>Save this confirmation email for your records</li>
-                        <li>Follow us on social media for updates</li>
+                        <li>Complete the RSVP form if you have not already.</li>
+                        <li>Keep this email for your records.</li>
+                        <li>Follow us for updates.</li>
                     </ul>
                     
                     <div style="text-align: center;">
-                        <a href="${data.rsvpLink}" class="button">Complete RSVP Form</a>
+                        <a href="${data.rsvpLink}" class="button">Complete RSVP form</a>
+                    </div>
+
+                    <div class="social-links">
+                        <p><strong>Follow us:</strong></p>
+                        <a href="${data.facebookLink}">Facebook</a> |
+                        <a href="${data.instagramLink}">Instagram</a>
                     </div>
                     
-                    <p>If you have any questions, please contact us through the RSVP form or our social media channels.</p>
+                    <p>If you have questions, contact us through the RSVP form or our social channels.</p>
                     
-                    <p>We look forward to seeing you at Pine Crest Camp!</p>
+                    <p>We look forward to seeing you at Pine Crest Camp.</p>
                     
                     <p>Blessings,<br>
                     <strong>WCDMR 2026 Team</strong></p>
                     
                     <div class="footer">
                         <p>West Coast Deaf Men's Retreat 2026</p>
-                        <p>This is an automated confirmation email. Please do not reply to this email.</p>
+                        <p>This message was sent automatically. Replies may not be monitored.</p>
                     </div>
                 </div>
             </div>
@@ -122,9 +135,9 @@ export default async function handler(req, res) {
                     email: FROM_EMAIL,
                     name: FROM_NAME
                 },
-                subject: 'WCDMR 2026 - Registration Confirmed!',
+                subject: 'WCDMR 2026 - Registration confirmed',
                 html: generateEmailHTML(data),
-                text: `Dear ${toName},\n\nThank you for registering for WCDMR 2026!\n\nPayment Amount: $${data.amount}\nTransaction ID: ${data.paymentId}\nEvent Dates: ${data.eventDates}\nVenue: ${data.venue}\n\nWe look forward to seeing you!\n\nWCDMR 2026 Team`
+                text: `Dear ${toName},\n\nThank you for registering for WCDMR 2026.\n\nAmount: $${data.amount}\nReference / ID: ${data.paymentId}\nEvent Dates: ${data.eventDates}\nVenue: ${data.venue}\nAddress: ${data.venueAddress}\n\nKeep this email for your records, and complete the RSVP form if you have not already.\n\nWe look forward to seeing you at Pine Crest Camp.\n\nWCDMR 2026 Team`
             };
 
             await sgMail.send(msg);
@@ -147,7 +160,7 @@ export default async function handler(req, res) {
         await transporter.sendMail({
             from: `"${FROM_NAME}" <${FROM_EMAIL}>`,
             to: to,
-            subject: 'WCDMR 2026 - Registration Confirmed!',
+            subject: 'WCDMR 2026 - Registration confirmed',
             html: generateEmailHTML(data),
             text: `Dear ${toName},\n\nThank you for registering...`
         });

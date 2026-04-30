@@ -91,6 +91,10 @@ function persistLocalRegistrations(registrations) {
     return limited;
 }
 
+function normalizeIdentityPart(value) {
+    return String(value || '').trim().toLowerCase();
+}
+
 function normalizeRemotePayload(payload) {
     if (Array.isArray(payload)) return payload;
     if (payload && Array.isArray(payload.registrations)) return payload.registrations;
@@ -140,6 +144,26 @@ async function pushSharedRegistrations(registrations) {
         console.warn('Unable to update shared registrations right now.', error);
         return false;
     }
+}
+
+function hasCompletedRegistration(formData) {
+    const email = normalizeIdentityPart(formData && formData.email);
+    const fullName = normalizeIdentityPart(
+        (formData && formData.fullName) ||
+        `${formData && formData.firstName ? formData.firstName : ''} ${formData && formData.lastName ? formData.lastName : ''}`
+    );
+    if (!email && !fullName) return false;
+
+    const registrations = readLocalRegistrations();
+    return registrations.some((registration) => {
+        if (!registration || registration.status !== 'completed') return false;
+        const registrationEmail = normalizeIdentityPart(registration.email);
+        const registrationName = normalizeIdentityPart(
+            registration.fullName ||
+            `${registration.firstName || ''} ${registration.lastName || ''}`
+        );
+        return registrationEmail === email && registrationName === fullName;
+    });
 }
 
 /**
@@ -218,8 +242,9 @@ async function storeRegistrationData(formData, paymentId) {
 
     // If updating a pending registration, find and update it.
     if (paymentId !== 'PENDING') {
+        const normalizedEmail = normalizeIdentityPart(formData.email);
         const pendingIndex = existingRegistrations.findIndex((r) =>
-            r.email === formData.email && r.status === 'pending'
+            normalizeIdentityPart(r.email) === normalizedEmail && r.status === 'pending'
         );
         if (pendingIndex !== -1) {
             existingRegistrations[pendingIndex] = registration;
@@ -266,4 +291,5 @@ if (typeof window !== 'undefined') {
     window.completeRegistration = completeRegistration;
     window.storeRegistrationData = storeRegistrationData;
     window.submitToGoogleForm = submitToGoogleForm;
+    window.hasCompletedRegistration = hasCompletedRegistration;
 }

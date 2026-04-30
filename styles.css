@@ -3196,7 +3196,7 @@ body {
 }
 
 .video-section--donation .video-fallback-link a {
-    color: var(--primary);
+    color: var(--primary-color);
     font-weight: 600;
 }
 
