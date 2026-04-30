@@ -240,13 +240,23 @@ async function persistRegistrations(next) {
 }
 
 async function loadRegistrations() {
-    const localRegistrations = readLocalRegistrations();
     const sharedRegistrations = await fetchSharedRegistrations();
+    if (Array.isArray(sharedRegistrations)) {
+        allRegistrations = getAuthoritativeRegistrations(sharedRegistrations, []);
+        persistLocalRegistrations(allRegistrations);
+        displayRegistrations();
+        updateStats();
+        return;
+    }
 
-    allRegistrations = getAuthoritativeRegistrations(sharedRegistrations, localRegistrations);
-    persistLocalRegistrations(allRegistrations);
-    displayRegistrations();
+    // Admin should reflect the shared source of truth. Showing stale local cache causes
+    // deleted registrations to appear to "come back" on one device but not another.
+    allRegistrations = [];
+    persistLocalRegistrations([]);
+    selectedRegistrationKeys = new Set();
+    displayRegistrations([]);
     updateStats();
+    setAdminStatus('Live sync is unavailable right now. Please refresh when your connection is stable.', 'error');
 }
 
 function getSearchTerm() {
