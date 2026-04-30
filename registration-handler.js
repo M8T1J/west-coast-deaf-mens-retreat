@@ -91,6 +91,15 @@ function persistLocalRegistrations(registrations) {
     return limited;
 }
 
+function getAuthoritativeRegistrations(sharedRegistrations, localRegistrations) {
+    if (Array.isArray(sharedRegistrations)) {
+        const authoritative = limitRegistrations(sharedRegistrations);
+        persistLocalRegistrations(authoritative);
+        return authoritative;
+    }
+    return mergeRegistrations(localRegistrations);
+}
+
 function normalizeIdentityPart(value) {
     return String(value || '').trim().toLowerCase();
 }
@@ -238,7 +247,7 @@ async function storeRegistrationData(formData, paymentId) {
 
     const localRegistrations = readLocalRegistrations();
     const remoteRegistrations = await fetchSharedRegistrations();
-    const existingRegistrations = mergeRegistrations(remoteRegistrations || [], localRegistrations);
+    const existingRegistrations = getAuthoritativeRegistrations(remoteRegistrations, localRegistrations);
 
     // If updating a pending registration, find and update it.
     if (paymentId !== 'PENDING') {
