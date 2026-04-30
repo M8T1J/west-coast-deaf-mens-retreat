@@ -251,8 +251,11 @@ function showPaymentError(errorElementId, message) {
     errorDiv.style.display = 'block';
 }
 
-function hasDuplicateCompletedRegistration(formData) {
+async function hasDuplicateCompletedRegistration(formData) {
     try {
+        if (typeof hasCompletedRegistrationAsync === 'function') {
+            return await hasCompletedRegistrationAsync(formData);
+        }
         if (typeof hasCompletedRegistration === 'function') {
             return hasCompletedRegistration(formData);
         }
@@ -321,7 +324,7 @@ async function handlePayPalClick(event) {
         timestamp: Date.now()
     };
 
-    if (hasDuplicateCompletedRegistration(formData)) {
+    if (await hasDuplicateCompletedRegistration(formData)) {
         showPaymentError('payment-errors', DUPLICATE_REGISTRATION_MESSAGE);
         announceToScreenReader('This name and email are already registered.');
         return false;
@@ -520,7 +523,7 @@ async function handleZellePayment() {
         timestamp: Date.now()
     };
 
-    if (hasDuplicateCompletedRegistration(formData)) {
+    if (await hasDuplicateCompletedRegistration(formData)) {
         showPaymentError('zelle-payment-errors', DUPLICATE_REGISTRATION_MESSAGE);
         announceToScreenReader('This name and email are already registered.');
         return false;
@@ -604,7 +607,7 @@ async function handleMoneyOrderPayment() {
         timestamp: Date.now()
     };
 
-    if (hasDuplicateCompletedRegistration(formData)) {
+    if (await hasDuplicateCompletedRegistration(formData)) {
         showPaymentError('money-order-payment-errors', DUPLICATE_REGISTRATION_MESSAGE);
         announceToScreenReader('This name and email are already registered.');
         return false;
