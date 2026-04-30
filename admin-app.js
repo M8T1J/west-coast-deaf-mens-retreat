@@ -313,7 +313,7 @@ function toggleSelectAllRegistrations(event) {
     }
 }
 
-function deleteSelectedRegistrations() {
+async function deleteSelectedRegistrations() {
     const count = selectedRegistrationKeys.size;
     if (count === 0) {
         alert('Select at least one registration to delete.');
@@ -327,8 +327,12 @@ function deleteSelectedRegistrations() {
 
     const next = allRegistrations.filter((r) => !selectedRegistrationKeys.has(registrationKey(r)));
     selectedRegistrationKeys = new Set();
-    persistRegistrations(next);
-    loadRegistrations();
+    const synced = await persistRegistrations(next);
+    await loadRegistrations();
+    if (!synced) {
+        alert('Deleted locally. Shared sync is still catching up, so refresh again in a moment if needed.');
+        return;
+    }
     alert(count === 1 ? 'Deleted 1 registration.' : `Deleted ${count} registrations.`);
 }
 
@@ -682,20 +686,28 @@ function importRegistrationsJSON() {
             }
         }
         const merged = sortRegistrationsNewestFirst(Array.from(byTs.values()));
-        persistRegistrations(merged);
+        const synced = await persistRegistrations(merged);
         await loadRegistrations();
+        if (!synced) {
+            alert(`Import finished locally. Shared sync is still catching up, so refresh again in a moment if needed.`);
+            return;
+        }
         alert(`Import finished. ${merged.length} synced registration(s) available now.`);
     };
     input.click();
 }
 
-function clearAllData() {
+async function clearAllData() {
     if (confirm('Are you sure you want to delete ALL registration data? This cannot be undone!')) {
         localStorage.removeItem(WCDMR_REGISTRATION_STORAGE_KEY);
         allRegistrations = [];
-        pushSharedRegistrations([]);
+        const synced = await pushSharedRegistrations([]);
         displayRegistrations();
         updateStats();
+        if (!synced) {
+            alert('All local registration data has been cleared. Shared sync is still catching up, so refresh again in a moment if needed.');
+            return;
+        }
         alert('All registration data has been cleared.');
     }
 }
