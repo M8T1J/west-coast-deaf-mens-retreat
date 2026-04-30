@@ -100,6 +100,26 @@ function getAuthoritativeRegistrations(sharedRegistrations, localRegistrations) 
     return mergeRegistrations(localRegistrations);
 }
 
+let registrationSyncPromise = null;
+
+async function syncAuthoritativeRegistrations(force = false) {
+    if (!force && registrationSyncPromise) {
+        return registrationSyncPromise;
+    }
+
+    registrationSyncPromise = (async () => {
+        const localRegistrations = readLocalRegistrations();
+        const sharedRegistrations = await fetchSharedRegistrations();
+        return getAuthoritativeRegistrations(sharedRegistrations, localRegistrations);
+    })();
+
+    try {
+        return await registrationSyncPromise;
+    } finally {
+        registrationSyncPromise = null;
+    }
+}
+
 function normalizeIdentityPart(value) {
     return String(value || '').trim().toLowerCase();
 }
@@ -173,6 +193,11 @@ function hasCompletedRegistration(formData) {
         );
         return registrationEmail === email && registrationName === fullName;
     });
+}
+
+async function hasCompletedRegistrationAsync(formData) {
+    await syncAuthoritativeRegistrations();
+    return hasCompletedRegistration(formData);
 }
 
 /**
@@ -301,4 +326,12 @@ if (typeof window !== 'undefined') {
     window.storeRegistrationData = storeRegistrationData;
     window.submitToGoogleForm = submitToGoogleForm;
     window.hasCompletedRegistration = hasCompletedRegistration;
+    window.hasCompletedRegistrationAsync = hasCompletedRegistrationAsync;
+    window.syncAuthoritativeRegistrations = syncAuthoritativeRegistrations;
+
+    window.addEventListener('DOMContentLoaded', () => {
+        syncAuthoritativeRegistrations().catch((error) => {
+            console.warn('Unable to warm shared registration data on page load.', error);
+        });
+    });
 }
