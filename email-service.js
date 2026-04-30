@@ -15,6 +15,7 @@ const WCDMR_EVENT_ADDRESS = '1140 PINECREST ROAD, TWIN PEAKS, CA 92361';
 const WCDMR_FACEBOOK_LINK = 'https://www.facebook.com/wcdmr';
 const WCDMR_INSTAGRAM_LINK = 'https://www.instagram.com/wcdmr97/';
 const WCDMR_INFO_EMAIL = 'wcdeafmr@gmail.com';
+const WCDMR_ADMIN_NOTIFICATION_EMAIL = 'wcdeafmr@gmail.com';
 
 // Option 1: EmailJS (Quick setup for development/testing)
 const EMAILJS_CONFIG = {
@@ -145,6 +146,92 @@ function buildEmailContent(paymentId, amount) {
         outro: 'We look forward to seeing you at Pine Crest Camp.',
         support:
             'If you have questions, contact us through the RSVP form or our social channels.'
+    };
+}
+
+function buildAdminNotificationContent(formData, paymentId, amount) {
+    const paymentMethod = String(formData.paymentMethod || 'paypal').replace(/_/g, ' ');
+    const fullName = (formData.fullName || `${formData.firstName || ''} ${formData.lastName || ''}`.trim()).trim() || 'Registrant';
+    const phone = formData.phone || '-';
+    const videophone = formData.videophone || '-';
+    const churchName = formData.churchName || '-';
+    const fullAddress = formData.fullAddress || '-';
+    const emergencyName = formData.emergencyName || '-';
+    const emergencyPhone = formData.emergencyPhone || '-';
+    const bunkSelection = formData.bunkSelection || '-';
+    const youthInfo = formData.youthInfo || 'None provided';
+
+    return {
+        subject: `New WCDMR registration: ${fullName}`,
+        text: [
+            'A new WCDMR registration has been completed.',
+            '',
+            `Name: ${fullName}`,
+            `Email: ${formData.email || '-'}`,
+            `Phone: ${phone}`,
+            `Videophone: ${videophone}`,
+            `Church: ${churchName}`,
+            `Payment method: ${paymentMethod}`,
+            `Amount: $${amount}`,
+            `Reference / ID: ${paymentId}`,
+            `Address: ${fullAddress}`,
+            `Emergency contact: ${emergencyName} (${emergencyPhone})`,
+            `Bunk selection: ${bunkSelection}`,
+            `Youth info: ${youthInfo}`,
+            '',
+            'Check the admin page for the full synced record.'
+        ].join('\n'),
+        html: `
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <meta charset="UTF-8">
+                <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                <style>
+                    body { font-family: Arial, sans-serif; line-height: 1.6; color: #0a0e14; margin: 0; padding: 0; background: #f5f5f0; }
+                    .container { max-width: 640px; margin: 0 auto; background: #ffffff; }
+                    .header { background: linear-gradient(135deg, #0f1f35 0%, #1e3a5f 50%, #2d4a6b 100%); color: white; padding: 28px 20px; text-align: center; }
+                    .header h1 { margin: 0 0 8px 0; font-size: 26px; }
+                    .content { padding: 28px; }
+                    .info-box { background: #f5f5f0; border: 2px solid #2d3748; border-left: 4px solid #c9a961; border-radius: 4px; padding: 20px; margin: 20px 0; }
+                    .info-row { margin: 0; padding: 10px 0; border-bottom: 1px solid #e5e7eb; }
+                    .info-row:last-child { border-bottom: none; }
+                    .info-label { font-weight: 700; color: #1e3a5f; text-transform: uppercase; font-size: 0.82rem; letter-spacing: 0.05em; display: inline-block; min-width: 150px; vertical-align: top; }
+                    .footer { text-align: center; margin-top: 28px; padding-top: 18px; border-top: 2px solid #2d3748; color: #4a5568; font-size: 14px; }
+                </style>
+            </head>
+            <body>
+                <div class="container">
+                    <div class="header">
+                        <h1>New WCDMR registration</h1>
+                        <p>${WCDMR_EVENT_NAME}</p>
+                    </div>
+                    <div class="content">
+                        <p>A new registration has been completed and synced.</p>
+                        <div class="info-box">
+                            <div class="info-row"><span class="info-label">Name</span> ${fullName}</div>
+                            <div class="info-row"><span class="info-label">Email</span> ${formData.email || '-'}</div>
+                            <div class="info-row"><span class="info-label">Phone</span> ${phone}</div>
+                            <div class="info-row"><span class="info-label">Videophone</span> ${videophone}</div>
+                            <div class="info-row"><span class="info-label">Church</span> ${churchName}</div>
+                            <div class="info-row"><span class="info-label">Payment method</span> ${paymentMethod}</div>
+                            <div class="info-row"><span class="info-label">Amount</span> $${amount}</div>
+                            <div class="info-row"><span class="info-label">Reference / ID</span> ${paymentId}</div>
+                            <div class="info-row"><span class="info-label">Address</span> ${fullAddress}</div>
+                            <div class="info-row"><span class="info-label">Emergency contact</span> ${emergencyName} (${emergencyPhone})</div>
+                            <div class="info-row"><span class="info-label">Bunk selection</span> ${bunkSelection}</div>
+                            <div class="info-row"><span class="info-label">Youth info</span> ${youthInfo}</div>
+                        </div>
+                        <p>Check the admin page for the full synced record.</p>
+                        <div class="footer">
+                            <p>${WCDMR_EVENT_NAME}</p>
+                            <p>This message was sent automatically for the registration team.</p>
+                        </div>
+                    </div>
+                </div>
+            </body>
+            </html>
+        `
     };
 }
 
@@ -315,6 +402,100 @@ async function sendConfirmationEmail(formData, paymentId) {
     } catch (error) {
         console.error('Error sending confirmation email:', error);
         // Don't fail the payment if email fails
+        return false;
+    }
+}
+
+async function sendAdminRegistrationNotification(formData, paymentId) {
+    const adminTo = String(WCDMR_ADMIN_NOTIFICATION_EMAIL || '').trim();
+    if (!adminTo) {
+        return false;
+    }
+
+    const fullName = (formData.fullName || `${formData.firstName || ''} ${formData.lastName || ''}`.trim()).trim() || 'Registrant';
+    const amount = normalizeAmountDollarsString(formData);
+    const notification = buildAdminNotificationContent(formData, paymentId, amount);
+
+    const payload = {
+        to: adminTo,
+        toName: 'WCDMR Admin',
+        subject: notification.subject,
+        data: {
+            fullName,
+            amount,
+            paymentId,
+            eventDates: WCDMR_EVENT_DATES,
+            venue: WCDMR_EVENT_VENUE,
+            venueAddress: WCDMR_EVENT_ADDRESS,
+            notificationHtml: notification.html,
+            notificationText: notification.text,
+            logoUrl: `${typeof window !== 'undefined' ? window.location.origin : 'https://www.wcdmr.com'}/images/logo-enhanced.JPG?v=20260430-share1`
+        }
+    };
+
+    try {
+        if (BACKEND_API_URL && BACKEND_API_URL !== 'https://your-backend-url.com/api/send-email') {
+            const response = await fetch(BACKEND_API_URL, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    ...payload,
+                    adminNotification: true
+                })
+            });
+            if (response.ok) {
+                return true;
+            }
+        }
+
+        if (!EMAILJS_CONFIG.enabled) {
+            return false;
+        }
+
+        const ej = await ensureEmailJsReady();
+        if (!ej) {
+            return false;
+        }
+
+        initEmailJS();
+        const templateParams = {
+            to_email: adminTo,
+            user_email: adminTo,
+            email: adminTo,
+            to_name: 'WCDMR Admin',
+            user_name: 'WCDMR Admin',
+            full_name: fullName,
+            from_name: WCDMR_EMAIL_SENDER_NAME,
+            sender_name: WCDMR_EMAIL_SENDER_NAME,
+            subject: notification.subject,
+            amount,
+            payment_id: paymentId,
+            email_heading: 'New registration received',
+            intro_copy: `A new registration has been completed for ${fullName}.`,
+            amount_label: 'Amount',
+            reference_label: 'Reference / ID',
+            next_step_one: `Phone: ${formData.phone || '-'}`,
+            next_step_two: `Payment method: ${String(formData.paymentMethod || 'paypal').replace(/_/g, ' ')}`,
+            next_step_three: `Church: ${formData.churchName || '-'}`,
+            outro_copy: 'Check the admin page for the full synced record.',
+            support_copy: `Registrant email: ${formData.email || '-'} | Address: ${formData.fullAddress || '-'}`,
+            event_dates: WCDMR_EVENT_DATES,
+            venue: WCDMR_EVENT_VENUE,
+            venue_address: WCDMR_EVENT_ADDRESS,
+            rsvp_link: 'https://www.wcdmr.com/admin/',
+            facebook_link: WCDMR_FACEBOOK_LINK,
+            instagram_link: WCDMR_INSTAGRAM_LINK
+        };
+
+        await ej.send(
+            EMAILJS_CONFIG.serviceId,
+            EMAILJS_CONFIG.templateId,
+            templateParams,
+            { publicKey: EMAILJS_CONFIG.publicKey }
+        );
+        return true;
+    } catch (error) {
+        console.error('Error sending admin registration notification:', error);
         return false;
     }
 }
@@ -536,5 +717,5 @@ function generateEmailHTML(data) {
 
 // Export for use in other files
 if (typeof module !== 'undefined' && module.exports) {
-    module.exports = { sendConfirmationEmail, generateEmailHTML };
+    module.exports = { sendConfirmationEmail, sendAdminRegistrationNotification, generateEmailHTML };
 }
