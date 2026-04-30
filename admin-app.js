@@ -47,11 +47,9 @@ function setAdminStatus(message, tone = 'info') {
 }
 
 function getVisibleRegistrationKeys() {
-    return Array.from(document.querySelectorAll('#registrations-tbody input[type="checkbox"][onclick^="toggleRegistrationSelected"]'))
+    return Array.from(document.querySelectorAll('#registrations-tbody input[type="checkbox"][data-registration-key]'))
         .map((cb) => {
-            const onClick = cb.getAttribute('onclick') || '';
-            const m = onClick.match(/toggleRegistrationSelected\(event,\s*'([^']+)'\)/);
-            return m && m[1] ? m[1] : '';
+            return String(cb.getAttribute('data-registration-key') || '');
         })
         .filter(Boolean);
 }
@@ -327,9 +325,9 @@ function displayRegistrations(filtered = null) {
         const checked = key && selectedRegistrationKeys.has(key) ? 'checked' : '';
 
         return `
-                    <tr style="cursor: pointer;" onclick="showDetails('${reg.timestamp}')">
-                        <td class="registration-select-cell" style="text-align:center;" onclick="event.stopPropagation();">
-                            <input type="checkbox" ${checked} aria-label="Select registration" onclick="toggleRegistrationSelected(event, '${reg.timestamp}')" />
+                    <tr style="cursor: pointer;" data-registration-key="${reg.timestamp}">
+                        <td class="registration-select-cell" style="text-align:center;">
+                            <input type="checkbox" ${checked} aria-label="Select registration" data-registration-key="${reg.timestamp}" />
                         </td>
                         <td>${date}</td>
                         <td><strong>${reg.fullName || `${reg.firstName || ''} ${reg.lastName || ''}`.trim()}</strong></td>
@@ -341,8 +339,8 @@ function displayRegistrations(filtered = null) {
                         <td><span class="status-badge ${statusClass}">${statusText}</span></td>
                         <td class="registration-action-cell">
                             <div class="registration-action-buttons">
-                                <button class="btn btn-outline" style="padding: 0.35rem 0.6rem; font-size: 0.9rem;" onclick="event.stopPropagation(); editRegistration('${reg.timestamp}')">Edit</button>
-                                <button class="btn btn-danger" style="padding: 0.35rem 0.6rem; font-size: 0.9rem;" onclick="event.stopPropagation(); deleteRegistration('${reg.timestamp}')">Delete</button>
+                                <button class="btn btn-outline" style="padding: 0.35rem 0.6rem; font-size: 0.9rem;" data-registration-action="edit" data-registration-key="${reg.timestamp}" type="button">Edit</button>
+                                <button class="btn btn-danger" style="padding: 0.35rem 0.6rem; font-size: 0.9rem;" data-registration-action="delete" data-registration-key="${reg.timestamp}" type="button">Delete</button>
                             </div>
                         </td>
                     </tr>
@@ -798,6 +796,47 @@ async function refreshData() {
     setAdminStatus('Refreshing registration list...', 'info');
     await loadRegistrations();
     setAdminStatus('Data refreshed.', 'success');
+}
+
+const registrationsTbody = document.getElementById('registrations-tbody');
+if (registrationsTbody) {
+    registrationsTbody.addEventListener('click', (event) => {
+        const checkbox = event.target.closest('input[type="checkbox"][data-registration-key]');
+        if (checkbox) {
+            event.stopPropagation();
+            return;
+        }
+
+        const actionButton = event.target.closest('button[data-registration-action][data-registration-key]');
+        if (actionButton) {
+            event.stopPropagation();
+            const key = String(actionButton.getAttribute('data-registration-key') || '');
+            const action = actionButton.getAttribute('data-registration-action');
+            if (!key || !action) return;
+            if (action === 'edit') {
+                editRegistration(key);
+            } else if (action === 'delete') {
+                deleteRegistration(key);
+            }
+            return;
+        }
+
+        const row = event.target.closest('tr[data-registration-key]');
+        if (row) {
+            const key = String(row.getAttribute('data-registration-key') || '');
+            if (key) {
+                showDetails(key);
+            }
+        }
+    });
+
+    registrationsTbody.addEventListener('change', (event) => {
+        const checkbox = event.target.closest('input[type="checkbox"][data-registration-key]');
+        if (!checkbox) return;
+        const key = String(checkbox.getAttribute('data-registration-key') || '');
+        if (!key) return;
+        toggleRegistrationSelected(event, key);
+    });
 }
 
 if (typeof window !== 'undefined') {
