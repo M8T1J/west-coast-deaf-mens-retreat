@@ -2,6 +2,33 @@
  * WCDMR registration admin with shared cross-device sync.
  */
 let allRegistrations = [];
+let selectedRegistrationKeys = new Set();
+
+function registrationKey(reg) {
+    // Use timestamp as stable key (existing code assumes uniqueness for showDetails/editRegistration).
+    return String(reg && reg.timestamp ? reg.timestamp : '');
+}
+
+function setDeleteSelectedEnabled() {
+    const btn = document.getElementById('delete-selected-btn');
+    if (!btn) return;
+    btn.disabled = selectedRegistrationKeys.size === 0;
+    btn.textContent = selectedRegistrationKeys.size === 0
+        ? 'Delete Selected'
+        : `Delete Selected (${selectedRegistrationKeys.size})`;
+}
+
+function setSelectAllCheckboxState(registrations) {
+    const selectAll = document.getElementById('select-all-registrations');
+    if (!selectAll) return;
+    const rows = Array.isArray(registrations) ? registrations : [];
+    const keys = rows.map(registrationKey).filter(Boolean);
+    const selectedCount = keys.filter((k) => selectedRegistrationKeys.has(k)).length;
+    const allCount = keys.length;
+    selectAll.checked = allCount > 0 && selectedCount === allCount;
+    // Indeterminate when some (but not all) visible rows are selected.
+    selectAll.indeterminate = selectedCount > 0 && selectedCount < allCount;
+}
 
 const WCDMR_DEFAULT_FEE_ANCHOR = 245;
 const WCDMR_REGISTRATION_STORAGE_KEY = 'wcdmr_registrations';
@@ -179,12 +206,14 @@ function displayRegistrations(filtered = null) {
     if (registrations.length === 0) {
         tbody.innerHTML = `
                     <tr>
-                        <td colspan="9" class="empty-state">
+                        <td colspan="10" class="empty-state">
                             <div class="empty-state-icon">📋</div>
                             <p>No synced registrations found yet.</p>
                         </td>
                     </tr>
                 `;
+        setSelectAllCheckboxState(registrations);
+        setDeleteSelectedEnabled();
         return;
     }
 
@@ -199,9 +228,14 @@ function displayRegistrations(filtered = null) {
         const amount = formatAmountDisplay(reg.amount);
         const statusClass = reg.status === 'completed' ? 'status-completed' : 'status-pending';
         const statusText = reg.status === 'completed' ? 'Completed' : 'Pending';
+        const key = registrationKey(reg);
+        const checked = key && selectedRegistrationKeys.has(key) ? 'checked' : '';
 
         return `
                     <tr style="cursor: pointer;" onclick="showDetails('${reg.timestamp}')">
+                        <td style="text-align:center;" onclick="event.stopPropagation();">
+                            <input type="checkbox" ${checked} aria-label="Select registration" onclick="toggleRegistrationSelected(event, '${reg.timestamp}')" />
+                        </td>
                         <td>${date}</td>
                         <td><strong>${reg.fullName || `${reg.firstName || ''} ${reg.lastName || ''}`.trim()}</strong></td>
                         <td>${reg.email}</td>
@@ -216,6 +250,90 @@ function displayRegistrations(filtered = null) {
                     </tr>
                 `;
     }).join('');
+
+    setSelectAllCheckboxState(registrations);
+    setDeleteSelectedEnabled();
+}
+
+function toggleRegistrationSelected(event, timestamp) {
+    if (event && typeof event.stopPropagation === 'function') event.stopPropagation();
+    const key = String(timestamp || '');
+    if (!key) return;
+    if (selectedRegistrationKeys.has(key)) {
+        selectedRegistrationKeys.delete(key);
+    } else {
+        selectedRegistrationKeys.add(key);
+    }
+    // Update header checkbox state based on what's currently rendered.
+    const currentRows = document.querySelectorAll('#registrations-tbody tr');
+    const visibleKeys = [];
+    currentRows.forEach((tr) => {
+        const cb = tr.querySelector('input[type="checkbox"][onclick^="toggleRegistrationSelected"]');
+        if (cb) {
+            const onClick = cb.getAttribute('onclick') || '';
+            const m = onClick.match(/toggleRegistrationSelected\\(event,\\s*'([^']+)'\\)/);
+            if (m && m[1]) visibleKeys.push(m[1]);
+        }
+    });
+    setSelectAllCheckboxState(visibleKeys.map((t) => ({ timestamp: t })));
+    setDeleteSelectedEnabled();
+}
+
+function toggleSelectAllRegistrations(event) {
+    if (event && typeof event.stopPropagation === 'function') event.stopPropagation();
+    const checkbox = event && event.target ? event.target : document.getElementById('select-all-registrations');
+    const checked = Boolean(checkbox && checkbox.checked);
+    const visibleRows = Array.from(document.querySelectorAll('#registrations-tbody tr'));
+    const visibleTimestamps = visibleRows
+        .map((tr) => {
+            const cb = tr.querySelector('input[type="checkbox"][onclick^="toggleRegistrationSelected"]');
+            if (!cb) return '';
+            const onClick = cb.getAttribute('onclick') || '';
+            const m = onClick.match(/toggleRegistrationSelected\\(event,\\s*'([^']+)'\\)/);
+            return m && m[1] ? m[1] : '';
+        })
+        .filter(Boolean);
+
+    if (checked) {
+        visibleTimestamps.forEach((ts) => selectedRegistrationKeys.add(String(ts)));
+    } else {
+        visibleTimestamps.forEach((ts) => selectedRegistrationKeys.delete(String(ts)));
+    }
+
+    // Re-render current view to update row checkboxes.
+    // If search filter is active, keep it applied by re-triggering the input handler.
+    const searchBox = document.getElementById('search-box');
+    const searchTerm = searchBox ? String(searchBox.value || '').toLowerCase() : '';
+    if (searchTerm) {
+        const filtered = allRegistrations.filter((reg) => {
+            const fullName = (reg.fullName || `${reg.firstName || ''} ${reg.lastName || ''}`).toLowerCase();
+            const email = (reg.email || '').toLowerCase();
+            const church = (reg.churchName || '').toLowerCase();
+            return fullName.includes(searchTerm) || email.includes(searchTerm) || church.includes(searchTerm);
+        });
+        displayRegistrations(filtered);
+    } else {
+        displayRegistrations();
+    }
+}
+
+function deleteSelectedRegistrations() {
+    const count = selectedRegistrationKeys.size;
+    if (count === 0) {
+        alert('Select at least one registration to delete.');
+        return;
+    }
+    const msg =
+        count === 1
+            ? 'Delete 1 selected registration? This cannot be undone.'
+            : `Delete ${count} selected registrations? This cannot be undone.`;
+    if (!confirm(msg)) return;
+
+    const next = allRegistrations.filter((r) => !selectedRegistrationKeys.has(registrationKey(r)));
+    selectedRegistrationKeys = new Set();
+    persistRegistrations(next);
+    loadRegistrations();
+    alert(count === 1 ? 'Deleted 1 registration.' : `Deleted ${count} registrations.`);
 }
 
 function showDetails(timestamp) {
@@ -593,6 +711,9 @@ async function refreshData() {
 
 if (typeof window !== 'undefined') {
     window.importRegistrationsJSON = importRegistrationsJSON;
+    window.toggleRegistrationSelected = toggleRegistrationSelected;
+    window.toggleSelectAllRegistrations = toggleSelectAllRegistrations;
+    window.deleteSelectedRegistrations = deleteSelectedRegistrations;
 }
 
 loadRegistrations();

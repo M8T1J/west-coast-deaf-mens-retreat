@@ -78,6 +78,7 @@
                 <button class="btn btn-outline" onclick="exportToCSV()">Export to CSV</button>
                 <button class="btn btn-outline" onclick="exportToJSON()">Export to JSON</button>
                 <button class="btn btn-outline" onclick="importRegistrationsJSON()">Import JSON</button>
+                <button class="btn btn-danger" id="delete-selected-btn" onclick="deleteSelectedRegistrations()" disabled>Delete Selected</button>
                 <button class="btn btn-danger" onclick="clearAllData()">Clear All Data</button>
             </div>
         </div>
@@ -90,6 +91,9 @@
                 <table id="registrations-table">
                     <thead>
                         <tr>
+                            <th style="width:56px; text-align:center;">
+                                <input id="select-all-registrations" type="checkbox" aria-label="Select all registrations" onclick="toggleSelectAllRegistrations(event)" />
+                            </th>
                             <th>Date</th>
                             <th>Name</th>
                             <th>Email</th>
@@ -103,7 +107,7 @@
                     </thead>
                     <tbody id="registrations-tbody">
                         <tr>
-                            <td colspan="9" class="empty-state">
+                            <td colspan="10" class="empty-state">
                                 <div class="empty-state-icon">📋</div>
                                 <p>No data in this browser yet.</p>
                             </td>
