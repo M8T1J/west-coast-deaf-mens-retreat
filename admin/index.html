@@ -6,7 +6,7 @@
     <title>WCDMR 2026 - Registration Admin</title>
     <meta name="robots" content="noindex">
     <!-- Load CSS locally so admin updates match the deployed site. -->
-    <link rel="stylesheet" href="../styles.css?v=20260429-admin-delete-selected">
+    <link rel="stylesheet" href="../styles.css?v=20260430-admin-mobile1">
     <style>
         .admin-container { max-width: 1400px; margin: 2rem auto; padding: 2rem; }
         .admin-header { background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%); color: white; padding: 2rem; border-radius: 0.75rem; margin-bottom: 2rem; text-align: center; }
@@ -15,7 +15,7 @@
         .stat-card { background: white; padding: 1.5rem; border-radius: 0.5rem; box-shadow: var(--shadow-md); text-align: center; }
         .stat-card h3 { margin: 0 0 0.5rem 0; color: var(--text-light); font-size: 0.875rem; text-transform: uppercase; }
         .stat-card .number { font-size: 2rem; font-weight: 700; color: var(--primary-color); }
-        .controls { display: flex; gap: 1rem; margin-bottom: 2rem; flex-wrap: wrap; }
+        .controls { display: flex; gap: 1rem; margin-bottom: 2rem; flex-wrap: wrap; align-items: flex-start; }
         .btn { padding: 0.75rem 1.5rem; border: none; border-radius: 0.5rem; font-size: 1rem; font-weight: 500; cursor: pointer; transition: all 0.3s; }
         .btn-primary { background: var(--primary-color); color: white; }
         .btn-primary:hover { background: var(--primary-dark); }
@@ -23,6 +23,11 @@
         .btn-danger:hover { background: #dc2626; }
         .btn-outline { background: transparent; color: var(--primary-color); border: 2px solid var(--primary-color); }
         .btn-outline:hover { background: var(--primary-color); color: white; }
+        .admin-status { display: none; margin: 0 0 1rem 0; padding: 0.9rem 1rem; border-radius: 0.75rem; font-weight: 600; }
+        .admin-status.is-visible { display: block; }
+        .admin-status.is-info { background: #e8f1fd; color: #123b6b; border: 1px solid #b7cff0; }
+        .admin-status.is-success { background: #e8f7ec; color: #1f5b2b; border: 1px solid #9dd0aa; }
+        .admin-status.is-error { background: #fdecec; color: #8b1e2a; border: 1px solid #e7b2ba; }
         .registrations-table { background: white; border-radius: 0.75rem; box-shadow: var(--shadow-lg); overflow: hidden; }
         .table-header { background: var(--bg-light); padding: 1rem; font-weight: 600; border-bottom: 2px solid var(--border-color); }
         .table-container { overflow-x: auto; }
@@ -38,6 +43,20 @@
         .export-section { background: white; padding: 1.5rem; border-radius: 0.75rem; box-shadow: var(--shadow-md); margin-bottom: 2rem; }
         .search-box { width: 100%; padding: 0.75rem; border: 2px solid var(--border-color); border-radius: 0.5rem; font-size: 1rem; margin-bottom: 1rem; }
         .search-box:focus { outline: none; border-color: var(--primary-color); }
+        .registration-select-cell input[type="checkbox"] { width: 1.2rem; height: 1.2rem; }
+        @media (max-width: 768px) {
+            .admin-container { margin: 1rem auto; padding: 1rem; }
+            .admin-header { padding: 1.5rem 1rem; }
+            .admin-header h1 { font-size: 1.55rem; }
+            .controls { gap: 0.75rem; }
+            .controls .btn,
+            .controls .search-box { width: 100%; }
+            .controls .btn { min-height: 48px; }
+            .export-section { padding: 1rem; }
+            th, td { padding: 0.8rem 0.65rem; }
+            .registration-select-cell { min-width: 64px; }
+            .registration-action-cell .btn { min-height: 42px; }
+        }
     </style>
 </head>
 <body>
@@ -72,6 +91,7 @@
         </div>
 
         <div class="export-section">
+            <div id="admin-status" class="admin-status" role="status" aria-live="polite"></div>
             <div class="controls">
                 <input type="text" id="search-box" class="search-box" placeholder="Search by name, email, or church...">
                 <button class="btn btn-primary" onclick="refreshData()">Refresh</button>
