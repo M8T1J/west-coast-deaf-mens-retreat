@@ -35,6 +35,7 @@
         th { background: var(--bg-light); padding: 1rem; text-align: left; font-weight: 600; color: var(--text-dark); border-bottom: 2px solid var(--border-color); position: sticky; top: 0; }
         td { padding: 1rem; border-bottom: 1px solid var(--border-color); color: var(--text-dark); }
         tr:hover { background: var(--bg-light); }
+        .table-actions { display: flex; flex-wrap: wrap; gap: 0.5rem; }
         .status-badge { display: inline-block; padding: 0.25rem 0.75rem; border-radius: 1rem; font-size: 0.875rem; font-weight: 500; }
         .status-completed { background: #d1fae5; color: #065f46; }
         .status-pending { background: #fef3c7; color: #92400e; }
@@ -55,7 +56,9 @@
             .export-section { padding: 1rem; }
             th, td { padding: 0.8rem 0.65rem; }
             .registration-select-cell { min-width: 64px; }
-            .registration-action-cell .btn { min-height: 42px; }
+            .registration-action-cell { min-width: 140px; }
+            .registration-action-cell .btn { min-height: 42px; flex: 1 1 100%; }
+            .table-actions { min-width: 120px; }
         }
     </style>
 </head>
@@ -138,7 +141,7 @@
         </div>
     </div>
 
-    <script defer src="../admin-app.js?v=20260312-sync"></script>
+    <script defer src="../admin-app.js?v=20260430-admin-mobile2"></script>
 </body>
 </html>
 

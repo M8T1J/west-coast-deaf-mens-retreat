@@ -3,6 +3,7 @@
  */
 let allRegistrations = [];
 let selectedRegistrationKeys = new Set();
+let adminStatusTimer = null;
 
 function registrationKey(reg) {
     // Use timestamp as stable key (existing code assumes uniqueness for showDetails/editRegistration).
@@ -16,6 +17,33 @@ function setDeleteSelectedEnabled() {
     btn.textContent = selectedRegistrationKeys.size === 0
         ? 'Delete Selected'
         : `Delete Selected (${selectedRegistrationKeys.size})`;
+}
+
+function setAdminStatus(message, tone = 'info') {
+    const status = document.getElementById('admin-status');
+    if (!status) return;
+
+    if (adminStatusTimer) {
+        clearTimeout(adminStatusTimer);
+        adminStatusTimer = null;
+    }
+
+    if (!message) {
+        status.textContent = '';
+        status.className = 'admin-status';
+        return;
+    }
+
+    status.textContent = message;
+    status.className = `admin-status is-visible is-${tone}`;
+
+    if (tone !== 'error') {
+        adminStatusTimer = setTimeout(() => {
+            status.textContent = '';
+            status.className = 'admin-status';
+            adminStatusTimer = null;
+        }, 5000);
+    }
 }
 
 function getVisibleRegistrationKeys() {
@@ -213,6 +241,44 @@ async function loadRegistrations() {
     updateStats();
 }
 
+function getSearchTerm() {
+    const searchBox = document.getElementById('search-box');
+    return searchBox ? String(searchBox.value || '').toLowerCase() : '';
+}
+
+function getFilteredRegistrations(searchTerm = getSearchTerm()) {
+    if (!searchTerm) return allRegistrations;
+    return allRegistrations.filter((reg) => {
+        const fullName = (reg.fullName || `${reg.firstName || ''} ${reg.lastName || ''}`).toLowerCase();
+        const email = (reg.email || '').toLowerCase();
+        const church = (reg.churchName || '').toLowerCase();
+        return fullName.includes(searchTerm) || email.includes(searchTerm) || church.includes(searchTerm);
+    });
+}
+
+function renderCurrentRegistrationsView() {
+    const searchTerm = getSearchTerm();
+    if (searchTerm) {
+        displayRegistrations(getFilteredRegistrations(searchTerm));
+    } else {
+        displayRegistrations();
+    }
+    updateStats();
+}
+
+async function syncCurrentRegistrations(successMessage, pendingMessage) {
+    const synced = await pushSharedRegistrations(allRegistrations);
+    if (synced) {
+        setAdminStatus(successMessage, 'success');
+        setTimeout(() => {
+            loadRegistrations();
+        }, 1200);
+    } else {
+        setAdminStatus(pendingMessage, 'error');
+    }
+    return synced;
+}
+
 function displayRegistrations(filtered = null) {
     const tbody = document.getElementById('registrations-tbody');
     const registrations = filtered || allRegistrations;
@@ -247,7 +313,7 @@ function displayRegistrations(filtered = null) {
 
         return `
                     <tr style="cursor: pointer;" onclick="showDetails('${reg.timestamp}')">
-                        <td style="text-align:center;" onclick="event.stopPropagation();">
+                        <td class="registration-select-cell" style="text-align:center;" onclick="event.stopPropagation();">
                             <input type="checkbox" ${checked} aria-label="Select registration" onclick="toggleRegistrationSelected(event, '${reg.timestamp}')" />
                         </td>
                         <td>${date}</td>
@@ -258,8 +324,11 @@ function displayRegistrations(filtered = null) {
                         <td>$${amount}</td>
                         <td><code style="font-size: 0.75rem;">${reg.paymentId || '-'}</code></td>
                         <td><span class="status-badge ${statusClass}">${statusText}</span></td>
-                        <td>
-                            <button class="btn btn-outline" style="padding: 0.35rem 0.6rem; font-size: 0.9rem;" onclick="event.stopPropagation(); editRegistration('${reg.timestamp}')">Edit</button>
+                        <td class="registration-action-cell">
+                            <div class="registration-action-buttons">
+                                <button class="btn btn-outline" style="padding: 0.35rem 0.6rem; font-size: 0.9rem;" onclick="event.stopPropagation(); editRegistration('${reg.timestamp}')">Edit</button>
+                                <button class="btn btn-danger" style="padding: 0.35rem 0.6rem; font-size: 0.9rem;" onclick="event.stopPropagation(); deleteRegistration('${reg.timestamp}')">Delete</button>
+                            </div>
                         </td>
                     </tr>
                 `;
@@ -298,19 +367,7 @@ function toggleSelectAllRegistrations(event) {
 
     // Re-render current view to update row checkboxes.
     // If search filter is active, keep it applied by re-triggering the input handler.
-    const searchBox = document.getElementById('search-box');
-    const searchTerm = searchBox ? String(searchBox.value || '').toLowerCase() : '';
-    if (searchTerm) {
-        const filtered = allRegistrations.filter((reg) => {
-            const fullName = (reg.fullName || `${reg.firstName || ''} ${reg.lastName || ''}`).toLowerCase();
-            const email = (reg.email || '').toLowerCase();
-            const church = (reg.churchName || '').toLowerCase();
-            return fullName.includes(searchTerm) || email.includes(searchTerm) || church.includes(searchTerm);
-        });
-        displayRegistrations(filtered);
-    } else {
-        displayRegistrations();
-    }
+    renderCurrentRegistrationsView();
 }
 
 async function deleteSelectedRegistrations() {
@@ -327,13 +384,30 @@ async function deleteSelectedRegistrations() {
 
     const next = allRegistrations.filter((r) => !selectedRegistrationKeys.has(registrationKey(r)));
     selectedRegistrationKeys = new Set();
-    const synced = await persistRegistrations(next);
-    await loadRegistrations();
-    if (!synced) {
-        alert('Deleted locally. Shared sync is still catching up, so refresh again in a moment if needed.');
-        return;
-    }
-    alert(count === 1 ? 'Deleted 1 registration.' : `Deleted ${count} registrations.`);
+    allRegistrations = persistLocalRegistrations(next);
+    renderCurrentRegistrationsView();
+    await syncCurrentRegistrations(
+        count === 1 ? 'Deleted 1 registration.' : `Deleted ${count} registrations.`,
+        'Deleted locally. Shared sync is still catching up, so refresh again in a moment if needed.'
+    );
+}
+
+async function deleteRegistration(timestamp) {
+    const key = String(timestamp || '');
+    if (!key) return;
+    const reg = allRegistrations.find((item) => registrationKey(item) === key);
+    if (!reg) return;
+    const label = reg.fullName || `${reg.firstName || ''} ${reg.lastName || ''}`.trim() || 'this registration';
+    if (!confirm(`Delete ${label}? This cannot be undone.`)) return;
+
+    selectedRegistrationKeys.delete(key);
+    const next = allRegistrations.filter((item) => registrationKey(item) !== key);
+    allRegistrations = persistLocalRegistrations(next);
+    renderCurrentRegistrationsView();
+    await syncCurrentRegistrations(
+        `Deleted ${label}.`,
+        `Deleted ${label} locally. Shared sync is still catching up, so refresh again in a moment if needed.`
+    );
 }
 
 function showDetails(timestamp) {
@@ -593,14 +667,7 @@ document.getElementById('search-box').addEventListener('input', (e) => {
         return;
     }
 
-    const filtered = allRegistrations.filter(reg => {
-        const fullName = (reg.fullName || `${reg.firstName || ''} ${reg.lastName || ''}`).toLowerCase();
-        const email = (reg.email || '').toLowerCase();
-        const church = (reg.churchName || '').toLowerCase();
-        return fullName.includes(searchTerm) || email.includes(searchTerm) || church.includes(searchTerm);
-    });
-
-    displayRegistrations(filtered);
+    displayRegistrations(getFilteredRegistrations(searchTerm));
 });
 
 function exportToCSV() {
@@ -686,13 +753,12 @@ function importRegistrationsJSON() {
             }
         }
         const merged = sortRegistrationsNewestFirst(Array.from(byTs.values()));
-        const synced = await persistRegistrations(merged);
-        await loadRegistrations();
-        if (!synced) {
-            alert(`Import finished locally. Shared sync is still catching up, so refresh again in a moment if needed.`);
-            return;
-        }
-        alert(`Import finished. ${merged.length} synced registration(s) available now.`);
+        allRegistrations = persistLocalRegistrations(merged);
+        renderCurrentRegistrationsView();
+        await syncCurrentRegistrations(
+            `Import finished. ${merged.length} synced registration(s) available now.`,
+            'Import finished locally. Shared sync is still catching up, so refresh again in a moment if needed.'
+        );
     };
     input.click();
 }
@@ -701,20 +767,22 @@ async function clearAllData() {
     if (confirm('Are you sure you want to delete ALL registration data? This cannot be undone!')) {
         localStorage.removeItem(WCDMR_REGISTRATION_STORAGE_KEY);
         allRegistrations = [];
-        const synced = await pushSharedRegistrations([]);
+        selectedRegistrationKeys = new Set();
         displayRegistrations();
         updateStats();
+        const synced = await pushSharedRegistrations([]);
         if (!synced) {
-            alert('All local registration data has been cleared. Shared sync is still catching up, so refresh again in a moment if needed.');
+            setAdminStatus('All local registration data has been cleared. Shared sync is still catching up, so refresh again in a moment if needed.', 'error');
             return;
         }
-        alert('All registration data has been cleared.');
+        setAdminStatus('All registration data has been cleared.', 'success');
     }
 }
 
 async function refreshData() {
+    setAdminStatus('Refreshing registration list...', 'info');
     await loadRegistrations();
-    alert('Data refreshed!');
+    setAdminStatus('Data refreshed.', 'success');
 }
 
 if (typeof window !== 'undefined') {
@@ -722,6 +790,7 @@ if (typeof window !== 'undefined') {
     window.toggleRegistrationSelected = toggleRegistrationSelected;
     window.toggleSelectAllRegistrations = toggleSelectAllRegistrations;
     window.deleteSelectedRegistrations = deleteSelectedRegistrations;
+    window.deleteRegistration = deleteRegistration;
 }
 
 loadRegistrations();
