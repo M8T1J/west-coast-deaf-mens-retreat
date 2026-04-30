@@ -4,6 +4,7 @@
 let allRegistrations = [];
 let selectedRegistrationKeys = new Set();
 let adminStatusTimer = null;
+let wcdmrDeleteDialogState = null;
 
 function registrationKey(reg) {
     // Use timestamp as stable key (existing code assumes uniqueness for showDetails/editRegistration).
@@ -389,20 +390,25 @@ async function deleteSelectedRegistrations() {
         alert('Select at least one registration to delete.');
         return;
     }
-    const msg =
+    const message =
         count === 1
             ? 'Delete 1 selected registration? This cannot be undone.'
             : `Delete ${count} selected registrations? This cannot be undone.`;
-    if (!confirm(msg)) return;
-
-    const next = allRegistrations.filter((r) => !selectedRegistrationKeys.has(registrationKey(r)));
-    selectedRegistrationKeys = new Set();
-    allRegistrations = persistLocalRegistrations(next);
-    renderCurrentRegistrationsView();
-    await syncCurrentRegistrations(
-        count === 1 ? 'Deleted 1 registration.' : `Deleted ${count} registrations.`,
-        'Deleted locally. Shared sync is still catching up, so refresh again in a moment if needed.'
-    );
+    openDeleteConfirmDialog({
+        title: count === 1 ? 'Delete selected registration?' : `Delete ${count} registrations?`,
+        message,
+        confirmLabel: count === 1 ? 'Delete registration' : `Delete ${count} registrations`,
+        onConfirm: async () => {
+            const next = allRegistrations.filter((r) => !selectedRegistrationKeys.has(registrationKey(r)));
+            selectedRegistrationKeys = new Set();
+            allRegistrations = persistLocalRegistrations(next);
+            renderCurrentRegistrationsView();
+            await syncCurrentRegistrations(
+                count === 1 ? 'Deleted 1 registration.' : `Deleted ${count} registrations.`,
+                'Deleted locally. Shared sync is still catching up, so refresh again in a moment if needed.'
+            );
+        }
+    });
 }
 
 async function deleteRegistration(timestamp) {
@@ -411,16 +417,21 @@ async function deleteRegistration(timestamp) {
     const reg = allRegistrations.find((item) => registrationKey(item) === key);
     if (!reg) return;
     const label = reg.fullName || `${reg.firstName || ''} ${reg.lastName || ''}`.trim() || 'this registration';
-    if (!confirm(`Delete ${label}? This cannot be undone.`)) return;
-
-    selectedRegistrationKeys.delete(key);
-    const next = allRegistrations.filter((item) => registrationKey(item) !== key);
-    allRegistrations = persistLocalRegistrations(next);
-    renderCurrentRegistrationsView();
-    await syncCurrentRegistrations(
-        `Deleted ${label}.`,
-        `Deleted ${label} locally. Shared sync is still catching up, so refresh again in a moment if needed.`
-    );
+    openDeleteConfirmDialog({
+        title: 'Delete registration?',
+        message: `Delete ${label}? This cannot be undone.`,
+        confirmLabel: 'Delete registration',
+        onConfirm: async () => {
+            selectedRegistrationKeys.delete(key);
+            const next = allRegistrations.filter((item) => registrationKey(item) !== key);
+            allRegistrations = persistLocalRegistrations(next);
+            renderCurrentRegistrationsView();
+            await syncCurrentRegistrations(
+                `Deleted ${label}.`,
+                `Deleted ${label} locally. Shared sync is still catching up, so refresh again in a moment if needed.`
+            );
+        }
+    });
 }
 
 function showDetails(timestamp) {
@@ -464,6 +475,90 @@ function escapeHtml(value) {
         .replace(/>/g, '&gt;')
         .replace(/"/g, '&quot;')
         .replace(/'/g, '&#39;');
+}
+
+function ensureDeleteConfirmDialog() {
+    let root = document.getElementById('delete-confirm-overlay');
+    if (root) return root;
+
+    root = document.createElement('div');
+    root.id = 'delete-confirm-overlay';
+    root.setAttribute('role', 'dialog');
+    root.setAttribute('aria-modal', 'true');
+    root.setAttribute('aria-labelledby', 'delete-confirm-title');
+    root.style.cssText =
+        'display:none;position:fixed;inset:0;z-index:2147483647;overflow-y:auto;-webkit-overflow-scrolling:touch;' +
+        'padding:16px;box-sizing:border-box;background:rgba(17,24,39,0.55);';
+    root.innerHTML = `
+        <div style="background:#fff;max-width:520px;width:100%;margin:24px auto;border-radius:12px;box-shadow:0 25px 50px -12px rgba(0,0,0,0.25);overflow:hidden;">
+            <div style="padding:1.1rem 1.25rem;border-bottom:1px solid #e5e7eb;">
+                <h3 id="delete-confirm-title" style="margin:0;font-size:1.2rem;">Delete registration?</h3>
+            </div>
+            <div style="padding:1rem 1.25rem;">
+                <p id="delete-confirm-message" style="margin:0;color:#374151;line-height:1.6;"></p>
+            </div>
+            <div style="padding:0.9rem 1.25rem;border-top:1px solid #e5e7eb;display:flex;justify-content:flex-end;gap:0.75rem;flex-wrap:wrap;">
+                <button type="button" id="delete-confirm-cancel" class="btn btn-outline">Cancel</button>
+                <button type="button" id="delete-confirm-submit" class="btn btn-danger">Delete</button>
+            </div>
+        </div>
+    `;
+    document.body.appendChild(root);
+
+    root.addEventListener('click', (event) => {
+        if (event.target === root) {
+            closeDeleteConfirmDialog();
+        }
+    });
+    root.querySelector('#delete-confirm-cancel')?.addEventListener('click', () => {
+        closeDeleteConfirmDialog();
+    });
+    root.querySelector('#delete-confirm-submit')?.addEventListener('click', async () => {
+        if (!wcdmrDeleteDialogState || typeof wcdmrDeleteDialogState.onConfirm !== 'function') {
+            closeDeleteConfirmDialog();
+            return;
+        }
+        const submitBtn = root.querySelector('#delete-confirm-submit');
+        const cancelBtn = root.querySelector('#delete-confirm-cancel');
+        if (submitBtn) {
+            submitBtn.disabled = true;
+            submitBtn.textContent = 'Deleting...';
+        }
+        if (cancelBtn) cancelBtn.disabled = true;
+        try {
+            await wcdmrDeleteDialogState.onConfirm();
+        } finally {
+            closeDeleteConfirmDialog();
+        }
+    });
+
+    return root;
+}
+
+function closeDeleteConfirmDialog() {
+    const root = document.getElementById('delete-confirm-overlay');
+    if (!root) return;
+    root.style.display = 'none';
+    const submitBtn = root.querySelector('#delete-confirm-submit');
+    const cancelBtn = root.querySelector('#delete-confirm-cancel');
+    if (submitBtn) {
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'Delete';
+    }
+    if (cancelBtn) cancelBtn.disabled = false;
+    wcdmrDeleteDialogState = null;
+}
+
+function openDeleteConfirmDialog({ title, message, confirmLabel, onConfirm }) {
+    const root = ensureDeleteConfirmDialog();
+    const titleEl = root.querySelector('#delete-confirm-title');
+    const messageEl = root.querySelector('#delete-confirm-message');
+    const submitBtn = root.querySelector('#delete-confirm-submit');
+    if (titleEl) titleEl.textContent = title || 'Delete registration?';
+    if (messageEl) messageEl.textContent = message || 'Delete this registration?';
+    if (submitBtn) submitBtn.textContent = confirmLabel || 'Delete';
+    wcdmrDeleteDialogState = { onConfirm };
+    root.style.display = 'block';
 }
 
 const WCDMR_EDIT_INPUT_STYLE =
