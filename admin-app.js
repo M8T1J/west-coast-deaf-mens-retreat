@@ -18,6 +18,16 @@ function setDeleteSelectedEnabled() {
         : `Delete Selected (${selectedRegistrationKeys.size})`;
 }
 
+function getVisibleRegistrationKeys() {
+    return Array.from(document.querySelectorAll('#registrations-tbody input[type="checkbox"][onclick^="toggleRegistrationSelected"]'))
+        .map((cb) => {
+            const onClick = cb.getAttribute('onclick') || '';
+            const m = onClick.match(/toggleRegistrationSelected\(event,\s*'([^']+)'\)/);
+            return m && m[1] ? m[1] : '';
+        })
+        .filter(Boolean);
+}
+
 function setSelectAllCheckboxState(registrations) {
     const selectAll = document.getElementById('select-all-registrations');
     if (!selectAll) return;
@@ -133,6 +143,10 @@ async function fetchSharedRegistrations() {
             cache: 'no-store'
         });
 
+        if (response.status === 404) {
+            return [];
+        }
+
         if (!response.ok) {
             throw new Error(`Request failed with status ${response.status}`);
         }
@@ -184,9 +198,9 @@ function formatAmountDisplay(raw) {
     return amountToDollarsNumber(raw).toFixed(2);
 }
 
-function persistRegistrations(next) {
+async function persistRegistrations(next) {
     allRegistrations = persistLocalRegistrations(Array.isArray(next) ? next : []);
-    pushSharedRegistrations(allRegistrations);
+    return pushSharedRegistrations(allRegistrations);
 }
 
 async function loadRegistrations() {
@@ -265,16 +279,7 @@ function toggleRegistrationSelected(event, timestamp) {
         selectedRegistrationKeys.add(key);
     }
     // Update header checkbox state based on what's currently rendered.
-    const currentRows = document.querySelectorAll('#registrations-tbody tr');
-    const visibleKeys = [];
-    currentRows.forEach((tr) => {
-        const cb = tr.querySelector('input[type="checkbox"][onclick^="toggleRegistrationSelected"]');
-        if (cb) {
-            const onClick = cb.getAttribute('onclick') || '';
-            const m = onClick.match(/toggleRegistrationSelected\\(event,\\s*'([^']+)'\\)/);
-            if (m && m[1]) visibleKeys.push(m[1]);
-        }
-    });
+    const visibleKeys = getVisibleRegistrationKeys();
     setSelectAllCheckboxState(visibleKeys.map((t) => ({ timestamp: t })));
     setDeleteSelectedEnabled();
 }
@@ -283,16 +288,7 @@ function toggleSelectAllRegistrations(event) {
     if (event && typeof event.stopPropagation === 'function') event.stopPropagation();
     const checkbox = event && event.target ? event.target : document.getElementById('select-all-registrations');
     const checked = Boolean(checkbox && checkbox.checked);
-    const visibleRows = Array.from(document.querySelectorAll('#registrations-tbody tr'));
-    const visibleTimestamps = visibleRows
-        .map((tr) => {
-            const cb = tr.querySelector('input[type="checkbox"][onclick^="toggleRegistrationSelected"]');
-            if (!cb) return '';
-            const onClick = cb.getAttribute('onclick') || '';
-            const m = onClick.match(/toggleRegistrationSelected\\(event,\\s*'([^']+)'\\)/);
-            return m && m[1] ? m[1] : '';
-        })
-        .filter(Boolean);
+    const visibleTimestamps = getVisibleRegistrationKeys();
 
     if (checked) {
         visibleTimestamps.forEach((ts) => selectedRegistrationKeys.add(String(ts)));

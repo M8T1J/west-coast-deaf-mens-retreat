@@ -8,6 +8,13 @@
 let emailjsInitialized = false;
 
 const WCDMR_EMAIL_SENDER_NAME = "West Coast Deaf Men's Retreat";
+const WCDMR_EVENT_NAME = "West Coast Deaf Men's Retreat 2026";
+const WCDMR_EVENT_DATES = 'November 6-8, 2026';
+const WCDMR_EVENT_VENUE = 'Pine Crest Camp, Twin Peaks, CA';
+const WCDMR_EVENT_ADDRESS = '1140 PINECREST ROAD, TWIN PEAKS, CA 92361';
+const WCDMR_FACEBOOK_LINK = 'https://www.facebook.com/wcdmr';
+const WCDMR_INSTAGRAM_LINK = 'https://www.instagram.com/wcdmr97/';
+const WCDMR_INFO_EMAIL = 'wcdeafmr@gmail.com';
 
 // Option 1: EmailJS (Quick setup for development/testing)
 const EMAILJS_CONFIG = {
@@ -96,6 +103,51 @@ function normalizeAmountDollarsString(formData) {
     return n.toFixed(2);
 }
 
+function getEmailStage(paymentId) {
+    return String(paymentId || '').startsWith('PENDING-') ? 'pending' : 'confirmed';
+}
+
+function buildEmailContent(paymentId, amount) {
+    const stage = getEmailStage(paymentId);
+    if (stage === 'pending') {
+        return {
+            stage,
+            subject: 'WCDMR 2026 - Complete your PayPal payment',
+            heading: 'Registration saved - payment still needed',
+            intro:
+                "We saved your registration details. To finish your spot, please complete your PayPal payment using the button or browser window that just opened.",
+            amountLabel: 'Amount due',
+            referenceLabel: 'Pending reference',
+            nextSteps: [
+                'Complete your PayPal payment to finish registration.',
+                'Keep this email for your records until payment is complete.',
+                'Contact the WCDMR team if you need help before payment.'
+            ],
+            outro: 'Once payment is received, your registration will be fully confirmed.',
+            support:
+                `If you have questions or need help before payment, email ${WCDMR_INFO_EMAIL}.`
+        };
+    }
+
+    return {
+        stage,
+        subject: 'WCDMR 2026 - Registration confirmed',
+        heading: 'Registration confirmed',
+        intro:
+            "Thank you for registering for the West Coast Deaf Men's Retreat 2026. We're glad you'll join us for this time of prayer, worship, and fellowship.",
+        amountLabel: 'Amount received',
+        referenceLabel: 'Reference / ID',
+        nextSteps: [
+            'Complete the RSVP form if you have not already.',
+            'Keep this email for your records.',
+            'Follow us for updates and event reminders.'
+        ],
+        outro: 'We look forward to seeing you at Pine Crest Camp.',
+        support:
+            'If you have questions, contact us through the RSVP form or our social channels.'
+    };
+}
+
 async function sendConfirmationEmail(formData, paymentId) {
     const toAddr = formData.email != null ? String(formData.email).trim() : '';
     if (!toAddr || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(toAddr)) {
@@ -106,15 +158,16 @@ async function sendConfirmationEmail(formData, paymentId) {
     const fullName = (formData.fullName || `${formData.firstName || ''} ${formData.lastName || ''}`.trim()).trim() || 'Registrant';
     const amount = normalizeAmountDollarsString(formData);
     const senderName = String(EMAILJS_CONFIG.senderName || WCDMR_EMAIL_SENDER_NAME).trim() || WCDMR_EMAIL_SENDER_NAME;
+    const emailContent = buildEmailContent(paymentId, amount);
     
     // Get website URL for logo (you'll need to update this with your actual website URL)
     const websiteUrl = typeof window !== 'undefined' ? window.location.origin : 'https://your-website-url.com';
-    const logoUrl = `${websiteUrl}/images/logo.JPG`;
+    const logoUrl = `${websiteUrl}/images/logo-enhanced.JPG?v=20260430-share1`;
     
     const emailData = {
         to: toAddr,
         toName: fullName,
-        subject: 'WCDMR 2026 - Registration Confirmed!',
+        subject: emailContent.subject,
         template: 'confirmation',
         data: {
             fullName: fullName,
@@ -132,13 +185,22 @@ async function sendConfirmationEmail(formData, paymentId) {
             amount: amount,
             paymentId: paymentId,
             logoUrl: logoUrl,
-            eventName: 'West Coast Deaf Men\'s Retreat 2026',
-            eventDates: 'November 6-8, 2026',
-            venue: 'Pine Crest Camp, Twin Peaks, CA',
-            venueAddress: '1140 PINECREST ROAD, TWIN PEAKS, CA 92361',
+            emailHeading: emailContent.heading,
+            introCopy: emailContent.intro,
+            amountLabel: emailContent.amountLabel,
+            referenceLabel: emailContent.referenceLabel,
+            nextStepOne: emailContent.nextSteps[0],
+            nextStepTwo: emailContent.nextSteps[1],
+            nextStepThree: emailContent.nextSteps[2],
+            outroCopy: emailContent.outro,
+            supportCopy: emailContent.support,
+            eventName: WCDMR_EVENT_NAME,
+            eventDates: WCDMR_EVENT_DATES,
+            venue: WCDMR_EVENT_VENUE,
+            venueAddress: WCDMR_EVENT_ADDRESS,
             rsvpLink: 'https://forms.gle/qaW22U9mB2C1hGx86',
-            facebookLink: 'https://www.facebook.com/wcdmr',
-            instagramLink: 'https://www.instagram.com/wcdmr97/'
+            facebookLink: WCDMR_FACEBOOK_LINK,
+            instagramLink: WCDMR_INSTAGRAM_LINK
         }
     };
 
@@ -203,6 +265,15 @@ async function sendConfirmationEmail(formData, paymentId) {
                 subject: emailData.subject,
                 amount: amount,
                 payment_id: paymentId,
+                email_heading: emailContent.heading,
+                intro_copy: emailContent.intro,
+                amount_label: emailContent.amountLabel,
+                reference_label: emailContent.referenceLabel,
+                next_step_one: emailContent.nextSteps[0],
+                next_step_two: emailContent.nextSteps[1],
+                next_step_three: emailContent.nextSteps[2],
+                outro_copy: emailContent.outro,
+                support_copy: emailContent.support,
                 event_dates: emailData.data.eventDates,
                 venue: emailData.data.venue,
                 venue_address: emailData.data.venueAddress,
@@ -254,6 +325,18 @@ async function sendConfirmationEmail(formData, paymentId) {
  * @returns {string} - HTML email content
  */
 function generateEmailHTML(data) {
+    const amountLabel = data.amountLabel || 'Amount received';
+    const referenceLabel = data.referenceLabel || 'Reference / ID';
+    const heading = data.emailHeading || 'Registration confirmed';
+    const introCopy =
+        data.introCopy ||
+        "Thank you for registering for the West Coast Deaf Men's Retreat 2026. We're glad you'll join us for this time of prayer, worship, and fellowship.";
+    const nextStepOne = data.nextStepOne || 'Complete the RSVP form if you have not already.';
+    const nextStepTwo = data.nextStepTwo || 'Keep this email for your records.';
+    const nextStepThree = data.nextStepThree || 'Follow us for updates and event reminders.';
+    const supportCopy = data.supportCopy || 'If you have questions, contact us through the RSVP form or our social channels.';
+    const outroCopy = data.outroCopy || 'We look forward to seeing you at Pine Crest Camp.';
+
     return `
         <!DOCTYPE html>
         <html>
@@ -390,20 +473,20 @@ function generateEmailHTML(data) {
                 <div class="header">
                     ${data.logoUrl ? `<img src="${data.logoUrl}" alt="West Coast Deaf Men's Retreat Logo" class="email-logo" style="max-width: 350px; width: auto; height: auto; margin: 0 auto 25px; display: block; border-radius: 4px;">` : ''}
                     <div class="success-icon">✓</div>
-                    <h1>Registration Confirmed!</h1>
-                    <p>West Coast Deaf Men's Retreat 2026</p>
+                    <h1>${heading}</h1>
+                    <p>${data.eventName || WCDMR_EVENT_NAME}</p>
                 </div>
                 <div class="content">
                     <p>Dear ${data.fullName},</p>
                     
-                    <p>Thank you for registering for the West Coast Deaf Men's Retreat 2026! We're excited to have you join us for this three-day summit of Prayer, worship, and Fellowship.</p>
+                    <p>${introCopy}</p>
                     
                     <div class="info-box">
                         <div class="info-row">
-                            <span class="info-label">Payment Amount:</span> $${data.amount}
+                            <span class="info-label">${amountLabel}:</span> $${data.amount}
                         </div>
                         <div class="info-row">
-                            <span class="info-label">Transaction ID:</span> ${data.paymentId}
+                            <span class="info-label">${referenceLabel}:</span> ${data.paymentId}
                         </div>
                         <div class="info-row">
                             <span class="info-label">Event Dates:</span> ${data.eventDates}
@@ -416,15 +499,15 @@ function generateEmailHTML(data) {
                         </div>
                     </div>
                     
-                    <p><strong>Next Steps:</strong></p>
+                    <p><strong>Next steps:</strong></p>
                     <ul>
-                        <li>Please complete the RSVP form if you haven't already</li>
-                        <li>Save this confirmation email for your records</li>
-                        <li>Follow us on social media for updates</li>
+                        <li>${nextStepOne}</li>
+                        <li>${nextStepTwo}</li>
+                        <li>${nextStepThree}</li>
                     </ul>
                     
                     <div style="text-align: center;">
-                        <a href="${data.rsvpLink}" class="button">Complete RSVP Form</a>
+                        <a href="${data.rsvpLink}" class="button">Complete RSVP form</a>
                     </div>
                     
                     <div class="social-links" style="text-align: center;">
@@ -433,16 +516,16 @@ function generateEmailHTML(data) {
                         <a href="${data.instagramLink}">Instagram</a>
                     </div>
                     
-                    <p>If you have any questions, please contact us through the RSVP form or our social media channels.</p>
+                    <p>${supportCopy}</p>
                     
-                    <p>We look forward to seeing you at Pine Crest Camp!</p>
+                    <p>${outroCopy}</p>
                     
                     <p>Blessings,<br>
                     <strong>WCDMR 2026 Team</strong></p>
                     
                     <div class="footer">
                         <p>West Coast Deaf Men's Retreat 2026</p>
-                        <p>This is an automated confirmation email. Please do not reply to this email.</p>
+                        <p>This message was sent automatically. Replies may not be monitored.</p>
                     </div>
                 </div>
             </div>

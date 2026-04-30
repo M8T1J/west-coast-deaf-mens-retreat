@@ -3,25 +3,34 @@ const mobileMenuToggle = document.querySelector('.mobile-menu-toggle');
 const navLinks = document.querySelector('.nav-links');
 
 if (mobileMenuToggle && navLinks) {
+    const closeMobileMenu = () => {
+        mobileMenuToggle.setAttribute('aria-expanded', 'false');
+        navLinks.classList.remove('active');
+    };
+
     mobileMenuToggle.addEventListener('click', () => {
         const isExpanded = mobileMenuToggle.getAttribute('aria-expanded') === 'true';
-        mobileMenuToggle.setAttribute('aria-expanded', !isExpanded);
+        mobileMenuToggle.setAttribute('aria-expanded', String(!isExpanded));
         navLinks.classList.toggle('active');
     });
 
     // Close menu when clicking on a link
     navLinks.querySelectorAll('a').forEach(link => {
         link.addEventListener('click', () => {
-            mobileMenuToggle.setAttribute('aria-expanded', 'false');
-            navLinks.classList.remove('active');
+            closeMobileMenu();
         });
     });
 
     // Close menu when clicking outside
     document.addEventListener('click', (e) => {
         if (!navLinks.contains(e.target) && !mobileMenuToggle.contains(e.target)) {
-            mobileMenuToggle.setAttribute('aria-expanded', 'false');
-            navLinks.classList.remove('active');
+            closeMobileMenu();
+        }
+    });
+
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') {
+            closeMobileMenu();
         }
     });
 }
@@ -59,8 +68,8 @@ function getRetreatStartTimeMs() {
 }
 const COUNTDOWN_INTERVAL_MS = 1000;
 const SHARE_RETREAT_URL = 'https://www.wcdmr.com/';
-const SHARE_RETREAT_TITLE = "West Coast Deaf Men's Retreat 2026";
-const SHARE_RETREAT_TEXT = "Join me at West Coast Deaf Men's Retreat on Nov 6-8, 2026.";
+const SHARE_RETREAT_TITLE = "WCDMR 2026 — The Forge | West Coast Deaf Men's Retreat";
+const SHARE_RETREAT_TEXT = "The Forge · Isaiah 54:16–17. Prayer, worship, and fellowship at Pine Crest Camp, Nov 6–8, 2026.";
 
 function padCountdownValue(value) {
     return String(Math.max(0, value)).padStart(2, '0');
@@ -328,6 +337,8 @@ async function handlePayPalClick(event) {
         return false;
     }
 
+    sessionStorage.removeItem('wcdmr_registration_email_sent');
+
     // Send registration email before redirecting to PayPal.
     const pendingPaymentId = `PENDING-${formData.timestamp}`;
     const emailFormData = {
@@ -338,7 +349,7 @@ async function handlePayPalClick(event) {
         zip: formData.zipCode || ''
     };
 
-    showPayPalRedirectState('Registration complete. Sending confirmation email...');
+    showPayPalRedirectState('Saving your registration and preparing your confirmation email...');
     let prePaymentEmailSent = false;
     try {
         // Wait for EmailJS/backend to finish; a short timeout caused false "no email" when the API was slow.
@@ -350,11 +361,11 @@ async function handlePayPalClick(event) {
 
     if (prePaymentEmailSent) {
         sessionStorage.setItem('wcdmr_registration_email_sent', '1');
-        showPayPalRedirectState('Registration complete. Check your email for confirmation. Redirecting to PayPal payment...');
+        showPayPalRedirectState('Registration saved. Check your email for payment instructions. Redirecting to PayPal...');
     } else {
-        showPayPalRedirectState('Registration complete. Redirecting to PayPal payment...');
+        showPayPalRedirectState('Registration saved. Redirecting to PayPal to finish payment...');
     }
-    announceToScreenReader('Registration complete. Redirecting to PayPal payment now.');
+    announceToScreenReader('Registration saved. Redirecting to PayPal now.');
     
     // Redirect to PayPal after a brief moment
     setTimeout(() => {
@@ -439,10 +450,7 @@ async function checkPayPalReturn() {
             await storeRegistrationData(formData, paymentId);
         }
 
-        const prePaymentEmailSent = sessionStorage.getItem('wcdmr_registration_email_sent') === '1';
-        const emailSent = prePaymentEmailSent
-            ? true
-            : await sendConfirmationEmailIfAvailable(emailFormData, paymentId);
+        const emailSent = await sendConfirmationEmailIfAvailable(emailFormData, paymentId);
 
         // Show success message
         showPaymentSuccess(emailFormData, paymentId, emailSent);
@@ -455,6 +463,8 @@ async function checkPayPalReturn() {
         window.history.replaceState({}, document.title, window.location.pathname);
     } catch (error) {
         console.error('Error processing PayPal return:', error);
+        showPaymentError('payment-errors', 'We received your PayPal return, but could not finish the registration automatically. Please email wcdeafmr@gmail.com so we can help complete it.');
+        announceToScreenReader('We need to review your PayPal return manually.');
     }
 }
 
@@ -530,6 +540,8 @@ async function handleZellePayment() {
     // Complete registration
     if (typeof completeRegistration === 'function') {
         await completeRegistration(formData, paymentId);
+    } else if (typeof storeRegistrationData === 'function') {
+        await storeRegistrationData(formData, paymentId);
     }
 
     const emailSent = await sendConfirmationEmailIfAvailable(emailFormData, paymentId);
@@ -609,6 +621,8 @@ async function handleMoneyOrderPayment() {
 
     if (typeof completeRegistration === 'function') {
         await completeRegistration(formData, paymentId);
+    } else if (typeof storeRegistrationData === 'function') {
+        await storeRegistrationData(formData, paymentId);
     }
 
     const emailSent = await sendConfirmationEmailIfAvailable(emailFormData, paymentId);
@@ -813,7 +827,7 @@ function validateField(fieldId, validator) {
     const value = field.value.trim();
     const isValid = validator(value);
     
-    if (!isValid && value) {
+    if (!isValid) {
         field.setAttribute('aria-invalid', 'true');
         return false;
     } else {
@@ -989,7 +1003,7 @@ function showPaymentSuccess(formData, paymentId, emailSent = null) {
     
     let emailStatus = 'Registration completed successfully.';
     if (emailSent === true) {
-        emailStatus = 'A confirmation email has been sent to your email address.';
+        emailStatus = 'A confirmation email with your payment details has been sent to your email address.';
     } else if (emailSent === false) {
         const rawEmail = (formData && formData.email) ? String(formData.email) : '';
         const safeEmail = rawEmail.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
@@ -1014,7 +1028,9 @@ function showPaymentSuccess(formData, paymentId, emailSent = null) {
         announcementSummary = `Registration successful. Zelle payment of $${amountDisplay} recorded.`;
     }
     
-    const mailHelp = '<p style="margin-top: 0.75rem; font-size: 0.9rem; color: #4b5563;">If you don’t see a confirmation email within a few minutes, check Spam or Promotions. Still nothing? Email <a href="mailto:wcdeafmr@gmail.com">wcdeafmr@gmail.com</a> with your name and the reference below.</p>';
+    const mailHelp = emailSent === true
+        ? '<p style="margin-top: 0.75rem; font-size: 0.9rem; color: #4b5563;">If you do not see the confirmation email within a few minutes, check Spam or Promotions.</p>'
+        : '<p style="margin-top: 0.75rem; font-size: 0.9rem; color: #4b5563;">Still nothing? Email <a href="mailto:wcdeafmr@gmail.com">wcdeafmr@gmail.com</a> with your name and the reference below.</p>';
 
     if (successMessage) {
         successMessage.innerHTML = `
@@ -1103,7 +1119,9 @@ document.querySelectorAll('a[href^="#"]').forEach(anchor => {
         const targetId = this.getAttribute('href');
         const target = document.querySelector(targetId);
         if (target) {
-            const headerOffset = 80;
+            const headerHeight = document.querySelector('.header')?.offsetHeight || 80;
+            const bannerHeight = document.querySelector('.scripture-banner')?.offsetHeight || 0;
+            const headerOffset = headerHeight + bannerHeight + 8;
             const elementPosition = target.getBoundingClientRect().top;
             const offsetPosition = elementPosition + window.pageYOffset - headerOffset;
 
