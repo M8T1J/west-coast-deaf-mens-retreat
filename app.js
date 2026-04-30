@@ -419,6 +419,24 @@ async function sendConfirmationEmailIfAvailable(formData, paymentId) {
     }
 }
 
+async function sendAdminNotificationIfAvailable(formData, paymentId) {
+    if (typeof sendAdminRegistrationNotification !== 'function') {
+        console.warn('Admin notification service is not loaded. Admin alert skipped.');
+        return null;
+    }
+
+    try {
+        const sent = await sendAdminRegistrationNotification(formData, paymentId);
+        if (!sent) {
+            console.warn('Admin notification could not be delivered.');
+        }
+        return sent;
+    } catch (error) {
+        console.error('Error sending admin notification:', error);
+        return false;
+    }
+}
+
 // Check for PayPal return (if user comes back from PayPal)
 async function checkPayPalReturn() {
     const urlParams = new URLSearchParams(window.location.search);
@@ -454,6 +472,7 @@ async function checkPayPalReturn() {
         }
 
         const emailSent = await sendConfirmationEmailIfAvailable(emailFormData, paymentId);
+        await sendAdminNotificationIfAvailable(emailFormData, paymentId);
 
         // Show success message
         showPaymentSuccess(emailFormData, paymentId, emailSent);
@@ -548,6 +567,7 @@ async function handleZellePayment() {
     }
 
     const emailSent = await sendConfirmationEmailIfAvailable(emailFormData, paymentId);
+    await sendAdminNotificationIfAvailable(emailFormData, paymentId);
 
     // Show success message
     showPaymentSuccess(emailFormData, paymentId, emailSent);
@@ -629,6 +649,7 @@ async function handleMoneyOrderPayment() {
     }
 
     const emailSent = await sendConfirmationEmailIfAvailable(emailFormData, paymentId);
+    await sendAdminNotificationIfAvailable(emailFormData, paymentId);
     showPaymentSuccess(emailFormData, paymentId, emailSent);
 
     sessionStorage.removeItem('wcdmr_registration');
