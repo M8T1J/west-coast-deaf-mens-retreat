@@ -6,9 +6,28 @@ let selectedRegistrationKeys = new Set();
 let adminStatusTimer = null;
 let wcdmrDeleteDialogState = null;
 
+function getRegistrationFullName(registration) {
+    if (!registration || typeof registration !== 'object') return '';
+    return String(registration.fullName || `${registration.firstName || ''} ${registration.lastName || ''}`).trim();
+}
+
 function registrationKey(reg) {
-    // Use timestamp as stable key (existing code assumes uniqueness for showDetails/editRegistration).
-    return String(reg && reg.timestamp ? reg.timestamp : '');
+    if (!reg || typeof reg !== 'object') return '';
+
+    const registrationId = String(reg.registrationId || '').trim();
+    if (registrationId) return `registrationId:${registrationId}`;
+
+    const paymentId = String(reg.paymentId || '').trim();
+    if (paymentId && paymentId !== 'PENDING') return `payment:${paymentId}`;
+
+    const timestamp = String(reg.timestamp || '').trim();
+    if (timestamp) return `timestamp:${timestamp}`;
+
+    const email = String(reg.email || '').trim().toLowerCase();
+    const fullName = getRegistrationFullName(reg).toLowerCase();
+    if (email || fullName) return `identity:${email}|${fullName}|${reg.status || ''}`;
+
+    return '';
 }
 
 function setDeleteSelectedEnabled() {
@@ -55,16 +74,20 @@ function getVisibleRegistrationKeys() {
         .filter(Boolean);
 }
 
-function setSelectAllCheckboxState(registrations) {
+function setSelectAllCheckboxStateFromKeys(keys) {
     const selectAll = document.getElementById('select-all-registrations');
     if (!selectAll) return;
+    const visibleKeys = Array.isArray(keys) ? keys.filter(Boolean) : [];
+    const selectedCount = visibleKeys.filter((key) => selectedRegistrationKeys.has(key)).length;
+    const allCount = visibleKeys.length;
+    selectAll.checked = allCount > 0 && selectedCount === allCount;
+    selectAll.indeterminate = selectedCount > 0 && selectedCount < allCount;
+}
+
+function setSelectAllCheckboxState(registrations) {
     const rows = Array.isArray(registrations) ? registrations : [];
     const keys = rows.map(registrationKey).filter(Boolean);
-    const selectedCount = keys.filter((k) => selectedRegistrationKeys.has(k)).length;
-    const allCount = keys.length;
-    selectAll.checked = allCount > 0 && selectedCount === allCount;
-    // Indeterminate when some (but not all) visible rows are selected.
-    selectAll.indeterminate = selectedCount > 0 && selectedCount < allCount;
+    setSelectAllCheckboxStateFromKeys(keys);
 }
 
 const WCDMR_DEFAULT_FEE_ANCHOR = 245;
@@ -98,13 +121,7 @@ function limitRegistrations(registrations) {
 }
 
 function buildRegistrationKey(registration, fallbackIndex) {
-    if (registration.timestamp) return `timestamp:${registration.timestamp}`;
-
-    const email = String(registration.email || '').trim().toLowerCase();
-    const paymentId = String(registration.paymentId || '').trim();
-    if (email || paymentId) return `identity:${email}|${paymentId}|${registration.status || ''}`;
-
-    return `fallback:${fallbackIndex}`;
+    return registrationKey(registration) || `fallback:${fallbackIndex}`;
 }
 
 function shouldReplaceRegistration(existing, incoming) {
@@ -112,6 +129,12 @@ function shouldReplaceRegistration(existing, incoming) {
 
     if (existing.status === 'pending' && incoming.status === 'completed') {
         return true;
+    }
+
+    const existingUpdatedAt = toTimestampValue(existing.updatedAt);
+    const incomingUpdatedAt = toTimestampValue(incoming.updatedAt);
+    if (existingUpdatedAt || incomingUpdatedAt) {
+        return incomingUpdatedAt >= existingUpdatedAt;
     }
 
     return toTimestampValue(incoming.timestamp) >= toTimestampValue(existing.timestamp);
@@ -235,7 +258,7 @@ function formatAmountDisplay(raw) {
 
 async function persistRegistrations(next) {
     allRegistrations = persistLocalRegistrations(Array.isArray(next) ? next : []);
-    return pushSharedRegistrations(allRegistrations);
+    return allRegistrations;
 }
 
 async function loadRegistrations() {
@@ -243,6 +266,9 @@ async function loadRegistrations() {
     if (Array.isArray(sharedRegistrations)) {
         allRegistrations = getAuthoritativeRegistrations(sharedRegistrations, []);
         persistLocalRegistrations(allRegistrations);
+        selectedRegistrationKeys = new Set(
+            Array.from(selectedRegistrationKeys).filter((key) => allRegistrations.some((registration) => registrationKey(registration) === key))
+        );
         displayRegistrations();
         updateStats();
         return;
@@ -284,13 +310,54 @@ function renderCurrentRegistrationsView() {
 }
 
 async function syncCurrentRegistrations(successMessage, pendingMessage) {
-    const synced = await pushSharedRegistrations(allRegistrations);
-    if (synced) {
-        setAdminStatus(successMessage, 'success');
-    } else {
-        setAdminStatus(pendingMessage, 'error');
+    const result = await applySharedMutation(
+        () => allRegistrations,
+        {
+            successMessage,
+            failureMessage: pendingMessage
+        }
+    );
+    return result.ok;
+}
+
+async function applySharedMutation(mutator, { loadingMessage, successMessage, failureMessage } = {}) {
+    if (loadingMessage) {
+        setAdminStatus(loadingMessage, 'info');
     }
-    return synced;
+
+    const sharedRegistrations = await fetchSharedRegistrations();
+    if (!Array.isArray(sharedRegistrations)) {
+        setAdminStatus(
+            failureMessage || 'Live sync is unavailable right now. Refresh when your connection is stable and try again.',
+            'error'
+        );
+        return { ok: false };
+    }
+
+    let nextRegistrations;
+    try {
+        nextRegistrations = limitRegistrations(await mutator([...sharedRegistrations]));
+    } catch (error) {
+        console.warn('Unable to prepare shared registration update.', error);
+        setAdminStatus(failureMessage || 'Unable to prepare the shared registration update right now.', 'error');
+        return { ok: false, error };
+    }
+
+    const synced = await pushSharedRegistrations(nextRegistrations);
+    if (!synced) {
+        setAdminStatus(failureMessage || 'Unable to sync the latest shared registrations right now.', 'error');
+        return { ok: false };
+    }
+
+    allRegistrations = persistLocalRegistrations(nextRegistrations);
+    selectedRegistrationKeys = new Set(
+        Array.from(selectedRegistrationKeys).filter((key) => allRegistrations.some((registration) => registrationKey(registration) === key))
+    );
+    renderCurrentRegistrationsView();
+    if (successMessage) {
+        setAdminStatus(successMessage, 'success');
+    }
+    return { ok: true, registrations: nextRegistrations };
 }
 
 function displayRegistrations(filtered = null) {
@@ -326,9 +393,9 @@ function displayRegistrations(filtered = null) {
         const checked = key && selectedRegistrationKeys.has(key) ? 'checked' : '';
 
         return `
-                    <tr style="cursor: pointer;" data-registration-key="${reg.timestamp}">
+                    <tr style="cursor: pointer;" data-registration-key="${key}">
                         <td class="registration-select-cell" style="text-align:center;">
-                            <input type="checkbox" ${checked} aria-label="Select registration" data-registration-key="${reg.timestamp}" />
+                            <input type="checkbox" ${checked} aria-label="Select registration" data-registration-key="${key}" />
                         </td>
                         <td>${date}</td>
                         <td><strong>${reg.fullName || `${reg.firstName || ''} ${reg.lastName || ''}`.trim()}</strong></td>
@@ -340,8 +407,8 @@ function displayRegistrations(filtered = null) {
                         <td><span class="status-badge ${statusClass}">${statusText}</span></td>
                         <td class="registration-action-cell">
                             <div class="registration-action-buttons">
-                                <button class="btn btn-outline" style="padding: 0.35rem 0.6rem; font-size: 0.9rem;" data-registration-action="edit" data-registration-key="${reg.timestamp}" type="button">Edit</button>
-                                <button class="btn btn-danger" style="padding: 0.35rem 0.6rem; font-size: 0.9rem;" data-registration-action="delete" data-registration-key="${reg.timestamp}" type="button">Delete</button>
+                                <button class="btn btn-outline" style="padding: 0.35rem 0.6rem; font-size: 0.9rem;" data-registration-action="edit" data-registration-key="${key}" type="button">Edit</button>
+                                <button class="btn btn-danger" style="padding: 0.35rem 0.6rem; font-size: 0.9rem;" data-registration-action="delete" data-registration-key="${key}" type="button">Delete</button>
                             </div>
                         </td>
                     </tr>
@@ -363,7 +430,7 @@ function toggleRegistrationSelected(event, timestamp) {
     }
     // Update header checkbox state based on what's currently rendered.
     const visibleKeys = getVisibleRegistrationKeys();
-    setSelectAllCheckboxState(visibleKeys.map((t) => ({ timestamp: t })));
+    setSelectAllCheckboxStateFromKeys(visibleKeys);
     setDeleteSelectedEnabled();
 }
 

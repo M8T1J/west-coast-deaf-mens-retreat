@@ -202,6 +202,8 @@ function updatePayPalButton() {
 }
 
 async function persistPendingRegistration(formData) {
+    ensureRegistrationDraftIdentity(formData);
+
     try {
         // Persist "pending" registration first so the user is recorded before payment.
         if (typeof storeRegistrationData === 'function') {
@@ -242,6 +244,28 @@ function getAddressParts() {
         zipCode,
         fullAddress
     };
+}
+
+function createRegistrationId() {
+    try {
+        if (typeof globalThis !== 'undefined' && globalThis.crypto && typeof globalThis.crypto.randomUUID === 'function') {
+            return globalThis.crypto.randomUUID();
+        }
+    } catch {
+        // Fall back to a timestamp-based id below.
+    }
+    return `reg-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+}
+
+function ensureRegistrationDraftIdentity(formData) {
+    if (!formData || typeof formData !== 'object') return formData;
+    if (!formData.registrationId) {
+        formData.registrationId = createRegistrationId();
+    }
+    if (!formData.timestamp) {
+        formData.timestamp = Date.now();
+    }
+    return formData;
 }
 
 function showPaymentError(errorElementId, message) {
@@ -302,7 +326,7 @@ async function handlePayPalClick(event) {
     });
     
     const addressParts = getAddressParts();
-    const formData = {
+    const formData = ensureRegistrationDraftIdentity({
         firstName: firstName,
         lastName: lastName,
         fullName: `${firstName} ${lastName}`,
@@ -322,7 +346,7 @@ async function handlePayPalClick(event) {
         amount: registrationAmountToDollarsNumber(amount),
         paymentMethod: 'paypal',
         timestamp: Date.now()
-    };
+    });
 
     if (await hasDuplicateCompletedRegistration(formData)) {
         showPaymentError('payment-errors', DUPLICATE_REGISTRATION_MESSAGE);
@@ -520,7 +544,7 @@ async function handleZellePayment() {
     });
     
     const addressParts = getAddressParts();
-    const formData = {
+    const formData = ensureRegistrationDraftIdentity({
         firstName: firstName,
         lastName: lastName,
         fullName: `${firstName} ${lastName}`,
@@ -540,7 +564,7 @@ async function handleZellePayment() {
         amount: registrationAmountToDollarsNumber(amount),
         paymentMethod: 'zelle',
         timestamp: Date.now()
-    };
+    });
 
     if (await hasDuplicateCompletedRegistration(formData)) {
         showPaymentError('zelle-payment-errors', DUPLICATE_REGISTRATION_MESSAGE);
@@ -605,7 +629,7 @@ async function handleMoneyOrderPayment() {
         bunkSelections.push(cb.value);
     });
 
-    const formData = {
+    const formData = ensureRegistrationDraftIdentity({
         firstName: firstName,
         lastName: lastName,
         fullName: `${firstName} ${lastName}`,
@@ -625,7 +649,7 @@ async function handleMoneyOrderPayment() {
         amount: registrationAmountToDollarsNumber(amount),
         paymentMethod: 'money_order',
         timestamp: Date.now()
-    };
+    });
 
     if (await hasDuplicateCompletedRegistration(formData)) {
         showPaymentError('money-order-payment-errors', DUPLICATE_REGISTRATION_MESSAGE);
