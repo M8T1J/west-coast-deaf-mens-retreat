@@ -69,7 +69,6 @@ function setSelectAllCheckboxState(registrations) {
 
 const WCDMR_DEFAULT_FEE_ANCHOR = 245;
 const WCDMR_REGISTRATION_STORAGE_KEY = 'wcdmr_registrations';
-const WCDMR_REGISTRATION_BACKUP_STORAGE_KEY = 'wcdmr_registrations_backup';
 const WCDMR_REGISTRATION_SYNC_URL = 'https://mantledb.sh/v2/wcdmr-reg-2026/registrations';
 const WCDMR_REGISTRATION_LIMIT = 500;
 
@@ -139,36 +138,20 @@ function mergeRegistrations(...sources) {
     return limitRegistrations(Array.from(merged.values()));
 }
 
-function readStoredRegistrations(storageKey) {
+function readLocalRegistrations() {
     try {
-        return safeParseRegistrations(localStorage.getItem(storageKey));
+        return safeParseRegistrations(localStorage.getItem(WCDMR_REGISTRATION_STORAGE_KEY));
     } catch {
         return [];
     }
 }
 
-function readLocalRegistrations() {
-    return readStoredRegistrations(WCDMR_REGISTRATION_STORAGE_KEY);
-}
-
-function readLocalRegistrationBackup() {
-    return readStoredRegistrations(WCDMR_REGISTRATION_BACKUP_STORAGE_KEY);
-}
-
 function persistLocalRegistrations(registrations) {
     const limited = limitRegistrations(registrations);
-    const previousPrimary = readLocalRegistrations();
-    const previousBackup = readLocalRegistrationBackup();
     try {
         localStorage.setItem(WCDMR_REGISTRATION_STORAGE_KEY, JSON.stringify(limited));
     } catch (error) {
         console.warn('Unable to persist registration backup in this browser:', error);
-    }
-    try {
-        const preservedBackup = mergeRegistrations(previousBackup, previousPrimary, limited);
-        localStorage.setItem(WCDMR_REGISTRATION_BACKUP_STORAGE_KEY, JSON.stringify(preservedBackup));
-    } catch (error) {
-        console.warn('Unable to preserve registration history in this browser:', error);
     }
     return limited;
 }
@@ -256,6 +239,7 @@ async function persistRegistrations(next) {
 }
 
 async function loadRegistrations() {
+    if (!requireAdminAccess()) return;
     const sharedRegistrations = await fetchSharedRegistrations();
     if (Array.isArray(sharedRegistrations)) {
         allRegistrations = getAuthoritativeRegistrations(sharedRegistrations, []);
@@ -402,6 +386,7 @@ function toggleSelectAllRegistrations(event) {
 }
 
 async function deleteSelectedRegistrations() {
+    if (!requireAdminAccess()) return;
     const count = selectedRegistrationKeys.size;
     if (count === 0) {
         alert('Select at least one registration to delete.');
@@ -429,6 +414,7 @@ async function deleteSelectedRegistrations() {
 }
 
 async function deleteRegistration(timestamp) {
+    if (!requireAdminAccess()) return;
     const key = String(timestamp || '');
     if (!key) return;
     const reg = allRegistrations.find((item) => registrationKey(item) === key);
@@ -452,6 +438,7 @@ async function deleteRegistration(timestamp) {
 }
 
 function showDetails(timestamp) {
+    if (!requireAdminAccess()) return;
     const reg = allRegistrations.find(r => r.timestamp === timestamp);
     if (!reg) return;
 
@@ -655,6 +642,7 @@ function ensureEditDialog() {
 }
 
 function editRegistration(timestamp) {
+    if (!requireAdminAccess()) return;
     const idx = allRegistrations.findIndex(r => r.timestamp === timestamp);
     if (idx === -1) return;
 
@@ -796,6 +784,7 @@ document.getElementById('search-box').addEventListener('input', (e) => {
 });
 
 function exportToCSV() {
+    if (!requireAdminAccess()) return;
     if (allRegistrations.length === 0) {
         alert('No registrations to export');
         return;
@@ -838,6 +827,7 @@ function exportToCSV() {
 }
 
 function exportToJSON() {
+    if (!requireAdminAccess()) return;
     if (allRegistrations.length === 0) {
         alert('No registrations to export');
         return;
@@ -854,6 +844,7 @@ function exportToJSON() {
 }
 
 function importRegistrationsJSON() {
+    if (!requireAdminAccess()) return;
     const input = document.createElement('input');
     input.type = 'file';
     input.accept = 'application/json,.json';
@@ -888,38 +879,10 @@ function importRegistrationsJSON() {
     input.click();
 }
 
-async function recoverLocalBackup() {
-    const localBackup = mergeRegistrations(readLocalRegistrationBackup(), readLocalRegistrations());
-    if (localBackup.length === 0) {
-        setAdminStatus('No local registration backup was found in this browser.', 'error');
-        return;
-    }
-
-    const sharedKeys = new Set(allRegistrations.map(registrationKey).filter(Boolean));
-    const recoveredCount = localBackup.filter((registration) => {
-        const key = registrationKey(registration);
-        return key && !sharedKeys.has(key);
-    }).length;
-
-    if (recoveredCount === 0) {
-        setAdminStatus('This browser backup does not contain registrations missing from the shared list.', 'success');
-        return;
-    }
-
-    const merged = mergeRegistrations(allRegistrations, localBackup);
-    allRegistrations = persistLocalRegistrations(merged);
-    renderCurrentRegistrationsView();
-    const synced = await syncCurrentRegistrations(
-        `Recovery finished. Restored ${recoveredCount} registration(s) from this browser backup.`,
-        'Recovered locally. Shared sync is still catching up, so refresh again in a moment if needed.'
-    );
-    if (!synced) return;
-}
-
 async function clearAllData() {
+    if (!requireAdminAccess()) return;
     if (confirm('Are you sure you want to delete ALL registration data? This cannot be undone!')) {
         localStorage.removeItem(WCDMR_REGISTRATION_STORAGE_KEY);
-        localStorage.removeItem(WCDMR_REGISTRATION_BACKUP_STORAGE_KEY);
         allRegistrations = [];
         selectedRegistrationKeys = new Set();
         displayRegistrations();
@@ -934,6 +897,7 @@ async function clearAllData() {
 }
 
 async function refreshData() {
+    if (!requireAdminAccess()) return;
     setAdminStatus('Refreshing registration list...', 'info');
     await loadRegistrations();
     setAdminStatus('Data refreshed.', 'success');
@@ -982,11 +946,10 @@ if (registrationsTbody) {
 
 if (typeof window !== 'undefined') {
     window.importRegistrationsJSON = importRegistrationsJSON;
-    window.recoverLocalBackup = recoverLocalBackup;
     window.toggleRegistrationSelected = toggleRegistrationSelected;
     window.toggleSelectAllRegistrations = toggleSelectAllRegistrations;
     window.deleteSelectedRegistrations = deleteSelectedRegistrations;
     window.deleteRegistration = deleteRegistration;
 }
 
-loadRegistrations();
+initializeAdminAccess();

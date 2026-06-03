@@ -11,6 +11,17 @@
     <!-- Load CSS locally so admin updates match the deployed site. -->
     <link rel="stylesheet" href="../styles.css?v=20260430-admin-mobile3">
     <style>
+        .admin-auth-shell { min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 1.5rem; background: linear-gradient(180deg, #f7f7f1 0%, #eef2f7 100%); }
+        .admin-auth-card { width: min(100%, 420px); background: white; border-radius: 1rem; box-shadow: var(--shadow-lg); padding: 2rem; }
+        .admin-auth-card h1 { margin: 0 0 0.75rem 0; font-size: 1.8rem; color: var(--primary-color); }
+        .admin-auth-card p { margin: 0 0 1rem 0; color: var(--text-light); line-height: 1.6; }
+        .admin-auth-field { margin-bottom: 1rem; }
+        .admin-auth-field label { display: block; margin-bottom: 0.5rem; font-weight: 600; color: var(--text-dark); }
+        .admin-auth-input { width: 100%; padding: 0.85rem 0.95rem; border: 2px solid var(--border-color); border-radius: 0.75rem; font-size: 1rem; }
+        .admin-auth-input:focus { outline: none; border-color: var(--primary-color); }
+        .admin-auth-error { display: none; margin: 0 0 1rem 0; padding: 0.8rem 0.9rem; border-radius: 0.75rem; background: #fdecec; color: #8b1e2a; border: 1px solid #e7b2ba; font-weight: 600; }
+        .admin-auth-note { margin-top: 1rem; font-size: 0.92rem; color: var(--text-light); }
+        .admin-app-shell { display: none; }
         .admin-container { max-width: 1400px; margin: 2rem auto; padding: 2rem; }
         .admin-header { background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%); color: white; padding: 2rem; border-radius: 0.75rem; margin-bottom: 2rem; text-align: center; }
         .admin-header h1 { margin: 0 0 0.5rem 0; font-size: 2rem; }
@@ -49,6 +60,8 @@
         .search-box:focus { outline: none; border-color: var(--primary-color); }
         .registration-select-cell input[type="checkbox"] { width: 1.2rem; height: 1.2rem; }
         @media (max-width: 768px) {
+            .admin-auth-shell { padding: 1rem; }
+            .admin-auth-card { padding: 1.25rem; }
             .admin-container { margin: 1rem auto; padding: 1rem; }
             .admin-header { padding: 1.5rem 1rem; }
             .admin-header h1 { font-size: 1.55rem; }
@@ -66,6 +79,23 @@
     </style>
 </head>
 <body>
+    <div id="admin-auth-shell" class="admin-auth-shell">
+        <div class="admin-auth-card">
+            <h1>Admin access required</h1>
+            <p>Enter the WCDMR admin passcode to view or change registrations.</p>
+            <form id="admin-auth-form">
+                <div id="admin-auth-error" class="admin-auth-error" role="alert" aria-live="assertive"></div>
+                <div class="admin-auth-field">
+                    <label for="admin-passcode">Admin passcode</label>
+                    <input id="admin-passcode" class="admin-auth-input" type="password" autocomplete="current-password" required />
+                </div>
+                <button class="btn btn-primary" type="submit" style="width:100%;">Unlock Admin</button>
+            </form>
+            <p class="admin-auth-note">This keeps the admin page locked on shared devices until the passcode is entered again.</p>
+        </div>
+    </div>
+
+    <div id="admin-app-shell" class="admin-app-shell">
     <div class="admin-container">
         <div class="admin-header">
             <h1>WCDMR 2026 Registration Admin</h1>
@@ -101,7 +131,7 @@
             <div class="controls">
                 <input type="text" id="search-box" class="search-box" placeholder="Search by name, email, or church...">
                 <button class="btn btn-primary" onclick="refreshData()">Refresh</button>
-                <button class="btn btn-outline" onclick="recoverLocalBackup()">Recover Local Backup</button>
+                <button class="btn btn-outline" id="admin-logout-btn" type="button">Lock Admin</button>
                 <button class="btn btn-outline" onclick="exportToCSV()">Export to CSV</button>
                 <button class="btn btn-outline" onclick="exportToJSON()">Export to JSON</button>
                 <button class="btn btn-outline" onclick="importRegistrationsJSON()">Import JSON</button>
@@ -144,8 +174,15 @@
             </div>
         </div>
     </div>
+    </div>
 
-    <script defer src="../admin-app.js?v=20260603-backup2"></script>
+    <script>
+    window.WCDMR_ADMIN_ACCESS = {
+        passwordHash: '2be9cf3df704d5573722fd0928e615f0ad2f771671aed3ea7e1b308361495773',
+        sessionTtlMinutes: 480
+    };
+    </script>
+    <script defer src="../admin-app.js?v=20260603-auth1"></script>
 </body>
 </html>
 
