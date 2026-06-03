@@ -5,6 +5,156 @@ let allRegistrations = [];
 let selectedRegistrationKeys = new Set();
 let adminStatusTimer = null;
 let wcdmrDeleteDialogState = null;
+const WCDMR_ADMIN_SESSION_KEY = 'wcdmr_admin_session';
+
+function getAdminAccessConfig() {
+    const config = (typeof window !== 'undefined' && window.WCDMR_ADMIN_ACCESS) ? window.WCDMR_ADMIN_ACCESS : {};
+    return {
+        passwordHash: String(config.passwordHash || ''),
+        sessionTtlMinutes: Number(config.sessionTtlMinutes || 240)
+    };
+}
+
+function setAdminAuthError(message = '') {
+    const errorEl = document.getElementById('admin-auth-error');
+    if (!errorEl) return;
+    errorEl.textContent = message;
+    errorEl.style.display = message ? 'block' : 'none';
+}
+
+function setAdminShellVisibility(isUnlocked) {
+    const authShell = document.getElementById('admin-auth-shell');
+    const appShell = document.getElementById('admin-app-shell');
+    if (authShell) authShell.style.display = isUnlocked ? 'none' : 'flex';
+    if (appShell) appShell.style.display = isUnlocked ? 'block' : 'none';
+    if (!isUnlocked) {
+        const passcodeInput = document.getElementById('admin-passcode');
+        if (passcodeInput) {
+            passcodeInput.value = '';
+            try { passcodeInput.focus(); } catch { /* ignore */ }
+        }
+    }
+}
+
+function readAdminSession() {
+    try {
+        const raw = sessionStorage.getItem(WCDMR_ADMIN_SESSION_KEY);
+        if (!raw) return null;
+        const parsed = JSON.parse(raw);
+        return parsed && typeof parsed === 'object' ? parsed : null;
+    } catch {
+        return null;
+    }
+}
+
+function writeAdminSession() {
+    const { sessionTtlMinutes } = getAdminAccessConfig();
+    try {
+        sessionStorage.setItem(WCDMR_ADMIN_SESSION_KEY, JSON.stringify({
+            expiresAt: Date.now() + Math.max(5, sessionTtlMinutes) * 60 * 1000
+        }));
+    } catch {
+        /* ignore */
+    }
+}
+
+function clearAdminSession() {
+    try {
+        sessionStorage.removeItem(WCDMR_ADMIN_SESSION_KEY);
+    } catch {
+        /* ignore */
+    }
+}
+
+function hasValidAdminSession() {
+    const session = readAdminSession();
+    return Boolean(session && Number(session.expiresAt) > Date.now());
+}
+
+async function sha256Hex(value) {
+    const cryptoApi = typeof globalThis !== 'undefined' ? globalThis.crypto : null;
+    if (!cryptoApi || !cryptoApi.subtle) {
+        throw new Error('Secure hashing is unavailable in this browser.');
+    }
+    const bytes = new TextEncoder().encode(String(value || ''));
+    const digest = await cryptoApi.subtle.digest('SHA-256', bytes);
+    return Array.from(new Uint8Array(digest)).map((byte) => byte.toString(16).padStart(2, '0')).join('');
+}
+
+function lockAdminAccess(message = '') {
+    clearAdminSession();
+    allRegistrations = [];
+    selectedRegistrationKeys = new Set();
+    displayRegistrations([]);
+    updateStats();
+    setAdminStatus('');
+    setAdminAuthError(message);
+    setAdminShellVisibility(false);
+}
+
+function requireAdminAccess() {
+    if (hasValidAdminSession()) return true;
+    lockAdminAccess('Session expired. Enter the admin passcode again.');
+    return false;
+}
+
+async function handleAdminAuthSubmit(event) {
+    if (event && typeof event.preventDefault === 'function') {
+        event.preventDefault();
+    }
+
+    const passcodeInput = document.getElementById('admin-passcode');
+    const passcode = String(passcodeInput?.value || '').trim();
+    const { passwordHash } = getAdminAccessConfig();
+
+    if (!passcode) {
+        setAdminAuthError('Enter the admin passcode.');
+        return;
+    }
+    if (!passwordHash) {
+        setAdminAuthError('Admin access is not configured yet.');
+        return;
+    }
+
+    try {
+        const candidateHash = await sha256Hex(passcode);
+        if (candidateHash !== passwordHash) {
+            setAdminAuthError('Incorrect passcode. Please try again.');
+            return;
+        }
+    } catch (error) {
+        console.error('Unable to verify admin passcode:', error);
+        setAdminAuthError('Unable to verify the passcode in this browser right now.');
+        return;
+    }
+
+    writeAdminSession();
+    setAdminAuthError('');
+    setAdminShellVisibility(true);
+    await initializeAdminAccess();
+}
+
+async function initializeAdminAccess() {
+    const authForm = document.getElementById('admin-auth-form');
+    if (authForm) {
+        authForm.addEventListener('submit', handleAdminAuthSubmit);
+    }
+
+    const logoutBtn = document.getElementById('admin-logout-btn');
+    if (logoutBtn) {
+        logoutBtn.addEventListener('click', () => {
+            lockAdminAccess('Admin locked. Enter the passcode to reopen registrations.');
+        });
+    }
+
+    if (hasValidAdminSession()) {
+        setAdminShellVisibility(true);
+        await loadRegistrations();
+        return;
+    }
+
+    lockAdminAccess('');
+}
 
 function registrationKey(reg) {
     // Use timestamp as stable key (existing code assumes uniqueness for showDetails/editRegistration).
