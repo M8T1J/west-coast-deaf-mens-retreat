@@ -30,6 +30,7 @@ function registrationKey(reg) {
     return '';
 }
 
+
 function setDeleteSelectedEnabled() {
     const btn = document.getElementById('delete-selected-btn');
     if (!btn) return;
@@ -90,6 +91,7 @@ function setSelectAllCheckboxState(registrations) {
     setSelectAllCheckboxStateFromKeys(keys);
 }
 
+
 const WCDMR_DEFAULT_FEE_ANCHOR = 245;
 const WCDMR_REGISTRATION_STORAGE_KEY = 'wcdmr_registrations';
 const WCDMR_REGISTRATION_SYNC_URL = 'https://mantledb.sh/v2/wcdmr-reg-2026/registrations';
@@ -124,6 +126,7 @@ function buildRegistrationKey(registration, fallbackIndex) {
     return registrationKey(registration) || `fallback:${fallbackIndex}`;
 }
 
+
 function shouldReplaceRegistration(existing, incoming) {
     if (!existing) return true;
 
@@ -139,6 +142,7 @@ function shouldReplaceRegistration(existing, incoming) {
 
     return toTimestampValue(incoming.timestamp) >= toTimestampValue(existing.timestamp);
 }
+
 
 function mergeRegistrations(...sources) {
     const merged = new Map();
@@ -261,6 +265,7 @@ async function persistRegistrations(next) {
     return allRegistrations;
 }
 
+
 async function loadRegistrations() {
     const sharedRegistrations = await fetchSharedRegistrations();
     if (Array.isArray(sharedRegistrations)) {
@@ -283,6 +288,7 @@ async function loadRegistrations() {
     updateStats();
     setAdminStatus('Live sync is unavailable right now. Please refresh when your connection is stable.', 'error');
 }
+
 
 function getSearchTerm() {
     const searchBox = document.getElementById('search-box');
@@ -360,6 +366,7 @@ async function applySharedMutation(mutator, { loadingMessage, successMessage, fa
     return { ok: true, registrations: nextRegistrations };
 }
 
+
 function displayRegistrations(filtered = null) {
     const tbody = document.getElementById('registrations-tbody');
     const registrations = filtered || allRegistrations;
@@ -419,6 +426,7 @@ function displayRegistrations(filtered = null) {
     setDeleteSelectedEnabled();
 }
 
+
 function toggleRegistrationSelected(event, timestamp) {
     if (event && typeof event.stopPropagation === 'function') event.stopPropagation();
     const key = String(timestamp || '');
@@ -428,11 +436,11 @@ function toggleRegistrationSelected(event, timestamp) {
     } else {
         selectedRegistrationKeys.add(key);
     }
-    // Update header checkbox state based on what's currently rendered.
     const visibleKeys = getVisibleRegistrationKeys();
     setSelectAllCheckboxStateFromKeys(visibleKeys);
     setDeleteSelectedEnabled();
 }
+
 
 function toggleSelectAllRegistrations(event) {
     if (event && typeof event.stopPropagation === 'function') event.stopPropagation();
@@ -466,20 +474,25 @@ async function deleteSelectedRegistrations() {
         message,
         confirmLabel: count === 1 ? 'Delete registration' : `Delete ${count} registrations`,
         onConfirm: async () => {
-            const next = allRegistrations.filter((r) => !selectedRegistrationKeys.has(registrationKey(r)));
-            selectedRegistrationKeys = new Set();
-            allRegistrations = persistLocalRegistrations(next);
-            renderCurrentRegistrationsView();
-            await syncCurrentRegistrations(
-                count === 1 ? 'Deleted 1 registration.' : `Deleted ${count} registrations.`,
-                'Deleted locally. Shared sync is still catching up, so refresh again in a moment if needed.'
+            const keysToDelete = new Set(selectedRegistrationKeys);
+            const result = await applySharedMutation(
+                (sharedRegistrations) => sharedRegistrations.filter((registration) => !keysToDelete.has(registrationKey(registration))),
+                {
+                    loadingMessage: count === 1 ? 'Deleting 1 registration...' : `Deleting ${count} registrations...`,
+                    successMessage: count === 1 ? 'Deleted 1 registration.' : `Deleted ${count} registrations.`,
+                    failureMessage: 'Unable to delete the selected registrations because the live shared list could not be updated.'
+                }
             );
+            if (result.ok) {
+                selectedRegistrationKeys = new Set();
+            }
         }
     });
 }
 
-async function deleteRegistration(timestamp) {
-    const key = String(timestamp || '');
+
+async function deleteRegistration(key) {
+    key = String(key || '');
     if (!key) return;
     const reg = allRegistrations.find((item) => registrationKey(item) === key);
     if (!reg) return;
@@ -489,20 +502,24 @@ async function deleteRegistration(timestamp) {
         message: `Delete ${label}? This cannot be undone.`,
         confirmLabel: 'Delete registration',
         onConfirm: async () => {
-            selectedRegistrationKeys.delete(key);
-            const next = allRegistrations.filter((item) => registrationKey(item) !== key);
-            allRegistrations = persistLocalRegistrations(next);
-            renderCurrentRegistrationsView();
-            await syncCurrentRegistrations(
-                `Deleted ${label}.`,
-                `Deleted ${label} locally. Shared sync is still catching up, so refresh again in a moment if needed.`
+            const result = await applySharedMutation(
+                (sharedRegistrations) => sharedRegistrations.filter((item) => registrationKey(item) !== key),
+                {
+                    loadingMessage: `Deleting ${label}...`,
+                    successMessage: `Deleted ${label}.`,
+                    failureMessage: `Unable to delete ${label} because the live shared list could not be updated.`
+                }
             );
+            if (result.ok) {
+                selectedRegistrationKeys.delete(key);
+            }
         }
     });
 }
 
-function showDetails(timestamp) {
-    const reg = allRegistrations.find(r => r.timestamp === timestamp);
+
+function showDetails(key) {
+    const reg = allRegistrations.find((registration) => registrationKey(registration) === key);
     if (!reg) return;
 
     const details = `
@@ -534,6 +551,7 @@ Payment:
 
     alert(details);
 }
+
 
 function escapeHtml(value) {
     return String(value ?? '')
@@ -704,8 +722,8 @@ function ensureEditDialog() {
     return root;
 }
 
-function editRegistration(timestamp) {
-    const idx = allRegistrations.findIndex(r => r.timestamp === timestamp);
+function editRegistration(key) {
+    const idx = allRegistrations.findIndex((registration) => registrationKey(registration) === key);
     if (idx === -1) return;
 
     const reg = allRegistrations[idx];
@@ -756,7 +774,7 @@ function editRegistration(timestamp) {
 
     const saveBtn = dialog.querySelector('#edit-save-btn');
     if (saveBtn) {
-        saveBtn.onclick = () => {
+        saveBtn.onclick = async () => {
             const fullName = String(dialog.querySelector('#edit-fullName')?.value || '').trim();
             const email = String(dialog.querySelector('#edit-email')?.value || '').trim();
             const phone = String(dialog.querySelector('#edit-phone')?.value || '').trim();
@@ -786,8 +804,11 @@ function editRegistration(timestamp) {
                 return;
             }
 
+            const nameParts = fullName.split(/\s+/).filter(Boolean);
             const updated = {
                 ...reg,
+                firstName: nameParts[0] || '',
+                lastName: nameParts.slice(1).join(' '),
                 fullName,
                 email,
                 phone,
@@ -801,13 +822,34 @@ function editRegistration(timestamp) {
                 paymentId,
                 status,
                 amount: Number(amountNum.toFixed(2)),
-                paymentMethod
+                paymentMethod,
+                updatedAt: new Date().toISOString()
             };
 
-            const next = [...allRegistrations];
-            next[idx] = updated;
-            persistRegistrations(next);
-            loadRegistrations();
+            const result = await applySharedMutation(
+                (sharedRegistrations) => {
+                    const next = [...sharedRegistrations];
+                    const freshIdx = next.findIndex((item) => registrationKey(item) === key);
+                    if (freshIdx === -1) {
+                        throw new Error('The registration could not be found in the latest shared list.');
+                    }
+                    next[freshIdx] = {
+                        ...next[freshIdx],
+                        ...updated
+                    };
+                    return next;
+                },
+                {
+                    loadingMessage: `Saving changes for ${fullName || 'this registration'}...`,
+                    successMessage: `Saved changes for ${fullName || 'this registration'}.`,
+                    failureMessage: `Unable to save ${fullName || 'this registration'} because the live shared list could not be updated.`
+                }
+            );
+            if (!result.ok) {
+                setError('Unable to save changes right now. Refresh once and try again.');
+                return;
+            }
+
             dialog.style.display = 'none';
             document.body.style.overflow = wcdmrBodyOverflowBeforeEdit;
         };
@@ -820,6 +862,7 @@ function editRegistration(timestamp) {
         /* ignore */
     }
 }
+
 
 function updateStats() {
     const total = allRegistrations.length;
@@ -921,36 +964,64 @@ function importRegistrationsJSON() {
             alert('The JSON file must be an array of registration objects (same format as Export JSON).');
             return;
         }
-        const byTs = new Map(allRegistrations.map((r) => [r.timestamp, r]));
-        for (const row of data) {
-            if (row && row.timestamp) {
-                byTs.set(row.timestamp, row);
+        await applySharedMutation(
+            (sharedRegistrations) => mergeRegistrations(sharedRegistrations, data),
+            {
+                loadingMessage: 'Importing registrations into the live shared list...',
+                successMessage: 'Import finished. Shared registrations updated.',
+                failureMessage: 'Unable to import registrations because the live shared list could not be updated.'
             }
-        }
-        const merged = sortRegistrationsNewestFirst(Array.from(byTs.values()));
-        allRegistrations = persistLocalRegistrations(merged);
-        renderCurrentRegistrationsView();
-        await syncCurrentRegistrations(
-            `Import finished. ${merged.length} synced registration(s) available now.`,
-            'Import finished locally. Shared sync is still catching up, so refresh again in a moment if needed.'
         );
     };
     input.click();
 }
 
+async function recoverLocalBackup() {
+    const localBackup = readLocalRegistrations();
+    if (localBackup.length === 0) {
+        setAdminStatus('No local registration backup was found in this browser.', 'error');
+        return;
+    }
+
+    let recoveredCount = 0;
+    const result = await applySharedMutation(
+        (sharedRegistrations) => {
+            const sharedKeys = new Set(sharedRegistrations.map(registrationKey).filter(Boolean));
+            recoveredCount = localBackup.filter((registration) => {
+                const key = registrationKey(registration);
+                return key && !sharedKeys.has(key);
+            }).length;
+            return mergeRegistrations(sharedRegistrations, localBackup);
+        },
+        {
+            loadingMessage: 'Recovering registrations from this browser backup...',
+            failureMessage: 'Unable to recover the local browser backup because the live shared list could not be updated.'
+        }
+    );
+
+    if (!result.ok) return;
+    setAdminStatus(
+        recoveredCount > 0
+            ? `Recovery finished. Restored ${recoveredCount} registration(s) from this browser backup.`
+            : 'Recovery finished. This browser backup does not contain any registrations missing from the shared list.',
+        'success'
+    );
+}
+
 async function clearAllData() {
     if (confirm('Are you sure you want to delete ALL registration data? This cannot be undone!')) {
-        localStorage.removeItem(WCDMR_REGISTRATION_STORAGE_KEY);
-        allRegistrations = [];
-        selectedRegistrationKeys = new Set();
-        displayRegistrations();
-        updateStats();
-        const synced = await pushSharedRegistrations([]);
-        if (!synced) {
-            setAdminStatus('All local registration data has been cleared. Shared sync is still catching up, so refresh again in a moment if needed.', 'error');
-            return;
+        const result = await applySharedMutation(
+            () => [],
+            {
+                loadingMessage: 'Clearing all shared registrations...',
+                successMessage: 'All registration data has been cleared.',
+                failureMessage: 'Unable to clear the live shared registration list right now.'
+            }
+        );
+        if (result.ok) {
+            localStorage.removeItem(WCDMR_REGISTRATION_STORAGE_KEY);
+            selectedRegistrationKeys = new Set();
         }
-        setAdminStatus('All registration data has been cleared.', 'success');
     }
 }
 
@@ -1003,6 +1074,7 @@ if (registrationsTbody) {
 
 if (typeof window !== 'undefined') {
     window.importRegistrationsJSON = importRegistrationsJSON;
+    window.recoverLocalBackup = recoverLocalBackup;
     window.toggleRegistrationSelected = toggleRegistrationSelected;
     window.toggleSelectAllRegistrations = toggleSelectAllRegistrations;
     window.deleteSelectedRegistrations = deleteSelectedRegistrations;
