@@ -1,368 +1,120 @@
-// Registration Handler
-// Handles form submission to Google Forms (optional) and stores registration data
-
-const GOOGLE_FORM_URL = 'https://docs.google.com/forms/d/e/YOUR_FORM_ID/formResponse'; // Not used - standalone system
-const USE_GOOGLE_FORM = false; // Standalone system - no Google Forms needed
+// Registration storage: Supabase is authoritative; browser storage is only a draft/safety copy.
+const GOOGLE_FORM_URL = 'https://docs.google.com/forms/d/e/YOUR_FORM_ID/formResponse';
+const USE_GOOGLE_FORM = false;
 const WCDMR_REGISTRATION_STORAGE_KEY = 'wcdmr_registrations';
 const WCDMR_REGISTRATION_BACKUP_STORAGE_KEY = 'wcdmr_registrations_backup';
-const WCDMR_REGISTRATION_SYNC_URL = 'https://mantledb.sh/v2/wcdmr-reg-2026/registrations';
-const WCDMR_REGISTRATION_LIMIT = 500;
 
 function safeParseRegistrations(rawValue) {
-    if (!rawValue) return [];
-
     try {
-        const parsed = JSON.parse(rawValue);
-        return Array.isArray(parsed) ? parsed.filter((item) => item && typeof item === 'object') : [];
-    } catch {
-        return [];
-    }
+        const value = rawValue ? JSON.parse(rawValue) : [];
+        return Array.isArray(value) ? value.filter((item) => item && typeof item === 'object') : [];
+    } catch { return []; }
 }
 
-function readStoredRegistrations(storageKey) {
-    try {
-        return safeParseRegistrations(localStorage.getItem(storageKey));
-    } catch {
-        return [];
-    }
+function readStoredRegistrations(key) {
+    try { return safeParseRegistrations(localStorage.getItem(key)); } catch { return []; }
 }
 
-function readLocalRegistrations() {
-    return readStoredRegistrations(WCDMR_REGISTRATION_STORAGE_KEY);
+function mergeLocalRegistrations(...sources) {
+    const rows = new Map();
+    sources.flat().filter((item) => item && typeof item === 'object').forEach((item, index) => {
+        const key = item.registrationId || item.clientRegistrationId || item.timestamp || `${item.email || ''}:${index}`;
+        rows.set(String(key), item);
+    });
+    return Array.from(rows.values()).slice(-500);
 }
 
-function readLocalRegistrationBackup() {
-    return readStoredRegistrations(WCDMR_REGISTRATION_BACKUP_STORAGE_KEY);
+function persistLocalSafetyCopy(registration) {
+    const primary = readStoredRegistrations(WCDMR_REGISTRATION_STORAGE_KEY);
+    const backup = readStoredRegistrations(WCDMR_REGISTRATION_BACKUP_STORAGE_KEY);
+    const merged = mergeLocalRegistrations(backup, primary, registration);
+    try { localStorage.setItem(WCDMR_REGISTRATION_STORAGE_KEY, JSON.stringify(merged)); } catch (error) { console.warn('Unable to save local registration draft.', error); }
+    try { localStorage.setItem(WCDMR_REGISTRATION_BACKUP_STORAGE_KEY, JSON.stringify(merged)); } catch (error) { console.warn('Unable to preserve local registration backup.', error); }
+    return merged;
 }
 
-function toTimestampValue(value) {
-    const parsed = Date.parse(value || '');
-    return Number.isFinite(parsed) ? parsed : 0;
-}
-
-function sortRegistrationsNewestFirst(registrations) {
-    return [...registrations].sort((a, b) => toTimestampValue(b.timestamp) - toTimestampValue(a.timestamp));
-}
-
-function limitRegistrations(registrations) {
-    const sorted = sortRegistrationsNewestFirst(registrations);
-    return sorted.slice(0, WCDMR_REGISTRATION_LIMIT);
-}
-
-function buildRegistrationKey(registration, fallbackIndex) {
-    if (registration.timestamp) return `timestamp:${registration.timestamp}`;
-
-    const email = String(registration.email || '').trim().toLowerCase();
-    const paymentId = String(registration.paymentId || '').trim();
-    if (email || paymentId) return `identity:${email}|${paymentId}|${registration.status || ''}`;
-
-    return `fallback:${fallbackIndex}`;
-}
-
-function shouldReplaceRegistration(existing, incoming) {
-    if (!existing) return true;
-
-    if (existing.status === 'pending' && incoming.status === 'completed') {
-        return true;
-    }
-
-    return toTimestampValue(incoming.timestamp) >= toTimestampValue(existing.timestamp);
-}
-
-function mergeRegistrations(...sources) {
-    const merged = new Map();
-    let fallbackIndex = 0;
-
-    for (const source of sources) {
-        if (!Array.isArray(source)) continue;
-
-        for (const item of source) {
-            if (!item || typeof item !== 'object') continue;
-
-            const key = buildRegistrationKey(item, fallbackIndex++);
-            const existing = merged.get(key);
-            if (shouldReplaceRegistration(existing, item)) {
-                merged.set(key, item);
-            }
-        }
-    }
-
-    return limitRegistrations(Array.from(merged.values()));
-}
-
-function persistLocalRegistrations(registrations) {
-    const limited = limitRegistrations(registrations);
-    const previousPrimary = readLocalRegistrations();
-    const previousBackup = readLocalRegistrationBackup();
-    try {
-        localStorage.setItem(WCDMR_REGISTRATION_STORAGE_KEY, JSON.stringify(limited));
-    } catch (error) {
-        console.warn('Unable to persist registration backup in this browser:', error);
-    }
-    try {
-        const preservedBackup = mergeRegistrations(previousBackup, previousPrimary, limited);
-        localStorage.setItem(WCDMR_REGISTRATION_BACKUP_STORAGE_KEY, JSON.stringify(preservedBackup));
-    } catch (error) {
-        console.warn('Unable to preserve registration history in this browser:', error);
-    }
-    return limited;
-}
-
-function getAuthoritativeRegistrations(sharedRegistrations, localRegistrations) {
-    if (Array.isArray(sharedRegistrations)) {
-        const authoritative = limitRegistrations(sharedRegistrations);
-        persistLocalRegistrations(authoritative);
-        return authoritative;
-    }
-    // An unavailable shared store must never replace the local history. Re-save the
-    // merged local sources so a previously preserved backup is usable again.
-    const preserved = mergeRegistrations(localRegistrations);
-    persistLocalRegistrations(preserved);
-    return preserved;
-}
-
-let registrationSyncPromise = null;
-
-async function syncAuthoritativeRegistrations(force = false) {
-    if (!force && registrationSyncPromise) {
-        return registrationSyncPromise;
-    }
-
-    registrationSyncPromise = (async () => {
-        const localRegistrations = mergeRegistrations(
-            readLocalRegistrations(),
-            readLocalRegistrationBackup()
-        );
-        const sharedRegistrations = await fetchSharedRegistrations();
-        return getAuthoritativeRegistrations(sharedRegistrations, localRegistrations);
-    })();
-
-    try {
-        return await registrationSyncPromise;
-    } finally {
-        registrationSyncPromise = null;
-    }
-}
-
-function normalizeIdentityPart(value) {
-    return String(value || '').trim().toLowerCase();
-}
-
-function normalizeRemotePayload(payload) {
-    if (Array.isArray(payload)) return payload;
-    if (payload && Array.isArray(payload.registrations)) return payload.registrations;
-    return null;
-}
-
-async function fetchSharedRegistrations() {
-    try {
-        const response = await fetch(WCDMR_REGISTRATION_SYNC_URL, {
-            method: 'GET',
-            headers: { Accept: 'application/json' },
-            cache: 'no-store'
-        });
-
-        if (!response.ok) {
-            throw new Error(`Request failed with status ${response.status}`);
-        }
-
-        const payload = await response.json();
-        const registrations = normalizeRemotePayload(payload);
-        if (!Array.isArray(registrations)) {
-            throw new Error('Unexpected shared registration response');
-        }
-        return limitRegistrations(registrations);
-    } catch (error) {
-        console.warn('Unable to fetch shared registrations. Falling back to local data only.', error);
-        return null;
-    }
-}
-
-async function pushSharedRegistrations(registrations) {
-    try {
-        const response = await fetch(WCDMR_REGISTRATION_SYNC_URL, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                registrations: limitRegistrations(registrations),
-                updatedAt: new Date().toISOString()
-            })
-        });
-
-        if (!response.ok) {
-            throw new Error(`Request failed with status ${response.status}`);
-        }
-        return true;
-    } catch (error) {
-        console.warn('Unable to update shared registrations right now.', error);
-        return false;
-    }
-}
+function normalizeIdentityPart(value) { return String(value || '').trim().toLowerCase(); }
 
 function hasCompletedRegistration(formData) {
-    const email = normalizeIdentityPart(formData && formData.email);
-    const fullName = normalizeIdentityPart(
-        (formData && formData.fullName) ||
-        `${formData && formData.firstName ? formData.firstName : ''} ${formData && formData.lastName ? formData.lastName : ''}`
-    );
-    if (!email && !fullName) return false;
-
-    const registrations = readLocalRegistrations();
-    return registrations.some((registration) => {
-        if (!registration || registration.status !== 'completed') return false;
-        const registrationEmail = normalizeIdentityPart(registration.email);
-        const registrationName = normalizeIdentityPart(
-            registration.fullName ||
-            `${registration.firstName || ''} ${registration.lastName || ''}`
-        );
-        return registrationEmail === email && registrationName === fullName;
-    });
+    const email = normalizeIdentityPart(formData?.email);
+    const name = normalizeIdentityPart(formData?.fullName || `${formData?.firstName || ''} ${formData?.lastName || ''}`);
+    return mergeLocalRegistrations(
+        readStoredRegistrations(WCDMR_REGISTRATION_STORAGE_KEY),
+        readStoredRegistrations(WCDMR_REGISTRATION_BACKUP_STORAGE_KEY)
+    ).some((item) => item.status === 'completed' && normalizeIdentityPart(item.email) === email && normalizeIdentityPart(item.fullName) === name);
 }
 
-async function hasCompletedRegistrationAsync(formData) {
-    await syncAuthoritativeRegistrations();
-    return hasCompletedRegistration(formData);
+async function hasCompletedRegistrationAsync(formData) { return hasCompletedRegistration(formData); }
+
+function currentTurnstileToken() {
+    try { return window.wcdmrTurnstileWidgetId == null ? '' : window.turnstile.getResponse(window.wcdmrTurnstileWidgetId); } catch { return ''; }
 }
 
-/**
- * Submit registration to Google Forms (optional)
- * @param {Object} formData - Registration form data
- * @returns {Promise<boolean>} - Success status
- */
-async function submitToGoogleForm(formData) {
-    if (!USE_GOOGLE_FORM || !GOOGLE_FORM_URL.includes('YOUR_FORM_ID')) {
-        return false;
-    }
+function renderRegistrationTurnstile() {
+    const target = document.getElementById('registration-turnstile');
+    const siteKey = window.WCDMR_SUPABASE?.turnstileSiteKey;
+    if (!target || !siteKey || !window.turnstile || window.wcdmrTurnstileWidgetId != null) return;
+    window.wcdmrTurnstileWidgetId = window.turnstile.render(target, { sitekey: siteKey });
+}
+
+async function storeRegistrationData(formData, paymentId = '') {
+    persistLocalSafetyCopy({ ...formData, status: 'pending', timestamp: new Date().toISOString(), paymentId });
+    const turnstileToken = currentTurnstileToken();
+    if (!turnstileToken) throw new Error('Please complete the registration verification before continuing.');
+    if (!window.wcdmrSupabase) throw new Error('Registration service is unavailable. Your draft was saved in this browser.');
 
     try {
-        // Get Google Form field IDs (you'll need to inspect your form to get these)
-        // Example field IDs (replace with your actual field IDs):
-        const formFields = {
-            'entry.123456789': formData.fullName,      // Full Name field ID
-            'entry.987654321': formData.email,          // Email field ID
-            'entry.111222333': formData.phone,          // Phone field ID
-            'entry.444555666': formData.amount.toString() // Amount field ID
-        };
-
-        // Create form data
-        const googleFormData = new FormData();
-        Object.keys(formFields).forEach(key => {
-            googleFormData.append(key, formFields[key]);
-        });
-
-        // Submit to Google Form
-        const response = await fetch(GOOGLE_FORM_URL, {
+        return await window.wcdmrSupabase.callFunction('public-register', {
             method: 'POST',
-            mode: 'no-cors', // Google Forms doesn't allow CORS
-            body: googleFormData
+            body: {
+                clientRegistrationId: formData.registrationId,
+                firstName: formData.firstName,
+                lastName: formData.lastName,
+                email: formData.email,
+                phone: formData.phone,
+                videophone: formData.videophone,
+                addressLine: formData.addressLine,
+                city: formData.city,
+                zipCode: formData.zipCode,
+                churchName: formData.churchName,
+                emergencyName: formData.emergencyName,
+                emergencyPhone: formData.emergencyPhone,
+                bunkSelection: formData.bunkSelection,
+                youthInfo: formData.youthInfo,
+                paymentUnderstanding: formData.paymentUnderstanding === true,
+                amount: formData.amount,
+                paymentMethod: formData.paymentMethod,
+                turnstileToken
+            }
         });
-
-        console.log('Registration submitted to Google Form');
-        return true;
     } catch (error) {
-        console.error('Error submitting to Google Form:', error);
-        return false;
+        // A token may be one-time use even when the database request failed.
+        // Reset it so the visitor can retry without losing the saved draft.
+        try { window.turnstile.reset(window.wcdmrTurnstileWidgetId); } catch { /* ignore */ }
+        throw error;
     }
 }
 
-/**
- * Store registration data (shared + local backup)
- * @param {Object} formData - Registration form data
- * @param {string} paymentId - Payment transaction ID (or 'PENDING' if not paid yet)
- */
-async function storeRegistrationData(formData, paymentId) {
-    const registration = {
-        firstName: formData.firstName || formData.fullName?.split(' ')[0] || '',
-        lastName: formData.lastName || formData.fullName?.split(' ').slice(1).join(' ') || '',
-        fullName: formData.fullName || `${formData.firstName || ''} ${formData.lastName || ''}`.trim(),
-        email: formData.email,
-        phone: formData.phone,
-        videophone: formData.videophone || '',
-        fullAddress: formData.fullAddress || '',
-        churchName: formData.churchName || '',
-        emergencyName: formData.emergencyName || '',
-        emergencyPhone: formData.emergencyPhone || '',
-        bunkSelection: formData.bunkSelection || '',
-        youthInfo: formData.youthInfo || '',
-        paymentUnderstanding: formData.paymentUnderstanding || false,
-        amount:
-            typeof window !== 'undefined' && typeof window.registrationAmountToDollarsNumber === 'function'
-                ? window.registrationAmountToDollarsNumber(formData.amount)
-                : formData.amount,
-        paymentId: paymentId,
-        timestamp: new Date().toISOString(),
-        status: paymentId === 'PENDING' ? 'pending' : 'completed'
-    };
-
-    const localRegistrations = mergeRegistrations(
-        readLocalRegistrations(),
-        readLocalRegistrationBackup()
-    );
-    const remoteRegistrations = await fetchSharedRegistrations();
-    const existingRegistrations = getAuthoritativeRegistrations(remoteRegistrations, localRegistrations);
-
-    // If updating a pending registration, find and update it.
-    if (paymentId !== 'PENDING') {
-        const normalizedEmail = normalizeIdentityPart(formData.email);
-        const pendingIndex = existingRegistrations.findIndex((r) =>
-            normalizeIdentityPart(r.email) === normalizedEmail && r.status === 'pending'
-        );
-        if (pendingIndex !== -1) {
-            existingRegistrations[pendingIndex] = registration;
-        } else {
-            existingRegistrations.push(registration);
-        }
-    } else {
-        existingRegistrations.push(registration);
+// Browser redirects cannot prove payment. The backend keeps registrations pending
+// until payment is verified by an administrator or a future PayPal webhook.
+async function completeRegistration(formData, paymentId = '') {
+    // A PayPal return arrives after the original Turnstile token has expired.
+    // The pending registration was already created before redirect; never retry
+    // it as a new public submission or treat the return as payment verification.
+    if (formData?.paymentMethod === 'paypal') {
+        persistLocalSafetyCopy({ ...formData, status: 'pending', timestamp: new Date().toISOString(), paymentId });
+        return { status: 'pending' };
     }
-    
-    const mergedRegistrations = mergeRegistrations(existingRegistrations);
-    persistLocalRegistrations(mergedRegistrations);
-
-    if (Array.isArray(remoteRegistrations)) {
-        const synced = await pushSharedRegistrations(mergedRegistrations);
-        if (!synced) {
-            // Local backup already saved above, so this preserves registrations even during outages.
-            console.warn('Saved registration locally; shared sync will retry on the next update.');
-        }
-    } else {
-        console.warn('Saved registration locally; shared sync was skipped because the remote data is unavailable.');
-    }
-
-    console.log('Registration data saved', registration);
-    return registration;
+    return storeRegistrationData(formData, paymentId);
 }
+async function submitToGoogleForm() { return false; }
 
-/**
- * Complete registration process
- * @param {Object} formData - Registration form data
- * @param {string} paymentId - Payment transaction ID
- */
-async function completeRegistration(formData, paymentId) {
-    // Store registration data
-    await storeRegistrationData(formData, paymentId);
-    
-    // Optionally submit to Google Form
-    if (USE_GOOGLE_FORM) {
-        await submitToGoogleForm(formData);
-    }
-    
-    // Send confirmation email (already handled in email-service.js)
-    // This is called from the payment success handler
-}
-
-// Export for use in other files
 if (typeof window !== 'undefined') {
     window.completeRegistration = completeRegistration;
     window.storeRegistrationData = storeRegistrationData;
     window.submitToGoogleForm = submitToGoogleForm;
     window.hasCompletedRegistration = hasCompletedRegistration;
     window.hasCompletedRegistrationAsync = hasCompletedRegistrationAsync;
-    window.syncAuthoritativeRegistrations = syncAuthoritativeRegistrations;
-
-    window.addEventListener('DOMContentLoaded', () => {
-        syncAuthoritativeRegistrations().catch((error) => {
-            console.warn('Unable to warm shared registration data on page load.', error);
-        });
-    });
+    window.wcdmrTurnstileOnload = renderRegistrationTurnstile;
+    window.addEventListener('DOMContentLoaded', renderRegistrationTurnstile);
 }

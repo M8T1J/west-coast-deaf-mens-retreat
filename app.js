@@ -211,6 +211,10 @@ async function persistPendingRegistration(formData) {
         }
     } catch (error) {
         console.error('Unable to store pending registration:', error);
+        // storeRegistrationData has already preserved a local safety copy. Do
+        // not let a visitor pay through PayPal until the shared registration
+        // has been accepted.
+        return false;
     }
 
     try {
@@ -254,7 +258,18 @@ function createRegistrationId() {
     } catch {
         // Fall back to a timestamp-based id below.
     }
-    return `reg-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+    // The public registration endpoint requires an RFC 4122 UUID. This fallback
+    // keeps older browsers compatible when crypto.randomUUID is unavailable.
+    const bytes = new Uint8Array(16);
+    if (typeof globalThis !== 'undefined' && globalThis.crypto && typeof globalThis.crypto.getRandomValues === 'function') {
+        globalThis.crypto.getRandomValues(bytes);
+    } else {
+        for (let index = 0; index < bytes.length; index += 1) bytes[index] = Math.floor(Math.random() * 256);
+    }
+    bytes[6] = (bytes[6] & 0x0f) | 0x40;
+    bytes[8] = (bytes[8] & 0x3f) | 0x80;
+    const hex = Array.from(bytes, (byte) => byte.toString(16).padStart(2, '0')).join('');
+    return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
 }
 
 function ensureRegistrationDraftIdentity(formData) {

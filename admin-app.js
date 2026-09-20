@@ -5,16 +5,7 @@ let allRegistrations = [];
 let selectedRegistrationKeys = new Set();
 let adminStatusTimer = null;
 let wcdmrDeleteDialogState = null;
-let sharedRegistrationStoreAvailable = false;
 const WCDMR_ADMIN_SESSION_KEY = 'wcdmr_admin_session';
-
-function getAdminAccessConfig() {
-    const config = (typeof window !== 'undefined' && window.WCDMR_ADMIN_ACCESS) ? window.WCDMR_ADMIN_ACCESS : {};
-    return {
-        passwordHash: String(config.passwordHash || ''),
-        sessionTtlMinutes: Number(config.sessionTtlMinutes || 240)
-    };
-}
 
 function setAdminAuthError(message = '') {
     const errorEl = document.getElementById('admin-auth-error');
@@ -48,12 +39,10 @@ function readAdminSession() {
     }
 }
 
-function writeAdminSession() {
-    const { sessionTtlMinutes } = getAdminAccessConfig();
+function writeAdminSession(session) {
+    if (!session?.access_token) return;
     try {
-        sessionStorage.setItem(WCDMR_ADMIN_SESSION_KEY, JSON.stringify({
-            expiresAt: Date.now() + Math.max(5, sessionTtlMinutes) * 60 * 1000
-        }));
+        sessionStorage.setItem(WCDMR_ADMIN_SESSION_KEY, JSON.stringify(session));
     } catch {
         /* ignore */
     }
@@ -69,7 +58,7 @@ function clearAdminSession() {
 
 function hasValidAdminSession() {
     const session = readAdminSession();
-    return Boolean(session && Number(session.expiresAt) > Date.now());
+    return Boolean(session?.access_token && Number(session.expires_at) * 1000 > Date.now());
 }
 
 function encodeUtf8Bytes(value) {
@@ -208,7 +197,7 @@ function lockAdminAccess(message = '') {
 
 function requireAdminAccess() {
     if (hasValidAdminSession()) return true;
-    lockAdminAccess('Session expired. Enter the admin passcode again.');
+    lockAdminAccess('Session expired. Sign in again.');
     return false;
 }
 
@@ -217,33 +206,29 @@ async function handleAdminAuthSubmit(event) {
         event.preventDefault();
     }
 
-    const passcodeInput = document.getElementById('admin-passcode');
-    const passcode = String(passcodeInput?.value || '').trim();
-    const { passwordHash } = getAdminAccessConfig();
+    const email = String(document.getElementById('admin-email')?.value || '').trim();
+    const password = String(document.getElementById('admin-passcode')?.value || '');
 
-    if (!passcode) {
-        setAdminAuthError('Enter the admin passcode.');
+    if (!email || !password) {
+        setAdminAuthError('Enter your admin email and password.');
         return;
     }
-    if (!passwordHash) {
-        setAdminAuthError('Admin access is not configured yet.');
+    if (!window.wcdmrSupabase) {
+        setAdminAuthError('Admin sign-in is not configured on this page.');
         return;
     }
 
     try {
-        const candidateHash = await sha256Hex(passcode);
-        if (candidateHash !== passwordHash) {
-            setAdminAuthError('Incorrect passcode. Please try again.');
-            return;
-        }
+        const session = await window.wcdmrSupabase.signIn(email, password);
+        writeAdminSession(session);
     } catch (error) {
-        console.error('Unable to verify admin passcode:', error);
-        setAdminAuthError('Unable to verify the passcode in this browser right now.');
+        console.error('Unable to sign in as admin:', error);
+        setAdminAuthError('Unable to sign in with those credentials.');
         return;
     }
 
-    writeAdminSession();
     setAdminAuthError('');
+    allRegistrations = readLocalRegistrations();
     setAdminShellVisibility(true);
     await loadRegistrations();
 }
@@ -257,7 +242,7 @@ async function initializeAdminAccess() {
     const logoutBtn = document.getElementById('admin-logout-btn');
     if (logoutBtn) {
         logoutBtn.addEventListener('click', () => {
-            lockAdminAccess('Admin locked. Enter the passcode to reopen registrations.');
+            lockAdminAccess('Admin locked. Sign in to reopen registrations.');
         });
     }
 
@@ -271,8 +256,7 @@ async function initializeAdminAccess() {
 }
 
 function registrationKey(reg) {
-    // Use timestamp as stable key (existing code assumes uniqueness for showDetails/editRegistration).
-    return String(reg && reg.timestamp ? reg.timestamp : '');
+    return String(reg?.id || reg?.timestamp || '');
 }
 
 function setDeleteSelectedEnabled() {
@@ -333,7 +317,6 @@ function setSelectAllCheckboxState(registrations) {
 
 const WCDMR_DEFAULT_FEE_ANCHOR = 245;
 const WCDMR_REGISTRATION_STORAGE_KEY = 'wcdmr_registrations';
-const WCDMR_REGISTRATION_SYNC_URL = 'https://mantledb.sh/v2/wcdmr-reg-2026/registrations';
 const WCDMR_REGISTRATION_LIMIT = 500;
 
 function safeParseRegistrations(rawValue) {
@@ -420,66 +403,52 @@ function persistLocalRegistrations(registrations) {
     return limited;
 }
 
-function getAuthoritativeRegistrations(sharedRegistrations, localRegistrations) {
-    if (Array.isArray(sharedRegistrations)) {
-        return limitRegistrations(sharedRegistrations);
-    }
-    return limitRegistrations(Array.isArray(localRegistrations) ? localRegistrations : []);
+function mapSupabaseRegistration(row) {
+    return {
+        id: row.id,
+        timestamp: row.submitted_at,
+        firstName: row.first_name,
+        lastName: row.last_name,
+        fullName: row.full_name,
+        email: row.email,
+        phone: row.phone,
+        videophone: row.videophone || '',
+        fullAddress: row.full_address,
+        churchName: row.church_name,
+        emergencyName: row.emergency_name,
+        emergencyPhone: row.emergency_phone,
+        bunkSelection: row.bunk_selection || '',
+        youthInfo: row.youth_info || '',
+        paymentId: row.payment_provider_transaction_id || '',
+        paymentMethod: row.payment_method || '',
+        paymentStatus: row.payment_status,
+        amount: row.amount_due,
+        status: row.registration_status === 'completed' ? 'completed' : 'pending'
+    };
 }
 
-function normalizeRemotePayload(payload) {
-    if (Array.isArray(payload)) return payload;
-    if (payload && Array.isArray(payload.registrations)) return payload.registrations;
-    return null;
+function isValidSupabaseRegistrationCollection(rows) {
+    return Array.isArray(rows) && rows.every((row) => (
+        row && typeof row === 'object' &&
+        typeof row.id === 'string' && row.id &&
+        typeof row.submitted_at === 'string' &&
+        typeof row.full_name === 'string' &&
+        typeof row.email === 'string' &&
+        typeof row.registration_status === 'string' &&
+        typeof row.payment_status === 'string'
+    ));
 }
 
-async function fetchSharedRegistrations() {
-    try {
-        const response = await fetch(WCDMR_REGISTRATION_SYNC_URL, {
-            method: 'GET',
-            headers: { Accept: 'application/json' },
-            cache: 'no-store'
-        });
+function adminAccessToken() { return readAdminSession()?.access_token || ''; }
 
-        if (!response.ok) {
-            throw new Error(`Request failed with status ${response.status}`);
-        }
-
-        const payload = await response.json();
-        const registrations = normalizeRemotePayload(payload);
-        if (!Array.isArray(registrations)) {
-            throw new Error('Unexpected shared registration response');
-        }
-        return limitRegistrations(registrations);
-    } catch (error) {
-        console.warn('Unable to fetch shared registrations. Falling back to local data only.', error);
-        return null;
-    }
-}
-
-async function pushSharedRegistrations(registrations) {
-    if (!sharedRegistrationStoreAvailable) {
-        console.warn('Unable to update shared registrations because the shared store has not returned a valid collection.');
-        return false;
-    }
-    try {
-        const response = await fetch(WCDMR_REGISTRATION_SYNC_URL, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                registrations: limitRegistrations(registrations),
-                updatedAt: new Date().toISOString()
-            })
-        });
-
-        if (!response.ok) {
-            throw new Error(`Request failed with status ${response.status}`);
-        }
-        return true;
-    } catch (error) {
-        console.warn('Unable to update shared registrations right now.', error);
-        return false;
-    }
+async function callAdminRegistrations(method, body) {
+    if (!window.wcdmrSupabase) throw new Error('Supabase admin service is unavailable.');
+    const endpoint = method === 'GET' ? 'admin-registrations?limit=500' : 'admin-registrations';
+    return window.wcdmrSupabase.callFunction(endpoint, {
+        method,
+        body,
+        accessToken: adminAccessToken()
+    });
 }
 
 function amountToDollarsNumber(raw) {
@@ -502,24 +471,60 @@ function formatAmountDisplay(raw) {
 }
 
 async function persistRegistrations(next) {
-    allRegistrations = persistLocalRegistrations(Array.isArray(next) ? next : []);
-    return pushSharedRegistrations(allRegistrations);
+    const changed = next.find((item) => {
+        const previous = allRegistrations.find((existing) => existing.id === item.id);
+        return previous && JSON.stringify(previous) !== JSON.stringify(item);
+    });
+    if (!changed?.id) return false;
+    const paymentVerified = changed.status === 'completed';
+    const pendingPaymentStatus = changed.paymentMethod === 'paypal'
+        ? 'pending_paypal'
+        : 'awaiting_manual_verification';
+    const paymentStatus = paymentVerified
+        ? 'verified'
+        : (changed.paymentStatus === 'verified' ? pendingPaymentStatus : changed.paymentStatus);
+    const changes = {
+        full_name: changed.fullName,
+        email: changed.email,
+        phone: changed.phone,
+        videophone: changed.videophone,
+        full_address: changed.fullAddress,
+        church_name: changed.churchName,
+        bunk_selection: changed.bunkSelection,
+        youth_info: changed.youthInfo,
+        emergency_name: changed.emergencyName,
+        emergency_phone: changed.emergencyPhone,
+        payment_provider_transaction_id: changed.paymentId || null,
+        amount_due: changed.amount,
+        payment_status: paymentStatus,
+        registration_status: paymentVerified ? 'completed' : 'pending'
+    };
+    if (changed.paymentMethod) changes.payment_method = changed.paymentMethod;
+    if (paymentVerified) changes.amount_received = changed.amount;
+    await callAdminRegistrations('PATCH', {
+        id: changed.id,
+        changes
+    });
+    allRegistrations = persistLocalRegistrations(next);
+    return true;
 }
 
 async function loadRegistrations() {
     if (!requireAdminAccess()) return;
-    const sharedRegistrations = await fetchSharedRegistrations();
-    if (Array.isArray(sharedRegistrations)) {
-        sharedRegistrationStoreAvailable = true;
-        allRegistrations = getAuthoritativeRegistrations(sharedRegistrations, []);
+    try {
+        const rows = await callAdminRegistrations('GET');
+        if (!isValidSupabaseRegistrationCollection(rows)) {
+            throw new Error('Supabase returned an invalid registration collection.');
+        }
+        allRegistrations = rows.map(mapSupabaseRegistration);
         persistLocalRegistrations(allRegistrations);
         displayRegistrations();
         updateStats();
         return;
+    } catch (error) {
+        console.warn('Unable to load Supabase registrations.', error);
+        setAdminStatus('Live registration data is unavailable. Local safety copies were not changed.', 'error');
     }
-
-    sharedRegistrationStoreAvailable = false;
-    setAdminStatus('Live sync is unavailable right now. Please refresh when your connection is stable.', 'error');
 }
 
 function getSearchTerm() {
@@ -545,16 +550,6 @@ function renderCurrentRegistrationsView() {
         displayRegistrations();
     }
     updateStats();
-}
-
-async function syncCurrentRegistrations(successMessage, pendingMessage) {
-    const synced = await pushSharedRegistrations(allRegistrations);
-    if (synced) {
-        setAdminStatus(successMessage, 'success');
-    } else {
-        setAdminStatus(pendingMessage, 'error');
-    }
-    return synced;
 }
 
 function displayRegistrations(filtered = null) {
@@ -590,9 +585,9 @@ function displayRegistrations(filtered = null) {
         const checked = key && selectedRegistrationKeys.has(key) ? 'checked' : '';
 
         return `
-                    <tr style="cursor: pointer;" data-registration-key="${reg.timestamp}">
+                    <tr style="cursor: pointer;" data-registration-key="${key}">
                         <td class="registration-select-cell" style="text-align:center;">
-                            <input type="checkbox" ${checked} aria-label="Select registration" data-registration-key="${reg.timestamp}" />
+                            <input type="checkbox" ${checked} aria-label="Select registration" data-registration-key="${key}" />
                         </td>
                         <td>${date}</td>
                         <td><strong>${reg.fullName || `${reg.firstName || ''} ${reg.lastName || ''}`.trim()}</strong></td>
@@ -604,8 +599,8 @@ function displayRegistrations(filtered = null) {
                         <td><span class="status-badge ${statusClass}">${statusText}</span></td>
                         <td class="registration-action-cell">
                             <div class="registration-action-buttons">
-                                <button class="btn btn-outline" style="padding: 0.35rem 0.6rem; font-size: 0.9rem;" data-registration-action="edit" data-registration-key="${reg.timestamp}" type="button">Edit</button>
-                                <button class="btn btn-danger" style="padding: 0.35rem 0.6rem; font-size: 0.9rem;" data-registration-action="delete" data-registration-key="${reg.timestamp}" type="button">Delete</button>
+                                <button class="btn btn-outline" style="padding: 0.35rem 0.6rem; font-size: 0.9rem;" data-registration-action="edit" data-registration-key="${key}" type="button">Edit</button>
+                                <button class="btn btn-danger" style="padding: 0.35rem 0.6rem; font-size: 0.9rem;" data-registration-action="delete" data-registration-key="${key}" type="button">Delete</button>
                             </div>
                         </td>
                     </tr>
@@ -664,14 +659,13 @@ async function deleteSelectedRegistrations() {
         message,
         confirmLabel: count === 1 ? 'Delete registration' : `Delete ${count} registrations`,
         onConfirm: async () => {
+            const selected = allRegistrations.filter((r) => selectedRegistrationKeys.has(registrationKey(r)));
+            await Promise.all(selected.map((registration) => callAdminRegistrations('DELETE', { id: registration.id })));
             const next = allRegistrations.filter((r) => !selectedRegistrationKeys.has(registrationKey(r)));
             selectedRegistrationKeys = new Set();
             allRegistrations = persistLocalRegistrations(next);
             renderCurrentRegistrationsView();
-            await syncCurrentRegistrations(
-                count === 1 ? 'Deleted 1 registration.' : `Deleted ${count} registrations.`,
-                'Deleted locally. Shared sync is still catching up, so refresh again in a moment if needed.'
-            );
+            setAdminStatus(count === 1 ? 'Deleted 1 registration.' : `Deleted ${count} registrations.`, 'success');
         }
     });
 }
@@ -688,21 +682,19 @@ async function deleteRegistration(timestamp) {
         message: `Delete ${label}? This cannot be undone.`,
         confirmLabel: 'Delete registration',
         onConfirm: async () => {
+            await callAdminRegistrations('DELETE', { id: reg.id });
             selectedRegistrationKeys.delete(key);
             const next = allRegistrations.filter((item) => registrationKey(item) !== key);
             allRegistrations = persistLocalRegistrations(next);
             renderCurrentRegistrationsView();
-            await syncCurrentRegistrations(
-                `Deleted ${label}.`,
-                `Deleted ${label} locally. Shared sync is still catching up, so refresh again in a moment if needed.`
-            );
+            setAdminStatus(`Deleted ${label}.`, 'success');
         }
     });
 }
 
-function showDetails(timestamp) {
+function showDetails(key) {
     if (!requireAdminAccess()) return;
-    const reg = allRegistrations.find(r => r.timestamp === timestamp);
+    const reg = allRegistrations.find((registration) => registrationKey(registration) === key);
     if (!reg) return;
 
     const details = `
@@ -904,9 +896,9 @@ function ensureEditDialog() {
     return root;
 }
 
-function editRegistration(timestamp) {
+function editRegistration(key) {
     if (!requireAdminAccess()) return;
-    const idx = allRegistrations.findIndex(r => r.timestamp === timestamp);
+    const idx = allRegistrations.findIndex((registration) => registrationKey(registration) === key);
     if (idx === -1) return;
 
     const reg = allRegistrations[idx];
@@ -957,7 +949,7 @@ function editRegistration(timestamp) {
 
     const saveBtn = dialog.querySelector('#edit-save-btn');
     if (saveBtn) {
-        saveBtn.onclick = () => {
+        saveBtn.onclick = async () => {
             const fullName = String(dialog.querySelector('#edit-fullName')?.value || '').trim();
             const email = String(dialog.querySelector('#edit-email')?.value || '').trim();
             const phone = String(dialog.querySelector('#edit-phone')?.value || '').trim();
@@ -979,6 +971,10 @@ function editRegistration(timestamp) {
             }
             if (!['completed', 'pending'].includes(status)) {
                 setError('Status must be completed or pending.');
+                return;
+            }
+            if (!['paypal', 'zelle', 'money_order'].includes(paymentMethod)) {
+                setError('Payment method must be paypal, zelle, or money_order.');
                 return;
             }
             const amountNum = parseFloat(amountRaw);
@@ -1007,10 +1003,19 @@ function editRegistration(timestamp) {
 
             const next = [...allRegistrations];
             next[idx] = updated;
-            persistRegistrations(next);
-            loadRegistrations();
-            dialog.style.display = 'none';
-            document.body.style.overflow = wcdmrBodyOverflowBeforeEdit;
+            saveBtn.disabled = true;
+            try {
+                await persistRegistrations(next);
+                await loadRegistrations();
+                dialog.style.display = 'none';
+                document.body.style.overflow = wcdmrBodyOverflowBeforeEdit;
+                setAdminStatus('Registration updated.', 'success');
+            } catch (error) {
+                console.error('Unable to update registration.', error);
+                setError('Unable to save this registration. No local data was changed.');
+            } finally {
+                saveBtn.disabled = false;
+            }
         };
     }
 
@@ -1108,62 +1113,18 @@ function exportToJSON() {
 
 function importRegistrationsJSON() {
     if (!requireAdminAccess()) return;
-    const input = document.createElement('input');
-    input.type = 'file';
-    input.accept = 'application/json,.json';
-    input.onchange = async (e) => {
-        const file = e.target.files && e.target.files[0];
-        if (!file) return;
-        let data;
-        try {
-            data = JSON.parse(await file.text());
-        } catch {
-            alert('That file is not valid JSON.');
-            return;
-        }
-        if (!Array.isArray(data)) {
-            alert('The JSON file must be an array of registration objects (same format as Export JSON).');
-            return;
-        }
-        const byTs = new Map(allRegistrations.map((r) => [r.timestamp, r]));
-        for (const row of data) {
-            if (row && row.timestamp) {
-                byTs.set(row.timestamp, row);
-            }
-        }
-        const merged = sortRegistrationsNewestFirst(Array.from(byTs.values()));
-        allRegistrations = persistLocalRegistrations(merged);
-        renderCurrentRegistrationsView();
-        await syncCurrentRegistrations(
-            `Import finished. ${merged.length} synced registration(s) available now.`,
-            'Import finished locally. Shared sync is still catching up, so refresh again in a moment if needed.'
-        );
-    };
-    input.click();
+    setAdminStatus('Imports are disabled until a controlled Supabase migration is available.', 'error');
 }
 
 async function clearAllData() {
     if (!requireAdminAccess()) return;
-    if (confirm('Are you sure you want to delete ALL registration data? This cannot be undone!')) {
-        localStorage.removeItem(WCDMR_REGISTRATION_STORAGE_KEY);
-        allRegistrations = [];
-        selectedRegistrationKeys = new Set();
-        displayRegistrations();
-        updateStats();
-        const synced = await pushSharedRegistrations([]);
-        if (!synced) {
-            setAdminStatus('All local registration data has been cleared. Shared sync is still catching up, so refresh again in a moment if needed.', 'error');
-            return;
-        }
-        setAdminStatus('All registration data has been cleared.', 'success');
-    }
+    setAdminStatus('Bulk clearing is disabled. Delete specific registrations instead.', 'error');
 }
 
 async function refreshData() {
     if (!requireAdminAccess()) return;
     setAdminStatus('Refreshing registration list...', 'info');
     await loadRegistrations();
-    setAdminStatus('Data refreshed.', 'success');
 }
 
 const registrationsTbody = document.getElementById('registrations-tbody');
@@ -1215,4 +1176,7 @@ if (typeof window !== 'undefined') {
     window.deleteRegistration = deleteRegistration;
 }
 
+// Keep any existing browser copy available as a read-only safety fallback until
+// a confirmed, valid Supabase collection replaces it.
+allRegistrations = readLocalRegistrations();
 initializeAdminAccess();

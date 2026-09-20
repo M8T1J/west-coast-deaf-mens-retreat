@@ -377,6 +377,10 @@
                                 </div>
                             </div>
 
+                            <div class="form-group">
+                                <div id="registration-turnstile" aria-label="Registration verification"></div>
+                            </div>
+
                             <div class="form-group hidden" id="zelle-payment-section">
                                 <div class="zelle-payment-section">
                                     <p style="color: var(--text-light); margin-bottom: 1rem; font-weight: 600; text-align: center;">
@@ -819,7 +823,10 @@
     </script>
     <!-- Local scripts prevent stale pinned-commit cache from hiding urgent fixes -->
     <script defer src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
-    <script defer src="registration-handler.js?v=20260603-backup2"></script>
+    <script defer src="supabase-frontend-config.js"></script>
+    <script defer src="supabase-client.js"></script>
+    <script defer src="registration-handler.js"></script>
+    <script defer src="https://challenges.cloudflare.com/turnstile/v0/api.js?onload=wcdmrTurnstileOnload&render=explicit"></script>
     <script defer src="email-service.js?v=20260430-notify1"></script>
     <script defer src="app.js?v=20260430-notify1"></script>
 </body>

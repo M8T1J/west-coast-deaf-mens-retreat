@@ -82,16 +82,20 @@
     <div id="admin-auth-shell" class="admin-auth-shell">
         <div class="admin-auth-card">
             <h1>Admin access required</h1>
-            <p>Enter the WCDMR admin passcode to view or change registrations.</p>
+            <p>Sign in with your authorized WCDMR admin email to view or change registrations.</p>
             <form id="admin-auth-form">
                 <div id="admin-auth-error" class="admin-auth-error" role="alert" aria-live="assertive"></div>
                 <div class="admin-auth-field">
-                    <label for="admin-passcode">Admin passcode</label>
+                    <label for="admin-email">Admin email</label>
+                    <input id="admin-email" class="admin-auth-input" type="email" autocomplete="email" required />
+                </div>
+                <div class="admin-auth-field">
+                    <label for="admin-passcode">Password</label>
                     <input id="admin-passcode" class="admin-auth-input" type="password" autocomplete="current-password" required />
                 </div>
-                <button class="btn btn-primary" type="submit" style="width:100%;">Unlock Admin</button>
+                <button class="btn btn-primary" type="submit" style="width:100%;">Sign In</button>
             </form>
-            <p class="admin-auth-note">This keeps the admin page locked on shared devices until the passcode is entered again.</p>
+            <p class="admin-auth-note">Your session is kept only in this browser tab.</p>
         </div>
     </div>
 
@@ -176,13 +180,8 @@
     </div>
     </div>
 
-    <script>
-    window.WCDMR_ADMIN_ACCESS = {
-        passwordHash: '2be9cf3df704d5573722fd0928e615f0ad2f771671aed3ea7e1b308361495773',
-        sessionTtlMinutes: 480
-    };
-    </script>
-    <script defer src="../admin-app.js?v=20260627-auth2"></script>
+    <script defer src="../supabase-frontend-config.js"></script>
+    <script defer src="../supabase-client.js"></script>
+    <script defer src="../admin-app.js"></script>
 </body>
 </html>
-

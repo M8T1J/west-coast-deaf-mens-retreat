@@ -1,0 +1,8 @@
+[functions.public-register]
+# Public visitors do not have Supabase accounts. The function validates its own
+# input, origin, and Turnstile token before using the server-side database key.
+verify_jwt = false
+
+[functions.admin-registrations]
+# Keep the platform JWT check enabled for every admin request.
+verify_jwt = true
