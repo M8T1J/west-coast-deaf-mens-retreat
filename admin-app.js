@@ -470,19 +470,18 @@ function formatAmountDisplay(raw) {
     return amountToDollarsNumber(raw).toFixed(2);
 }
 
+function formatPaymentStatus(status) {
+    return String(status || 'not started')
+        .replace(/_/g, ' ')
+        .replace(/\b\w/g, (letter) => letter.toUpperCase());
+}
+
 async function persistRegistrations(next) {
     const changed = next.find((item) => {
         const previous = allRegistrations.find((existing) => existing.id === item.id);
         return previous && JSON.stringify(previous) !== JSON.stringify(item);
     });
     if (!changed?.id) return false;
-    const paymentVerified = changed.status === 'completed';
-    const pendingPaymentStatus = changed.paymentMethod === 'paypal'
-        ? 'pending_paypal'
-        : 'awaiting_manual_verification';
-    const paymentStatus = paymentVerified
-        ? 'verified'
-        : (changed.paymentStatus === 'verified' ? pendingPaymentStatus : changed.paymentStatus);
     const changes = {
         full_name: changed.fullName,
         email: changed.email,
@@ -495,18 +494,25 @@ async function persistRegistrations(next) {
         emergency_name: changed.emergencyName,
         emergency_phone: changed.emergencyPhone,
         payment_provider_transaction_id: changed.paymentId || null,
-        amount_due: changed.amount,
-        payment_status: paymentStatus,
-        registration_status: paymentVerified ? 'completed' : 'pending'
+        amount_due: changed.amount
     };
     if (changed.paymentMethod) changes.payment_method = changed.paymentMethod;
-    if (paymentVerified) changes.amount_received = changed.amount;
     await callAdminRegistrations('PATCH', {
         id: changed.id,
         changes
     });
     allRegistrations = persistLocalRegistrations(next);
     return true;
+}
+
+async function verifyManualPayment(registration, amountReceived) {
+    await callAdminRegistrations('PATCH', {
+        id: registration.id,
+        changes: {
+            payment_status: 'verified',
+            amount_received: amountReceived
+        }
+    });
 }
 
 async function loadRegistrations() {
@@ -862,20 +868,23 @@ function ensureEditDialog() {
                     <label><span style="${WCDMR_EDIT_LABEL_STYLE}">Emergency name</span><input id="edit-emergencyName" style="${WCDMR_EDIT_INPUT_STYLE}" /></label>
                     <label><span style="${WCDMR_EDIT_LABEL_STYLE}">Emergency phone</span><input id="edit-emergencyPhone" style="${WCDMR_EDIT_INPUT_STYLE}" /></label>
                     <label><span style="${WCDMR_EDIT_LABEL_STYLE}">Payment ID</span><input id="edit-paymentId" style="${WCDMR_EDIT_INPUT_STYLE}" /></label>
-                    <label><span style="${WCDMR_EDIT_LABEL_STYLE}">Status</span>
-                        <select id="edit-status" style="${WCDMR_EDIT_INPUT_STYLE}">
-                            <option value="completed">completed</option>
-                            <option value="pending">pending</option>
-                        </select>
-                    </label>
+                    <label><span style="${WCDMR_EDIT_LABEL_STYLE}">Registration status</span><input id="edit-registrationStatus" style="${WCDMR_EDIT_INPUT_STYLE};background:#f9fafb;" readonly /></label>
+                    <label><span style="${WCDMR_EDIT_LABEL_STYLE}">Payment status</span><input id="edit-paymentStatus" style="${WCDMR_EDIT_INPUT_STYLE};background:#f9fafb;" readonly /></label>
                     <label><span style="${WCDMR_EDIT_LABEL_STYLE}">Amount (dollars)</span><input id="edit-amount" style="${WCDMR_EDIT_INPUT_STYLE}" inputmode="decimal" /></label>
                     <label><span style="${WCDMR_EDIT_LABEL_STYLE}">Payment method</span><input id="edit-paymentMethod" style="${WCDMR_EDIT_INPUT_STYLE}" placeholder="paypal / zelle / money_order" /></label>
+                </div>
+                <div id="edit-manual-payment-verification" style="display:none; margin-top:1.25rem; padding:1rem; border:1px solid #86efac; border-radius:8px; background:#f0fdf4;">
+                    <div style="font-weight:700; color:#166534;">Verify payment and complete registration</div>
+                    <p style="margin:0.45rem 0 0.85rem; color:#166534; font-size:0.92rem;">Use this only after the organizer has actually received this Zelle or money-order payment. It records payment verification and completes the registration.</p>
+                    <label><span style="${WCDMR_EDIT_LABEL_STYLE}">Amount received (dollars)</span><input id="edit-amountReceived" style="${WCDMR_EDIT_INPUT_STYLE}" inputmode="decimal" /></label>
+                    <label style="display:flex; gap:0.55rem; align-items:flex-start; margin-top:0.85rem; color:#166534; font-size:0.92rem;"><input id="edit-payment-received-confirmation" type="checkbox" style="margin-top:0.2rem;" /> <span>I confirm the organizer actually received this payment.</span></label>
                 </div>
                 <div id="edit-reg-error" style="margin-top: 0.85rem; color: #b91c1c; display:none;"></div>
             </div>
             <div style="padding: 0.9rem 1.25rem; border-top: 1px solid #e5e7eb; display:flex; justify-content:flex-end; gap: 0.75rem;">
                 <button type="button" id="edit-cancel-btn" class="btn btn-outline">Cancel</button>
                 <button id="edit-save-btn" class="btn btn-primary" type="button">Save</button>
+                <button id="edit-verify-payment-btn" class="btn btn-primary" type="button" style="display:none;">Verify payment &amp; complete registration</button>
             </div>
         </div>
     `;
@@ -930,9 +939,11 @@ function editRegistration(key) {
     setVal('#edit-emergencyName', reg.emergencyName || '');
     setVal('#edit-emergencyPhone', reg.emergencyPhone || '');
     setVal('#edit-paymentId', reg.paymentId || '');
-    setVal('#edit-status', (reg.status || 'completed').toLowerCase());
+    setVal('#edit-registrationStatus', (reg.status || 'pending').toLowerCase());
+    setVal('#edit-paymentStatus', formatPaymentStatus(reg.paymentStatus));
     setVal('#edit-amount', reg.amount != null ? String(reg.amount) : '');
     setVal('#edit-paymentMethod', reg.paymentMethod || '');
+    setVal('#edit-amountReceived', reg.amount != null ? String(reg.amount) : '');
 
     const errorEl = dialog.querySelector('#edit-reg-error');
     const setError = (msg) => {
@@ -948,6 +959,13 @@ function editRegistration(key) {
     setError('');
 
     const saveBtn = dialog.querySelector('#edit-save-btn');
+    const verifyPaymentBtn = dialog.querySelector('#edit-verify-payment-btn');
+    const manualPaymentVerification = dialog.querySelector('#edit-manual-payment-verification');
+    const isManualPayment = ['zelle', 'money_order'].includes(String(reg.paymentMethod || '').toLowerCase());
+    const canVerifyManualPayment = isManualPayment && reg.paymentStatus !== 'verified';
+    if (manualPaymentVerification) manualPaymentVerification.style.display = canVerifyManualPayment ? 'block' : 'none';
+    if (verifyPaymentBtn) verifyPaymentBtn.style.display = canVerifyManualPayment ? '' : 'none';
+
     if (saveBtn) {
         saveBtn.onclick = async () => {
             const fullName = String(dialog.querySelector('#edit-fullName')?.value || '').trim();
@@ -961,16 +979,11 @@ function editRegistration(key) {
             const emergencyName = String(dialog.querySelector('#edit-emergencyName')?.value || '').trim();
             const emergencyPhone = String(dialog.querySelector('#edit-emergencyPhone')?.value || '').trim();
             const paymentId = String(dialog.querySelector('#edit-paymentId')?.value || '').trim();
-            const status = String(dialog.querySelector('#edit-status')?.value || '').trim().toLowerCase();
             const amountRaw = String(dialog.querySelector('#edit-amount')?.value || '').trim();
             const paymentMethod = String(dialog.querySelector('#edit-paymentMethod')?.value || '').trim();
 
             if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
                 setError('Email looks invalid.');
-                return;
-            }
-            if (!['completed', 'pending'].includes(status)) {
-                setError('Status must be completed or pending.');
                 return;
             }
             if (!['paypal', 'zelle', 'money_order'].includes(paymentMethod)) {
@@ -996,7 +1009,6 @@ function editRegistration(key) {
                 emergencyName,
                 emergencyPhone,
                 paymentId,
-                status,
                 amount: Number(amountNum.toFixed(2)),
                 paymentMethod
             };
@@ -1015,6 +1027,40 @@ function editRegistration(key) {
                 setError('Unable to save this registration. No local data was changed.');
             } finally {
                 saveBtn.disabled = false;
+            }
+        };
+    }
+
+    if (verifyPaymentBtn) {
+        verifyPaymentBtn.onclick = async () => {
+            const amountReceivedRaw = String(dialog.querySelector('#edit-amountReceived')?.value || '').trim();
+            const paymentReceivedConfirmation = dialog.querySelector('#edit-payment-received-confirmation')?.checked;
+            const amountReceived = parseFloat(amountReceivedRaw);
+
+            if (!canVerifyManualPayment) return;
+            if (!Number.isFinite(amountReceived) || amountReceived <= 0) {
+                setError('Amount received must be a valid dollar amount greater than zero.');
+                return;
+            }
+            if (!paymentReceivedConfirmation) {
+                setError('Confirm that the organizer actually received this payment before completing the registration.');
+                return;
+            }
+
+            verifyPaymentBtn.disabled = true;
+            if (saveBtn) saveBtn.disabled = true;
+            try {
+                await verifyManualPayment(reg, Number(amountReceived.toFixed(2)));
+                await loadRegistrations();
+                dialog.style.display = 'none';
+                document.body.style.overflow = wcdmrBodyOverflowBeforeEdit;
+                setAdminStatus('Payment verified and registration completed.', 'success');
+            } catch (error) {
+                console.error('Unable to verify payment.', error);
+                setError('Unable to verify this payment. The registration was not changed locally.');
+            } finally {
+                verifyPaymentBtn.disabled = false;
+                if (saveBtn) saveBtn.disabled = false;
             }
         };
     }
