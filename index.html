@@ -407,12 +407,12 @@
                                                 <li>Scan the QR code above or send to: <strong id="zelle-email-display">wcdmrpayments@gmail.com</strong></li>
                                                 <li>Send the amount: <strong>$<span id="zelle-amount">245.00</span></strong></li>
                                                 <li>Include your name in the memo/reference</li>
-                                                <li>Click "Complete Registration" below after sending payment</li>
+                                                <li>After sending payment, click "Submit Registration" below. Your registration will be received and payment will await organizer verification.</li>
                                             </ol>
                                         </div>
                                     </div>
                                     <button type="button" class="btn btn-primary btn-large" id="zelle-complete-btn" onclick="handleZellePayment()" style="margin-top: 1.5rem;">
-                                        Complete Registration (Zelle Payment Sent)
+                                        Submit Registration (Zelle Payment Sent)
                                     </button>
                                     <div id="zelle-payment-errors" class="error-message" role="alert"></div>
                                 </div>
@@ -429,10 +429,11 @@
                                             <p><strong>Address:</strong> 7455 Serapis Ave, Pico Rivera CA 90660</p>
                                             <p><strong>Memo:</strong> registeration fee</p>
                                             <p><strong>Amount to mail:</strong> $<span id="money-order-amount">245.00</span></p>
+                                            <p>After mailing your money order, submit your registration. Payment will await organizer verification.</p>
                                         </div>
                                     </div>
                                     <button type="button" class="btn btn-primary btn-large" id="money-order-complete-btn" onclick="handleMoneyOrderPayment()" style="margin-top: 1.5rem;">
-                                        Complete Registration (Money Order)
+                                        Submit Registration (Money Order)
                                     </button>
                                     <div id="money-order-payment-errors" class="error-message" role="alert"></div>
                                 </div>
@@ -447,7 +448,7 @@
 
                     <div id="payment-success" class="payment-success hidden" role="status" aria-live="polite" aria-atomic="true">
                         <div class="success-icon" aria-hidden="true">✓</div>
-                        <h3>Registration Successful!</h3>
+                        <h3 id="payment-success-heading">Registration Successful!</h3>
                         <p id="success-message">Thank you for registering for WCDMR 2026.</p>
                         <p>We look forward to seeing you at Pine Crest Camp!</p>
                         <button class="btn btn-outline" onclick="resetForm()" aria-label="Register another person">Register Another</button>

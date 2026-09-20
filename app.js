@@ -562,7 +562,7 @@ async function handleZellePayment() {
         
         const errorDiv = document.getElementById('zelle-payment-errors');
         if (errorDiv) {
-            errorDiv.textContent = 'Please fill in all required fields correctly before completing registration.';
+            errorDiv.textContent = 'Please fill in all required fields correctly before submitting your registration.';
             errorDiv.style.display = 'block';
         }
         return false;
@@ -651,7 +651,7 @@ async function handleMoneyOrderPayment() {
 
         const errorDiv = document.getElementById('money-order-payment-errors');
         if (errorDiv) {
-            errorDiv.textContent = 'Please fill in all required fields correctly before completing registration.';
+            errorDiv.textContent = 'Please fill in all required fields correctly before submitting your registration.';
             errorDiv.style.display = 'block';
         }
         return false;
@@ -1083,25 +1083,43 @@ function showPaymentSuccess(formData, paymentId, emailSent = null) {
     const paymentForm = document.getElementById('registration-form');
     const paymentSuccess = document.getElementById('payment-success');
     const successMessage = document.getElementById('success-message');
+    const successHeading = document.getElementById('payment-success-heading');
     const amountValue = registrationAmountToDollarsNumber(formData.amount);
     const amountDisplay = amountValue.toFixed(2);
     const paymentMethod = formData.paymentMethod || 'paypal';
+    const isManualPayment = paymentMethod === 'zelle' || paymentMethod === 'money_order';
     
     if (paymentForm) paymentForm.classList.add('hidden');
     if (paymentSuccess) paymentSuccess.classList.remove('hidden');
     
-    let emailStatus = 'Registration completed successfully.';
+    if (successHeading) {
+        successHeading.textContent = isManualPayment
+            ? 'Registration received — payment verification pending'
+            : 'Registration Successful!';
+    }
+
+    let emailStatus = isManualPayment
+        ? 'Your registration was received. Payment is awaiting organizer verification.'
+        : 'Registration completed successfully.';
     if (emailSent === true) {
-        emailStatus = 'A confirmation email with your payment details has been sent to your email address.';
+        emailStatus = isManualPayment
+            ? 'Your registration was received. Payment is awaiting organizer verification. A confirmation email has been sent to your email address.'
+            : 'A confirmation email with your payment details has been sent to your email address.';
     } else if (emailSent === false) {
         const rawEmail = (formData && formData.email) ? String(formData.email) : '';
         const safeEmail = rawEmail.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
         const mailto = encodeURIComponent(`WCDMR registration confirmation — ${paymentId || ''}`);
-        emailStatus = `Registration is complete, but we could not send the confirmation email automatically. Please email <a href="mailto:wcdeafmr@gmail.com?subject=${mailto}">wcdeafmr@gmail.com</a> with your name and reference${safeEmail ? ` (registered as ${safeEmail})` : ''}.`;
+        emailStatus = isManualPayment
+            ? `Your registration was received and payment is awaiting organizer verification, but we could not send the confirmation email automatically. Please email <a href="mailto:wcdeafmr@gmail.com?subject=${mailto}">wcdeafmr@gmail.com</a> with your name and reference${safeEmail ? ` (registered as ${safeEmail})` : ''}.`
+            : `Registration is complete, but we could not send the confirmation email automatically. Please email <a href="mailto:wcdeafmr@gmail.com?subject=${mailto}">wcdeafmr@gmail.com</a> with your name and reference${safeEmail ? ` (registered as ${safeEmail})` : ''}.`;
     } else if (typeof sendConfirmationEmail === 'function') {
-        emailStatus = 'Registration is complete. A confirmation email will be sent if email service is available.';
+        emailStatus = isManualPayment
+            ? 'Your registration was received. Payment is awaiting organizer verification. A confirmation email will be sent if email service is available.'
+            : 'Registration is complete. A confirmation email will be sent if email service is available.';
     } else {
-        emailStatus = 'Registration is complete. Email confirmation is not configured on this page yet.';
+        emailStatus = isManualPayment
+            ? 'Your registration was received. Payment is awaiting organizer verification. Email confirmation is not configured on this page yet.'
+            : 'Registration is complete. Email confirmation is not configured on this page yet.';
     }
 
     let paymentSummary = `Your payment of <strong>$${amountDisplay}</strong> has been processed successfully.`;
@@ -1109,12 +1127,12 @@ function showPaymentSuccess(formData, paymentId, emailSent = null) {
     let announcementSummary = `Registration successful! Payment of $${amountDisplay} processed.`;
 
     if (paymentMethod === 'money_order') {
-        paymentSummary = `Your registration is complete. Please mail your <strong>money order for $${amountDisplay}</strong> to WCDMR.`;
+        paymentSummary = `Your registration was received. Please mail your <strong>money order for $${amountDisplay}</strong> to WCDMR. Payment is awaiting organizer verification.`;
         transactionLabel = 'Registration Reference';
-        announcementSummary = `Registration successful. Please mail your money order payment of $${amountDisplay}.`;
+        announcementSummary = `Registration received. Please mail your money order payment of $${amountDisplay}. Payment is awaiting organizer verification.`;
     } else if (paymentMethod === 'zelle') {
-        paymentSummary = `Your registration is complete. We recorded your <strong>Zelle payment of $${amountDisplay}</strong>.`;
-        announcementSummary = `Registration successful. Zelle payment of $${amountDisplay} recorded.`;
+        paymentSummary = `Your registration was received. Your <strong>Zelle payment of $${amountDisplay}</strong> is awaiting organizer verification.`;
+        announcementSummary = `Registration received. Zelle payment of $${amountDisplay} is awaiting organizer verification.`;
     }
     
     const mailHelp = emailSent === true

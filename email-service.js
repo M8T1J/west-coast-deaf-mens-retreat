@@ -104,12 +104,17 @@ function normalizeAmountDollarsString(formData) {
     return n.toFixed(2);
 }
 
-function getEmailStage(paymentId) {
-    return String(paymentId || '').startsWith('PENDING-') ? 'pending' : 'confirmed';
+function getEmailStage(paymentId, paymentMethod) {
+    const method = String(paymentMethod || '').toLowerCase();
+    const reference = String(paymentId || '');
+    if (method === 'zelle' || method === 'money_order' || reference.startsWith('ZELLE-') || reference.startsWith('MONEY-ORDER-')) {
+        return 'manual_verification_pending';
+    }
+    return reference.startsWith('PENDING-') ? 'pending' : 'confirmed';
 }
 
-function buildEmailContent(paymentId, amount) {
-    const stage = getEmailStage(paymentId);
+function buildEmailContent(paymentId, amount, paymentMethod) {
+    const stage = getEmailStage(paymentId, paymentMethod);
     if (stage === 'pending') {
         return {
             stage,
@@ -127,6 +132,27 @@ function buildEmailContent(paymentId, amount) {
             outro: 'Once payment is received, your registration will be fully confirmed.',
             support:
                 `If you have questions or need help before payment, email ${WCDMR_INFO_EMAIL}.`
+        };
+    }
+
+    if (stage === 'manual_verification_pending') {
+        const paymentLabel = String(paymentMethod || '').toLowerCase() === 'money_order' ? 'money order' : 'Zelle payment';
+        return {
+            stage,
+            subject: 'WCDMR 2026 - Registration received - payment verification pending',
+            heading: 'Registration received - payment verification pending',
+            intro:
+                `We received your registration details. Your ${paymentLabel} is awaiting organizer verification. Your registration will be confirmed only after the organizer verifies payment.`,
+            amountLabel: 'Amount due',
+            referenceLabel: 'Registration reference',
+            nextSteps: [
+                'Keep this email and your payment reference for your records.',
+                'Your payment is awaiting organizer verification.',
+                `Contact the WCDMR team if you have questions about your ${paymentLabel}.`
+            ],
+            outro: 'We will update your registration after organizer verification is complete.',
+            support:
+                `If you have questions, email ${WCDMR_INFO_EMAIL}.`
         };
     }
 
@@ -151,6 +177,10 @@ function buildEmailContent(paymentId, amount) {
 
 function buildAdminNotificationContent(formData, paymentId, amount) {
     const paymentMethod = String(formData.paymentMethod || 'paypal').replace(/_/g, ' ');
+    const isManualPayment = ['zelle', 'money_order'].includes(String(formData.paymentMethod || '').toLowerCase());
+    const registrationSummary = isManualPayment
+        ? 'A new registration was received. Manual payment verification is pending.'
+        : 'A new WCDMR registration has been completed.';
     const fullName = (formData.fullName || `${formData.firstName || ''} ${formData.lastName || ''}`.trim()).trim() || 'Registrant';
     const phone = formData.phone || '-';
     const videophone = formData.videophone || '-';
@@ -163,8 +193,9 @@ function buildAdminNotificationContent(formData, paymentId, amount) {
 
     return {
         subject: `New WCDMR registration: ${fullName}`,
+        registrationSummary,
         text: [
-            'A new WCDMR registration has been completed.',
+            registrationSummary,
             '',
             `Name: ${fullName}`,
             `Email: ${formData.email || '-'}`,
@@ -207,7 +238,7 @@ function buildAdminNotificationContent(formData, paymentId, amount) {
                         <p>${WCDMR_EVENT_NAME}</p>
                     </div>
                     <div class="content">
-                        <p>A new registration has been completed and synced.</p>
+                        <p>${registrationSummary}</p>
                         <div class="info-box">
                             <div class="info-row"><span class="info-label">Name</span> ${fullName}</div>
                             <div class="info-row"><span class="info-label">Email</span> ${formData.email || '-'}</div>
@@ -245,7 +276,7 @@ async function sendConfirmationEmail(formData, paymentId) {
     const fullName = (formData.fullName || `${formData.firstName || ''} ${formData.lastName || ''}`.trim()).trim() || 'Registrant';
     const amount = normalizeAmountDollarsString(formData);
     const senderName = String(EMAILJS_CONFIG.senderName || WCDMR_EMAIL_SENDER_NAME).trim() || WCDMR_EMAIL_SENDER_NAME;
-    const emailContent = buildEmailContent(paymentId, amount);
+    const emailContent = buildEmailContent(paymentId, amount, formData.paymentMethod);
     
     // Get website URL for logo (you'll need to update this with your actual website URL)
     const websiteUrl = typeof window !== 'undefined' ? window.location.origin : 'https://your-website-url.com';
@@ -471,7 +502,7 @@ async function sendAdminRegistrationNotification(formData, paymentId) {
             amount,
             payment_id: paymentId,
             email_heading: 'New registration received',
-            intro_copy: `A new registration has been completed for ${fullName}.`,
+            intro_copy: notification.registrationSummary,
             amount_label: 'Amount',
             reference_label: 'Reference / ID',
             next_step_one: `Phone: ${formData.phone || '-'}`,

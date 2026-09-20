@@ -168,24 +168,22 @@
         height="auto"
       />
       <div class="success-icon" aria-hidden="true">✓</div>
-      <h1>Registration confirmed</h1>
+      <h1>{{email_heading}}</h1>
       <p>West Coast Deaf Men's Retreat 2026</p>
     </div>
 
     <div class="content">
       <p>Dear {{to_name}},</p>
 
-      <p>
-        Thank you for registering for the West Coast Deaf Men's Retreat 2026. We're glad you'll join us for this time of prayer, worship, and fellowship.
-      </p>
+      <p>{{intro_copy}}</p>
 
       <div class="info-box">
         <div class="info-row">
-          <span class="info-label">Amount</span>
+          <span class="info-label">{{amount_label}}</span>
           <span class="amount-value">$ {{amount}}</span>
         </div>
         <div class="info-row">
-          <span class="info-label">Reference / ID</span>
+          <span class="info-label">{{reference_label}}</span>
           <span>{{payment_id}}</span>
         </div>
         <div class="info-row">
@@ -204,9 +202,9 @@
 
       <p><strong>Next steps</strong></p>
       <ul>
-        <li>Complete the RSVP form if you have not already.</li>
-        <li>Keep this email for your records.</li>
-        <li>Follow us for updates.</li>
+        <li>{{next_step_one}}</li>
+        <li>{{next_step_two}}</li>
+        <li>{{next_step_three}}</li>
       </ul>
 
       <div style="text-align: center;">
@@ -220,8 +218,8 @@
         <a href="{{instagram_link}}">Instagram</a>
       </div>
 
-      <p>If you have questions, contact us through the RSVP form or our social channels.</p>
-      <p>We look forward to seeing you at Pine Crest Camp.</p>
+      <p>{{outro_copy}}</p>
+      <p>{{support_copy}}</p>
 
       <p>
         Blessings,<br />
