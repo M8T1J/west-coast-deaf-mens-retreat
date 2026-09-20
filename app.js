@@ -290,6 +290,27 @@ function showPaymentError(errorElementId, message) {
     errorDiv.style.display = 'block';
 }
 
+function registrationSubmissionErrorMessage(error) {
+    const message = String(error?.message || '');
+    if (message.includes('Please complete the registration verification')) {
+        return 'Please complete the Turnstile verification above before submitting your registration.';
+    }
+    if (message.includes('Registration verification failed')) {
+        return 'Registration verification expired or failed. Complete the Turnstile verification again, then resubmit.';
+    }
+    return 'We could not save your registration. Your details are saved in this browser. Please try again.';
+}
+
+async function submitRegistrationToBackend(formData, paymentId) {
+    if (typeof completeRegistration === 'function') {
+        return completeRegistration(formData, paymentId);
+    }
+    if (typeof storeRegistrationData === 'function') {
+        return storeRegistrationData(formData, paymentId);
+    }
+    throw new Error('Registration service is unavailable.');
+}
+
 async function hasDuplicateCompletedRegistration(formData) {
     try {
         if (typeof hasCompletedRegistrationAsync === 'function') {
@@ -598,11 +619,13 @@ async function handleZellePayment() {
         zip: formData.zipCode || ''
     };
 
-    // Complete registration
-    if (typeof completeRegistration === 'function') {
-        await completeRegistration(formData, paymentId);
-    } else if (typeof storeRegistrationData === 'function') {
-        await storeRegistrationData(formData, paymentId);
+    try {
+        await submitRegistrationToBackend(formData, paymentId);
+    } catch (error) {
+        console.error('Unable to save Zelle registration:', error);
+        showPaymentError('zelle-payment-errors', registrationSubmissionErrorMessage(error));
+        announceToScreenReader('Registration was not submitted. Please review the message and try again.');
+        return false;
     }
 
     const emailSent = await sendConfirmationEmailIfAvailable(emailFormData, paymentId);
@@ -681,10 +704,13 @@ async function handleMoneyOrderPayment() {
         zip: formData.zipCode || ''
     };
 
-    if (typeof completeRegistration === 'function') {
-        await completeRegistration(formData, paymentId);
-    } else if (typeof storeRegistrationData === 'function') {
-        await storeRegistrationData(formData, paymentId);
+    try {
+        await submitRegistrationToBackend(formData, paymentId);
+    } catch (error) {
+        console.error('Unable to save money order registration:', error);
+        showPaymentError('money-order-payment-errors', registrationSubmissionErrorMessage(error));
+        announceToScreenReader('Registration was not submitted. Please review the message and try again.');
+        return false;
     }
 
     const emailSent = await sendConfirmationEmailIfAvailable(emailFormData, paymentId);
