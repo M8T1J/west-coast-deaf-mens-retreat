@@ -5,6 +5,7 @@ let allRegistrations = [];
 let selectedRegistrationKeys = new Set();
 let adminStatusTimer = null;
 let wcdmrDeleteDialogState = null;
+let sharedRegistrationStoreAvailable = false;
 const WCDMR_ADMIN_SESSION_KEY = 'wcdmr_admin_session';
 
 function getAdminAccessConfig() {
@@ -429,7 +430,7 @@ function getAuthoritativeRegistrations(sharedRegistrations, localRegistrations) 
 function normalizeRemotePayload(payload) {
     if (Array.isArray(payload)) return payload;
     if (payload && Array.isArray(payload.registrations)) return payload.registrations;
-    return [];
+    return null;
 }
 
 async function fetchSharedRegistrations() {
@@ -440,16 +441,16 @@ async function fetchSharedRegistrations() {
             cache: 'no-store'
         });
 
-        if (response.status === 404) {
-            return [];
-        }
-
         if (!response.ok) {
             throw new Error(`Request failed with status ${response.status}`);
         }
 
         const payload = await response.json();
-        return limitRegistrations(normalizeRemotePayload(payload));
+        const registrations = normalizeRemotePayload(payload);
+        if (!Array.isArray(registrations)) {
+            throw new Error('Unexpected shared registration response');
+        }
+        return limitRegistrations(registrations);
     } catch (error) {
         console.warn('Unable to fetch shared registrations. Falling back to local data only.', error);
         return null;
@@ -457,6 +458,10 @@ async function fetchSharedRegistrations() {
 }
 
 async function pushSharedRegistrations(registrations) {
+    if (!sharedRegistrationStoreAvailable) {
+        console.warn('Unable to update shared registrations because the shared store has not returned a valid collection.');
+        return false;
+    }
     try {
         const response = await fetch(WCDMR_REGISTRATION_SYNC_URL, {
             method: 'POST',
@@ -505,6 +510,7 @@ async function loadRegistrations() {
     if (!requireAdminAccess()) return;
     const sharedRegistrations = await fetchSharedRegistrations();
     if (Array.isArray(sharedRegistrations)) {
+        sharedRegistrationStoreAvailable = true;
         allRegistrations = getAuthoritativeRegistrations(sharedRegistrations, []);
         persistLocalRegistrations(allRegistrations);
         displayRegistrations();
@@ -512,13 +518,7 @@ async function loadRegistrations() {
         return;
     }
 
-    // Admin should reflect the shared source of truth. Showing stale local cache causes
-    // deleted registrations to appear to "come back" on one device but not another.
-    allRegistrations = [];
-    persistLocalRegistrations([]);
-    selectedRegistrationKeys = new Set();
-    displayRegistrations([]);
-    updateStats();
+    sharedRegistrationStoreAvailable = false;
     setAdminStatus('Live sync is unavailable right now. Please refresh when your connection is stable.', 'error');
 }
 

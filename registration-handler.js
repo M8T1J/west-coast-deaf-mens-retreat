@@ -114,7 +114,11 @@ function getAuthoritativeRegistrations(sharedRegistrations, localRegistrations) 
         persistLocalRegistrations(authoritative);
         return authoritative;
     }
-    return mergeRegistrations(localRegistrations);
+    // An unavailable shared store must never replace the local history. Re-save the
+    // merged local sources so a previously preserved backup is usable again.
+    const preserved = mergeRegistrations(localRegistrations);
+    persistLocalRegistrations(preserved);
+    return preserved;
 }
 
 let registrationSyncPromise = null;
@@ -125,7 +129,10 @@ async function syncAuthoritativeRegistrations(force = false) {
     }
 
     registrationSyncPromise = (async () => {
-        const localRegistrations = readLocalRegistrations();
+        const localRegistrations = mergeRegistrations(
+            readLocalRegistrations(),
+            readLocalRegistrationBackup()
+        );
         const sharedRegistrations = await fetchSharedRegistrations();
         return getAuthoritativeRegistrations(sharedRegistrations, localRegistrations);
     })();
@@ -144,7 +151,7 @@ function normalizeIdentityPart(value) {
 function normalizeRemotePayload(payload) {
     if (Array.isArray(payload)) return payload;
     if (payload && Array.isArray(payload.registrations)) return payload.registrations;
-    return [];
+    return null;
 }
 
 async function fetchSharedRegistrations() {
@@ -155,16 +162,16 @@ async function fetchSharedRegistrations() {
             cache: 'no-store'
         });
 
-        if (response.status === 404) {
-            return [];
-        }
-
         if (!response.ok) {
             throw new Error(`Request failed with status ${response.status}`);
         }
 
         const payload = await response.json();
-        return limitRegistrations(normalizeRemotePayload(payload));
+        const registrations = normalizeRemotePayload(payload);
+        if (!Array.isArray(registrations)) {
+            throw new Error('Unexpected shared registration response');
+        }
+        return limitRegistrations(registrations);
     } catch (error) {
         console.warn('Unable to fetch shared registrations. Falling back to local data only.', error);
         return null;
@@ -287,7 +294,10 @@ async function storeRegistrationData(formData, paymentId) {
         status: paymentId === 'PENDING' ? 'pending' : 'completed'
     };
 
-    const localRegistrations = readLocalRegistrations();
+    const localRegistrations = mergeRegistrations(
+        readLocalRegistrations(),
+        readLocalRegistrationBackup()
+    );
     const remoteRegistrations = await fetchSharedRegistrations();
     const existingRegistrations = getAuthoritativeRegistrations(remoteRegistrations, localRegistrations);
 
@@ -309,10 +319,14 @@ async function storeRegistrationData(formData, paymentId) {
     const mergedRegistrations = mergeRegistrations(existingRegistrations);
     persistLocalRegistrations(mergedRegistrations);
 
-    const synced = await pushSharedRegistrations(mergedRegistrations);
-    if (!synced) {
-        // Local backup already saved above, so this preserves registrations even during outages.
-        console.warn('Saved registration locally; shared sync will retry on the next update.');
+    if (Array.isArray(remoteRegistrations)) {
+        const synced = await pushSharedRegistrations(mergedRegistrations);
+        if (!synced) {
+            // Local backup already saved above, so this preserves registrations even during outages.
+            console.warn('Saved registration locally; shared sync will retry on the next update.');
+        }
+    } else {
+        console.warn('Saved registration locally; shared sync was skipped because the remote data is unavailable.');
     }
 
     console.log('Registration data saved', registration);
