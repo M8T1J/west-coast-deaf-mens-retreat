@@ -6,3 +6,8 @@ verify_jwt = false
 [functions.admin-registrations]
 # Keep the platform JWT check enabled for every admin request.
 verify_jwt = true
+
+[functions.send-registration-email]
+# Server-only worker: the handler requires its dedicated bearer secret before
+# any database access. Ordinary user JWTs and public API keys do not authorize it.
+verify_jwt = false
