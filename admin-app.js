@@ -2,6 +2,8 @@
  * WCDMR registration admin with shared cross-device sync.
  */
 let allRegistrations = [];
+let registrationLoadState = 'unavailable';
+let registrationLoadGeneration = 0;
 let selectedRegistrationKeys = new Set();
 let adminStatusTimer = null;
 let wcdmrDeleteDialogState = null;
@@ -186,6 +188,9 @@ async function sha256Hex(value) {
 
 function lockAdminAccess(message = '') {
     clearAdminSession();
+    registrationLoadGeneration++;
+    registrationLoadState = 'unavailable';
+    updateRegistrationControls();
     allRegistrations = [];
     selectedRegistrationKeys = new Set();
     displayRegistrations([]);
@@ -228,7 +233,6 @@ async function handleAdminAuthSubmit(event) {
     }
 
     setAdminAuthError('');
-    allRegistrations = readLocalRegistrations();
     setAdminShellVisibility(true);
     await loadRegistrations();
 }
@@ -255,6 +259,29 @@ async function initializeAdminAccess() {
     lockAdminAccess('');
 }
 
+function requireLiveRegistrations() {
+    if (!requireAdminAccess()) return false;
+    if (registrationLoadState === 'ready') return true;
+    setAdminStatus('Registrations unavailable. Refresh to load live data before continuing.', 'error');
+    return false;
+}
+
+function updateRegistrationControls() {
+    const disabled = registrationLoadState !== 'ready';
+    document.querySelectorAll('[data-requires-live-registrations], #search-box, #select-all-registrations, #edit-save-btn, #edit-verify-payment-btn, #delete-confirm-submit').forEach((control) => {
+        control.disabled = disabled;
+    });
+    if (disabled) {
+        const edit = document.getElementById('edit-registration-overlay');
+        if (edit && edit.style.display === 'block') {
+            edit.style.display = 'none';
+            document.body.style.overflow = wcdmrBodyOverflowBeforeEdit;
+        }
+        closeDeleteConfirmDialog();
+    }
+    setDeleteSelectedEnabled();
+}
+
 function registrationKey(reg) {
     return String(reg?.id || reg?.timestamp || '');
 }
@@ -262,7 +289,7 @@ function registrationKey(reg) {
 function setDeleteSelectedEnabled() {
     const btn = document.getElementById('delete-selected-btn');
     if (!btn) return;
-    btn.disabled = selectedRegistrationKeys.size === 0;
+    btn.disabled = registrationLoadState !== 'ready' || selectedRegistrationKeys.size === 0;
     btn.textContent = selectedRegistrationKeys.size === 0
         ? 'Delete Selected'
         : `Delete Selected (${selectedRegistrationKeys.size})`;
@@ -442,6 +469,7 @@ function isValidSupabaseRegistrationCollection(rows) {
 function adminAccessToken() { return readAdminSession()?.access_token || ''; }
 
 async function callAdminRegistrations(method, body) {
+    if (method !== 'GET' && !requireLiveRegistrations()) throw new Error('Live registrations unavailable.');
     if (!window.wcdmrSupabase) throw new Error('Supabase admin service is unavailable.');
     const endpoint = method === 'GET' ? 'admin-registrations?limit=500' : 'admin-registrations';
     return window.wcdmrSupabase.callFunction(endpoint, {
@@ -501,7 +529,6 @@ async function persistRegistrations(next) {
         id: changed.id,
         changes
     });
-    allRegistrations = persistLocalRegistrations(next);
     return true;
 }
 
@@ -516,20 +543,39 @@ async function verifyManualPayment(registration, amountReceived) {
 }
 
 async function loadRegistrations() {
-    if (!requireAdminAccess()) return;
+    if (!requireAdminAccess()) return false;
+    const generation = ++registrationLoadGeneration;
+    registrationLoadState = 'loading';
+    allRegistrations = [];
+    selectedRegistrationKeys.clear();
+    updateRegistrationControls();
+    displayRegistrations();
+    updateStats();
+    setAdminStatus('Loading live registrations...', 'info');
     try {
         const rows = await callAdminRegistrations('GET');
+        if (generation !== registrationLoadGeneration) return false;
+        if (!requireAdminAccess()) return false;
         if (!isValidSupabaseRegistrationCollection(rows)) {
             throw new Error('Supabase returned an invalid registration collection.');
         }
         allRegistrations = rows.map(mapSupabaseRegistration);
-        persistLocalRegistrations(allRegistrations);
+        registrationLoadState = 'ready';
+        // Keep browser safety backups intact; live Admin data stays in memory.
+        updateRegistrationControls();
+        renderCurrentRegistrationsView();
+        setAdminStatus('');
+        return true;
+    } catch (error) {
+        if (generation !== registrationLoadGeneration) return false;
+        registrationLoadState = 'unavailable';
+        allRegistrations = [];
+        updateRegistrationControls();
         displayRegistrations();
         updateStats();
-        return;
-    } catch (error) {
         console.warn('Unable to load Supabase registrations.', error);
-        setAdminStatus('Live registration data is unavailable. Local safety copies were not changed.', 'error');
+        setAdminStatus('Registrations unavailable. Unable to load live data. Please try Refresh. Local safety backups are preserved.', 'error');
+        return false;
     }
 }
 
@@ -560,6 +606,12 @@ function renderCurrentRegistrationsView() {
 
 function displayRegistrations(filtered = null) {
     const tbody = document.getElementById('registrations-tbody');
+    if (registrationLoadState !== 'ready') {
+        tbody.innerHTML = `<tr><td colspan="10" class="empty-state"><p>${registrationLoadState === 'loading' ? 'Loading live registrations...' : 'Registrations unavailable'}</p></td></tr>`;
+        setSelectAllCheckboxState([]);
+        setDeleteSelectedEnabled();
+        return;
+    }
     const registrations = filtered || allRegistrations;
 
     if (registrations.length === 0) {
@@ -650,7 +702,7 @@ function toggleSelectAllRegistrations(event) {
 }
 
 async function deleteSelectedRegistrations() {
-    if (!requireAdminAccess()) return;
+    if (!requireLiveRegistrations()) return;
     const count = selectedRegistrationKeys.size;
     if (count === 0) {
         alert('Select at least one registration to delete.');
@@ -667,17 +719,14 @@ async function deleteSelectedRegistrations() {
         onConfirm: async () => {
             const selected = allRegistrations.filter((r) => selectedRegistrationKeys.has(registrationKey(r)));
             await Promise.all(selected.map((registration) => callAdminRegistrations('DELETE', { id: registration.id })));
-            const next = allRegistrations.filter((r) => !selectedRegistrationKeys.has(registrationKey(r)));
-            selectedRegistrationKeys = new Set();
-            allRegistrations = persistLocalRegistrations(next);
-            renderCurrentRegistrationsView();
-            setAdminStatus(count === 1 ? 'Deleted 1 registration.' : `Deleted ${count} registrations.`, 'success');
+            const loaded = await loadRegistrations();
+            if (loaded) setAdminStatus(count === 1 ? 'Deleted 1 registration.' : `Deleted ${count} registrations.`, 'success');
         }
     });
 }
 
 async function deleteRegistration(timestamp) {
-    if (!requireAdminAccess()) return;
+    if (!requireLiveRegistrations()) return;
     const key = String(timestamp || '');
     if (!key) return;
     const reg = allRegistrations.find((item) => registrationKey(item) === key);
@@ -689,17 +738,14 @@ async function deleteRegistration(timestamp) {
         confirmLabel: 'Delete registration',
         onConfirm: async () => {
             await callAdminRegistrations('DELETE', { id: reg.id });
-            selectedRegistrationKeys.delete(key);
-            const next = allRegistrations.filter((item) => registrationKey(item) !== key);
-            allRegistrations = persistLocalRegistrations(next);
-            renderCurrentRegistrationsView();
-            setAdminStatus(`Deleted ${label}.`, 'success');
+            const loaded = await loadRegistrations();
+            if (loaded) setAdminStatus(`Deleted ${label}.`, 'success');
         }
     });
 }
 
 function showDetails(key) {
-    if (!requireAdminAccess()) return;
+    if (!requireLiveRegistrations()) return;
     const reg = allRegistrations.find((registration) => registrationKey(registration) === key);
     if (!reg) return;
 
@@ -807,7 +853,7 @@ function closeDeleteConfirmDialog() {
     const submitBtn = root.querySelector('#delete-confirm-submit');
     const cancelBtn = root.querySelector('#delete-confirm-cancel');
     if (submitBtn) {
-        submitBtn.disabled = false;
+        submitBtn.disabled = registrationLoadState !== 'ready';
         submitBtn.textContent = 'Delete';
     }
     if (cancelBtn) cancelBtn.disabled = false;
@@ -906,7 +952,7 @@ function ensureEditDialog() {
 }
 
 function editRegistration(key) {
-    if (!requireAdminAccess()) return;
+    if (!requireLiveRegistrations()) return;
     const idx = allRegistrations.findIndex((registration) => registrationKey(registration) === key);
     if (idx === -1) return;
 
@@ -968,6 +1014,7 @@ function editRegistration(key) {
 
     if (saveBtn) {
         saveBtn.onclick = async () => {
+            if (!requireLiveRegistrations()) return;
             const fullName = String(dialog.querySelector('#edit-fullName')?.value || '').trim();
             const email = String(dialog.querySelector('#edit-email')?.value || '').trim();
             const phone = String(dialog.querySelector('#edit-phone')?.value || '').trim();
@@ -1018,21 +1065,22 @@ function editRegistration(key) {
             saveBtn.disabled = true;
             try {
                 await persistRegistrations(next);
-                await loadRegistrations();
+                const loaded = await loadRegistrations();
                 dialog.style.display = 'none';
                 document.body.style.overflow = wcdmrBodyOverflowBeforeEdit;
-                setAdminStatus('Registration updated.', 'success');
+                if (loaded) setAdminStatus('Registration updated.', 'success');
             } catch (error) {
                 console.error('Unable to update registration.', error);
                 setError('Unable to save this registration. No local data was changed.');
             } finally {
-                saveBtn.disabled = false;
+                saveBtn.disabled = registrationLoadState !== 'ready';
             }
         };
     }
 
     if (verifyPaymentBtn) {
         verifyPaymentBtn.onclick = async () => {
+            if (!requireLiveRegistrations()) return;
             const amountReceivedRaw = String(dialog.querySelector('#edit-amountReceived')?.value || '').trim();
             const paymentReceivedConfirmation = dialog.querySelector('#edit-payment-received-confirmation')?.checked;
             const amountReceived = parseFloat(amountReceivedRaw);
@@ -1051,16 +1099,16 @@ function editRegistration(key) {
             if (saveBtn) saveBtn.disabled = true;
             try {
                 await verifyManualPayment(reg, Number(amountReceived.toFixed(2)));
-                await loadRegistrations();
+                const loaded = await loadRegistrations();
                 dialog.style.display = 'none';
                 document.body.style.overflow = wcdmrBodyOverflowBeforeEdit;
-                setAdminStatus('Payment verified and registration completed.', 'success');
+                if (loaded) setAdminStatus('Payment verified and registration completed.', 'success');
             } catch (error) {
                 console.error('Unable to verify payment.', error);
                 setError('Unable to verify this payment. The registration was not changed locally.');
             } finally {
-                verifyPaymentBtn.disabled = false;
-                if (saveBtn) saveBtn.disabled = false;
+                verifyPaymentBtn.disabled = registrationLoadState !== 'ready';
+                if (saveBtn) saveBtn.disabled = registrationLoadState !== 'ready';
             }
         };
     }
@@ -1074,6 +1122,12 @@ function editRegistration(key) {
 }
 
 function updateStats() {
+    if (registrationLoadState !== 'ready') {
+        ['total-count', 'completed-count', 'pending-count', 'total-revenue'].forEach((id) => {
+            document.getElementById(id).textContent = '—';
+        });
+        return;
+    }
     const total = allRegistrations.length;
     const completed = allRegistrations.filter(r => r.status === 'completed').length;
     const pending = allRegistrations.filter(r => r.status === 'pending').length;
@@ -1098,7 +1152,7 @@ document.getElementById('search-box').addEventListener('input', (e) => {
 });
 
 function exportToCSV() {
-    if (!requireAdminAccess()) return;
+    if (!requireLiveRegistrations()) return;
     if (allRegistrations.length === 0) {
         alert('No registrations to export');
         return;
@@ -1141,7 +1195,7 @@ function exportToCSV() {
 }
 
 function exportToJSON() {
-    if (!requireAdminAccess()) return;
+    if (!requireLiveRegistrations()) return;
     if (allRegistrations.length === 0) {
         alert('No registrations to export');
         return;
@@ -1222,7 +1276,6 @@ if (typeof window !== 'undefined') {
     window.deleteRegistration = deleteRegistration;
 }
 
-// Keep any existing browser copy available as a read-only safety fallback until
-// a confirmed, valid Supabase collection replaces it.
-allRegistrations = readLocalRegistrations();
+// Browser safety copies are never a source for the live Admin dashboard.
+updateRegistrationControls();
 initializeAdminAccess();

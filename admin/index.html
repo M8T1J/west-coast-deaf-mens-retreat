@@ -114,19 +114,19 @@
         <div class="admin-stats" id="stats">
             <div class="stat-card">
                 <h3>Total Registrations</h3>
-                <div class="number" id="total-count">0</div>
+                <div class="number" id="total-count">—</div>
             </div>
             <div class="stat-card">
                 <h3>Completed</h3>
-                <div class="number" id="completed-count">0</div>
+                <div class="number" id="completed-count">—</div>
             </div>
             <div class="stat-card">
                 <h3>Pending</h3>
-                <div class="number" id="pending-count">0</div>
+                <div class="number" id="pending-count">—</div>
             </div>
             <div class="stat-card">
                 <h3>Total Revenue</h3>
-                <div class="number" id="total-revenue">$0.00</div>
+                <div class="number" id="total-revenue">—</div>
             </div>
         </div>
 
@@ -136,8 +136,8 @@
                 <input type="text" id="search-box" class="search-box" placeholder="Search by name, email, or church...">
                 <button class="btn btn-primary" onclick="refreshData()">Refresh</button>
                 <button class="btn btn-outline" id="admin-logout-btn" type="button">Lock Admin</button>
-                <button class="btn btn-outline" onclick="exportToCSV()">Export to CSV</button>
-                <button class="btn btn-outline" onclick="exportToJSON()">Export to JSON</button>
+                <button class="btn btn-outline" data-requires-live-registrations disabled onclick="exportToCSV()">Export to CSV</button>
+                <button class="btn btn-outline" data-requires-live-registrations disabled onclick="exportToJSON()">Export to JSON</button>
                 <button class="btn btn-outline" onclick="importRegistrationsJSON()">Import JSON</button>
                 <button class="btn btn-danger" id="delete-selected-btn" onclick="deleteSelectedRegistrations()" disabled>Delete Selected</button>
                 <button class="btn btn-danger" onclick="clearAllData()">Clear All Data</button>
