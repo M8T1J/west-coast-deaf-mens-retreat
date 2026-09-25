@@ -134,6 +134,7 @@
             <div id="admin-status" class="admin-status" role="status" aria-live="polite"></div>
             <div class="controls">
                 <input type="text" id="search-box" class="search-box" placeholder="Search by name, email, or church...">
+                <button class="btn btn-primary" data-requires-live-registrations disabled onclick="openAddRegistration()">Add Registration</button>
                 <button class="btn btn-primary" onclick="refreshData()">Refresh</button>
                 <button class="btn btn-outline" id="admin-logout-btn" type="button">Lock Admin</button>
                 <button class="btn btn-outline" data-requires-live-registrations disabled onclick="exportToCSV()">Export to CSV</button>
@@ -170,7 +171,7 @@
                         <tr>
                             <td colspan="10" class="empty-state">
                                 <div class="empty-state-icon">📋</div>
-                                <p>No data in this browser yet.</p>
+                                <p>Loading live registrations...</p>
                             </td>
                         </tr>
                     </tbody>
@@ -179,6 +180,52 @@
         </div>
     </div>
     </div>
+
+    <dialog id="add-registration-dialog" aria-labelledby="add-registration-title" style="width:min(720px,calc(100% - 2rem));max-height:90vh;overflow:auto;border:0;border-radius:12px;padding:1.5rem;">
+        <form id="add-registration-form" onsubmit="submitAddRegistration(event)">
+            <h2 id="add-registration-title">Add Registration</h2>
+            <p>Create a pending registration. This does not verify payment or send a confirmation email.</p>
+            <fieldset id="add-registration-fields" style="border:0;padding:0;">
+                <div class="admin-create-fields">
+                    <label>First name<input name="first_name" type="text" maxlength="100" required></label>
+                    <label>Last name<input name="last_name" type="text" maxlength="100" required></label>
+                    <label>Email<input name="email" type="email" maxlength="254" required></label>
+                    <label>Phone (text)<input name="phone" type="tel" maxlength="50" required></label>
+                    <label>Videophone (optional)<input name="videophone" type="tel" maxlength="50"></label>
+                    <label>Street address<input name="address_line" type="text" maxlength="200" required></label>
+                    <label>City<input name="city" type="text" maxlength="100" required></label>
+                    <label>ZIP code<input name="zip_code" type="text" maxlength="30" required></label>
+                    <label>Church<input name="church_name" type="text" maxlength="200" required></label>
+                    <label>Emergency contact name<input name="emergency_name" type="text" maxlength="200" required></label>
+                    <label>Emergency contact phone<input name="emergency_phone" type="tel" maxlength="50" required></label>
+                    <label>Amount due (USD)<input name="amount_due" type="number" min="0.01" max="100000" step="0.01" value="245.00" required></label>
+                    <label>Payment method<select name="payment_method" required><option value="">Choose a method</option><option value="zelle">Zelle</option><option value="money_order">Money order</option><option value="paypal">PayPal</option></select></label>
+                </div>
+                <fieldset style="margin:1rem 0;"><legend>Bunk preferences (optional)</legend>
+                    <label><input type="checkbox" name="bunk_selection" value="Upper"> Upper</label>
+                    <label><input type="checkbox" name="bunk_selection" value="Bottom"> Bottom</label>
+                    <label><input type="checkbox" name="bunk_selection" value="CPAP"> CPAP outlet</label>
+                    <label><input type="checkbox" name="bunk_selection" value="Medication"> Medication fridge</label>
+                </fieldset>
+                <label>Youth information (optional)<textarea name="youth_info" maxlength="2000" rows="3" style="width:100%;"></textarea></label>
+                <p>Payment starts as not started, with $0 received. Verify received Zelle or money-order payments afterward using Edit. PayPal verification is not available in the current Admin form.</p>
+                <label><input name="admin_reviewed" type="checkbox" required> I reviewed the registration details and amount due. This is an admin review, not the registrant's payment acknowledgement.</label>
+            </fieldset>
+            <p id="add-registration-message" role="status" aria-live="polite"></p>
+            <button id="add-registration-new" type="button" class="btn btn-outline" onclick="newAdminRegistrationDraft()">Start new registration</button>
+            <button id="add-registration-existing" type="button" class="btn btn-outline" hidden onclick="reviewExistingRegistration()">Review existing registration</button>
+            <div style="display:flex;gap:0.75rem;justify-content:flex-end;margin-top:1rem;">
+                <button id="add-registration-cancel" type="button" class="btn btn-outline" onclick="closeAddRegistration()">Close</button>
+                <button id="add-registration-submit" type="submit" class="btn btn-primary">Create pending registration</button>
+            </div>
+        </form>
+    </dialog>
+    <style>
+        #add-registration-dialog::backdrop { background:rgba(0,0,0,0.5); }
+        .admin-create-fields { display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:1rem; }
+        .admin-create-fields label { display:flex;flex-direction:column;gap:0.3rem; }
+        .admin-create-fields input, .admin-create-fields select { padding:0.65rem;border:1px solid #cbd5e1;border-radius:6px; }
+    </style>
 
     <script defer src="../supabase-frontend-config.js"></script>
     <script defer src="../supabase-client.js"></script>

@@ -1,4 +1,5 @@
 import { corsHeaders, jsonResponse, readJson } from "../_shared/http.ts";
+import { createRegistration } from "./create-registration.ts";
 import { sendVerificationEmail } from "./verification-email.ts";
 
 type Dependencies = {
@@ -128,6 +129,9 @@ export function createHandler(deps: Dependencies) {
       if (!body) {
         return jsonResponse({ error: "Invalid JSON body" }, 400, origin);
       }
+      if (request.method === "POST") {
+        return await createRegistration(body, user.id, origin, databaseRequest);
+      }
       const id = typeof body.id === "string" ? body.id : "";
       if (!id) {
         return jsonResponse(
@@ -178,6 +182,42 @@ export function createHandler(deps: Dependencies) {
       const current = (await currentResponse.json())[0];
       if (!current) {
         return jsonResponse({ error: "Registration not found" }, 404, origin);
+      }
+
+      if (
+        "first_name" in changes || "last_name" in changes ||
+        "full_name" in changes
+      ) {
+        // Require structured names for name changes; do not guess how to split a full name.
+        const first = changes.first_name ?? current.first_name;
+        const last = changes.last_name ?? current.last_name;
+        if (
+          typeof first !== "string" || !first.trim() ||
+          first.trim().length > 100 ||
+          typeof last !== "string" || !last.trim() ||
+          last.trim().length > 100 ||
+          ("full_name" in changes &&
+            !("first_name" in changes || "last_name" in changes))
+        ) {
+          return jsonResponse(
+            { error: "Edit first and last name separately" },
+            400,
+            origin,
+          );
+        }
+        changes.first_name = first.trim().replace(/\s+/g, " ");
+        changes.last_name = last.trim().replace(/\s+/g, " ");
+        changes.full_name = `${changes.first_name} ${changes.last_name}`;
+      }
+      if ("email" in changes) {
+        if (
+          typeof changes.email !== "string" ||
+          changes.email.trim().length > 254 ||
+          !/^[^\s@,;<>]+@[^\s@,;<>]+\.[^\s@,;<>]+$/.test(changes.email.trim())
+        ) {
+          return jsonResponse({ error: "Email is invalid" }, 400, origin);
+        }
+        changes.email = changes.email.trim().toLowerCase();
       }
 
       const proposedPaymentStatus = String(
@@ -247,7 +287,20 @@ export function createHandler(deps: Dependencies) {
           body: JSON.stringify(changes),
         },
       );
-      if (!response.ok) throw new Error("Registration update failed");
+      if (!response.ok) {
+        const failure = await response.json().catch(() => null);
+        if (failure?.code === "23505") {
+          return jsonResponse(
+            {
+              error: "This change conflicts with an existing registration.",
+              code: "duplicate_registration",
+            },
+            409,
+            origin,
+          );
+        }
+        throw new Error("Registration update failed");
+      }
       const rows = await response.json();
       if (!rows.length) {
         return jsonResponse(
@@ -268,8 +321,11 @@ export function createHandler(deps: Dependencies) {
         await sendVerificationEmail(id, deps);
       }
       return jsonResponse(rows[0], 200, origin);
-    } catch (error) {
-      deps.log("Admin registration request failed", error);
+    } catch {
+      deps.log("Admin registration request failed", {
+        code: "admin_request_failed",
+        method: request.method,
+      });
       return jsonResponse(
         { error: "Unable to process registration request" },
         500,

@@ -245,8 +245,8 @@ Deno.test("ordinary edits and repeated verification do not query outbox or dispa
   for (
     const [old, changes] of [
       [saved, { payment_status: "verified" }],
-      [saved, { full_name: "Updated" }],
-      [current, { full_name: "Updated" }],
+      [saved, { phone: "Updated" }],
+      [current, { phone: "Updated" }],
       [current, { payment_status: "refunded" }],
     ] as const
   ) {

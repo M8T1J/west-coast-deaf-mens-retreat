@@ -112,7 +112,16 @@ Deno.serve(async (request) => {
       headers: { Prefer: "resolution=ignore-duplicates,return=representation" },
       body: JSON.stringify(registration),
     });
-    if (!insert.ok) throw new Error("Registration insert failed");
+    if (!insert.ok) {
+      const failure = await insert.json().catch(() => null);
+      if (failure?.code === "23505") {
+        return jsonResponse({
+          error: "A registration with these details already exists. Contact the organizer for help.",
+          code: "duplicate_registration",
+        }, 409, origin);
+      }
+      throw new Error("Registration insert failed");
+    }
     const created = await insert.json();
     const row = created[0] || await (async () => {
       const existing = await databaseRequest(

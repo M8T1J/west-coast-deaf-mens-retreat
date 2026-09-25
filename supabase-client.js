@@ -17,7 +17,13 @@
             body: options.body == null ? undefined : JSON.stringify(options.body)
         });
         const payload = await response.json().catch(() => null);
-        if (!response.ok) throw new Error(payload?.error || `Request failed with status ${response.status}`);
+        if (!response.ok) {
+            const error = new Error(payload?.error || `Request failed with status ${response.status}`);
+            error.status = response.status;
+            if (['invalid_details', 'duplicate_registration', 'request_conflict', 'registration_deleted'].includes(payload?.code)) error.code = payload.code;
+            if (typeof payload?.existing_id === 'string' && /^[0-9a-f-]{36}$/i.test(payload.existing_id)) error.existingId = payload.existing_id;
+            throw error;
+        }
         return payload;
     }
 

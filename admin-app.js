@@ -4,6 +4,7 @@
 let allRegistrations = [];
 let registrationLoadState = 'unavailable';
 let registrationLoadGeneration = 0;
+let adminCreateAttempt = null;
 let selectedRegistrationKeys = new Set();
 let adminStatusTimer = null;
 let wcdmrDeleteDialogState = null;
@@ -188,6 +189,10 @@ async function sha256Hex(value) {
 
 function lockAdminAccess(message = '') {
     clearAdminSession();
+    adminCreateAttempt = null;
+    const createDialog = document.getElementById('add-registration-dialog');
+    if (createDialog?.open) createDialog.close();
+    document.getElementById('add-registration-form')?.reset();
     registrationLoadGeneration++;
     registrationLoadState = 'unavailable';
     updateRegistrationControls();
@@ -279,6 +284,7 @@ function updateRegistrationControls() {
         }
         closeDeleteConfirmDialog();
     }
+    updateAdminCreateControls();
     setDeleteSelectedEnabled();
 }
 
@@ -511,7 +517,8 @@ async function persistRegistrations(next) {
     });
     if (!changed?.id) return false;
     const changes = {
-        full_name: changed.fullName,
+        first_name: changed.firstName,
+        last_name: changed.lastName,
         email: changed.email,
         phone: changed.phone,
         videophone: changed.videophone,
@@ -648,12 +655,12 @@ function displayRegistrations(filtered = null) {
                             <input type="checkbox" ${checked} aria-label="Select registration" data-registration-key="${key}" />
                         </td>
                         <td>${date}</td>
-                        <td><strong>${reg.fullName || `${reg.firstName || ''} ${reg.lastName || ''}`.trim()}</strong></td>
-                        <td>${reg.email}</td>
-                        <td>${reg.phone || '-'}</td>
-                        <td>${reg.churchName || '-'}</td>
+                        <td><strong>${escapeHtml(reg.fullName || `${reg.firstName || ''} ${reg.lastName || ''}`.trim())}</strong></td>
+                        <td>${escapeHtml(reg.email)}</td>
+                        <td>${escapeHtml(reg.phone || '-')}</td>
+                        <td>${escapeHtml(reg.churchName || '-')}</td>
                         <td>$${amount}</td>
-                        <td><code style="font-size: 0.75rem;">${reg.paymentId || '-'}</code></td>
+                        <td><code style="font-size: 0.75rem;">${escapeHtml(reg.paymentId || '-')}</code></td>
                         <td><span class="status-badge ${statusClass}">${statusText}</span></td>
                         <td class="registration-action-cell">
                             <div class="registration-action-buttons">
@@ -903,7 +910,8 @@ function ensureEditDialog() {
             </div>
             <div style="padding: 1rem 1.25rem; max-height: min(75vh, 900px); overflow-y: auto;">
                 <div style="display:grid; grid-template-columns: 1fr; gap: 0.9rem;">
-                    <label><span style="${WCDMR_EDIT_LABEL_STYLE}">Full name</span><input id="edit-fullName" style="${WCDMR_EDIT_INPUT_STYLE}" autocomplete="name" /></label>
+                    <label><span style="${WCDMR_EDIT_LABEL_STYLE}">First name</span><input id="edit-firstName" style="${WCDMR_EDIT_INPUT_STYLE}" maxlength="100" autocomplete="given-name" /></label>
+                    <label><span style="${WCDMR_EDIT_LABEL_STYLE}">Last name</span><input id="edit-lastName" style="${WCDMR_EDIT_INPUT_STYLE}" maxlength="100" autocomplete="family-name" /></label>
                     <label><span style="${WCDMR_EDIT_LABEL_STYLE}">Email</span><input id="edit-email" style="${WCDMR_EDIT_INPUT_STYLE}" autocomplete="email" /></label>
                     <label><span style="${WCDMR_EDIT_LABEL_STYLE}">Phone</span><input id="edit-phone" style="${WCDMR_EDIT_INPUT_STYLE}" autocomplete="tel" /></label>
                     <label><span style="${WCDMR_EDIT_LABEL_STYLE}">Videophone</span><input id="edit-videophone" style="${WCDMR_EDIT_INPUT_STYLE}" /></label>
@@ -974,7 +982,8 @@ function editRegistration(key) {
         el.value = value ?? '';
     };
 
-    setVal('#edit-fullName', reg.fullName || `${reg.firstName || ''} ${reg.lastName || ''}`.trim());
+    setVal('#edit-firstName', reg.firstName || '');
+    setVal('#edit-lastName', reg.lastName || '');
     setVal('#edit-email', reg.email || '');
     setVal('#edit-phone', reg.phone || '');
     setVal('#edit-videophone', reg.videophone || '');
@@ -1015,7 +1024,10 @@ function editRegistration(key) {
     if (saveBtn) {
         saveBtn.onclick = async () => {
             if (!requireLiveRegistrations()) return;
-            const fullName = String(dialog.querySelector('#edit-fullName')?.value || '').trim();
+            const firstName = String(dialog.querySelector('#edit-firstName')?.value || '').trim();
+            const lastName = String(dialog.querySelector('#edit-lastName')?.value || '').trim();
+            if (!firstName || !lastName) { setError('First and last name are required.'); return; }
+            const fullName = `${firstName} ${lastName}`;
             const email = String(dialog.querySelector('#edit-email')?.value || '').trim();
             const phone = String(dialog.querySelector('#edit-phone')?.value || '').trim();
             const videophone = String(dialog.querySelector('#edit-videophone')?.value || '').trim();
@@ -1045,6 +1057,8 @@ function editRegistration(key) {
 
             const updated = {
                 ...reg,
+                firstName,
+                lastName,
                 fullName,
                 email,
                 phone,
@@ -1071,7 +1085,7 @@ function editRegistration(key) {
                 if (loaded) setAdminStatus('Registration updated.', 'success');
             } catch (error) {
                 console.error('Unable to update registration.', error);
-                setError('Unable to save this registration. No local data was changed.');
+                setError(error.code === 'duplicate_registration' ? 'An existing registration conflicts with this change. No changes were saved.' : 'Unable to save this registration. No local data was changed.');
             } finally {
                 saveBtn.disabled = registrationLoadState !== 'ready';
             }
@@ -1114,7 +1128,7 @@ function editRegistration(key) {
     }
 
     try {
-        const fn = dialog.querySelector('#edit-fullName');
+        const fn = dialog.querySelector('#edit-firstName');
         if (fn) fn.focus();
     } catch {
         /* ignore */
@@ -1274,6 +1288,124 @@ if (typeof window !== 'undefined') {
     window.toggleSelectAllRegistrations = toggleSelectAllRegistrations;
     window.deleteSelectedRegistrations = deleteSelectedRegistrations;
     window.deleteRegistration = deleteRegistration;
+}
+
+// An uncertain create keeps its exact payload and UUID in memory. Never generate
+// another UUID on a network retry, and never use registration safety backups.
+function updateAdminCreateControls() {
+    const unavailable = registrationLoadState !== 'ready';
+    const attempt = adminCreateAttempt;
+    const fields = document.getElementById('add-registration-fields');
+    const submit = document.getElementById('add-registration-submit');
+    const newDraft = document.getElementById('add-registration-new');
+    if (newDraft) newDraft.disabled = unavailable || Boolean(attempt?.busy || (attempt?.body && !attempt.blocked && !attempt.saved));
+    if (fields) fields.disabled = unavailable || Boolean(attempt?.body);
+    if (submit) {
+        submit.disabled = unavailable || Boolean(attempt?.busy || attempt?.blocked || attempt?.saved);
+        submit.textContent = attempt?.busy ? 'Saving...' : attempt?.body ? 'Retry same submission' : 'Create pending registration';
+    }
+}
+
+function openAddRegistration() {
+    if (!requireLiveRegistrations()) return;
+    const dialog = document.getElementById('add-registration-dialog');
+    if (!dialog) return;
+    if (!adminCreateAttempt || adminCreateAttempt.saved) {
+        adminCreateAttempt = { body: null, busy: false, saved: false, blocked: false, existingId: null };
+        document.getElementById('add-registration-form').reset();
+        document.getElementById('add-registration-message').textContent = '';
+        document.getElementById('add-registration-existing').hidden = true;
+    }
+    updateAdminCreateControls();
+    if (!dialog.open) dialog.showModal();
+}
+
+function closeAddRegistration() {
+    // Closing/reopening preserves an uncertain submission for safe retry.
+    document.getElementById('add-registration-dialog')?.close();
+}
+
+async function submitAddRegistration(event) {
+    event?.preventDefault();
+    if (!requireLiveRegistrations() || !adminCreateAttempt || adminCreateAttempt.busy || adminCreateAttempt.blocked || adminCreateAttempt.saved) return;
+    const attempt = adminCreateAttempt;
+    const form = document.getElementById('add-registration-form');
+    const message = document.getElementById('add-registration-message');
+    if (!attempt.body) {
+        if (!form.reportValidity()) return;
+        const values = new FormData(form);
+        const registration = {};
+        for (const key of ['first_name', 'last_name', 'email', 'phone', 'videophone', 'address_line', 'city', 'zip_code', 'church_name', 'emergency_name', 'emergency_phone', 'youth_info', 'payment_method']) {
+            registration[key] = String(values.get(key) || '').trim();
+        }
+        registration.bunk_selection = values.getAll('bunk_selection').join(', ');
+        registration.amount_due = Number(values.get('amount_due'));
+        if (!values.has('admin_reviewed') || !Number.isFinite(registration.amount_due) || registration.amount_due <= 0 || registration.amount_due > 100000 || Number(registration.amount_due.toFixed(2)) !== registration.amount_due) {
+            message.textContent = 'Review the details and enter a valid amount due with at most two decimal places.';
+            return;
+        }
+        if (!globalThis.crypto?.randomUUID) {
+            message.textContent = 'A secure browser connection is required. Open Admin over HTTPS.';
+            return;
+        }
+        attempt.body = { request_id: globalThis.crypto.randomUUID(), registration, admin_reviewed: true };
+    }
+    attempt.busy = true;
+    const token = adminAccessToken();
+    message.textContent = 'Saving pending registration...';
+    updateAdminCreateControls();
+    try {
+        const result = await callAdminRegistrations('POST', attempt.body);
+        if (adminCreateAttempt !== attempt || token !== adminAccessToken()) return;
+        if (!['created', 'replayed'].includes(result?.status) || !/^[0-9a-f-]{36}$/i.test(result?.id || '')) throw new Error('Unconfirmed creation');
+        attempt.saved = true;
+        attempt.registrationId = result.id;
+        const savedMessage = result.status === 'created' ? 'Pending registration created.' : 'Registration was already saved; no duplicate was created.';
+        message.textContent = `${savedMessage} Reference: ${result.id}. No payment was verified by this action.`;
+        closeAddRegistration();
+        const loaded = await loadRegistrations();
+        if (adminCreateAttempt !== attempt || token !== adminAccessToken()) return;
+        setAdminStatus(loaded ? savedMessage : `${savedMessage} Registrations unavailable: refresh the live list. Do not submit again. Reference: ${result.id}.`, loaded ? 'success' : 'error');
+    } catch (error) {
+        if (adminCreateAttempt !== attempt || token !== adminAccessToken()) return;
+        if (error.code === 'invalid_details') {
+            attempt.body = null; // Explicit validation rejection: no insert occurred.
+            message.textContent = 'Check the required fields, lengths, email, payment method, and amount due. Nothing was created.';
+        } else if (error.code === 'duplicate_registration') {
+            attempt.blocked = true;
+            attempt.existingId = error.existingId || null;
+            message.textContent = 'An active registration already exists for this name and email. Review it instead of creating another.';
+            document.getElementById('add-registration-existing').hidden = !attempt.existingId;
+        } else if (['request_conflict', 'registration_deleted'].includes(error.code)) {
+            attempt.blocked = true;
+            message.textContent = error.code === 'registration_deleted' ? 'This submission was previously saved and then deleted. It was not recreated. Refresh and review before starting another registration.' : 'This request ID was already used for different details. Refresh and review existing registrations before starting another submission.';
+        } else {
+            message.textContent = 'Save not confirmed. Keep this form and retry the same submission; it will not create a second copy. Do not change details or start another submission until resolved.';
+        }
+    } finally {
+        attempt.busy = false;
+        if (adminCreateAttempt === attempt) updateAdminCreateControls();
+    }
+}
+
+async function reviewExistingRegistration() {
+    const attempt = adminCreateAttempt;
+    if (!attempt?.existingId || !requireLiveRegistrations()) return;
+    closeAddRegistration();
+    if (!await loadRegistrations() || adminCreateAttempt !== attempt) return;
+    if (allRegistrations.some((row) => row.id === attempt.existingId)) {
+        editRegistration(attempt.existingId);
+    } else {
+        setAdminStatus(`Existing registration is not in the latest 500 rows. Reference: ${attempt.existingId}. No duplicate was created.`, 'error');
+    }
+}
+
+// Only discard a known rejected submission or an unsent draft. An uncertain
+// request remains available through Close / Add Registration until resolved.
+function newAdminRegistrationDraft() {
+    if (adminCreateAttempt?.busy || (adminCreateAttempt?.body && !adminCreateAttempt.blocked && !adminCreateAttempt.saved)) return;
+    adminCreateAttempt = null;
+    openAddRegistration();
 }
 
 // Browser safety copies are never a source for the live Admin dashboard.

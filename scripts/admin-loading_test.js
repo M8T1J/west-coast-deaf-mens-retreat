@@ -10,23 +10,32 @@ const row = {
     registration_status: 'pending', payment_status: 'not_started', amount_due: 245,
 };
 
-function harness(api) {
+export function harness(api) {
     const elements = new Map();
     const element = (id) => {
         if (!elements.has(id)) elements.set(id, {
             style: {}, value: '', textContent: '', innerHTML: '', disabled: false,
-            addEventListener() {}, focus() {},
+            addEventListener() {}, focus() {}, reset() {}, reportValidity() { return true; },
+            open: false, showModal() { this.open = true; }, close() { this.open = false; },
         });
         return elements.get(id);
     };
-    const controls = ['search-box', 'select-all-registrations', 'export-csv', 'export-json', 'edit-save-btn', 'edit-verify-payment-btn', 'delete-confirm-submit'];
+    const controls = ['search-box', 'select-all-registrations', 'export-csv', 'export-json', 'edit-save-btn', 'edit-verify-payment-btn', 'delete-confirm-submit', 'add-registration-button'];
     const backup = JSON.stringify([{ fullName: 'Local Only', email: 'local@example.com' }]);
     let storedBackup = backup;
     let writes = 0;
     let session = JSON.stringify({ access_token: 'synthetic-token', expires_at: Date.now() / 1000 + 3600 });
     const calls = [];
+    let uuidCounter = 0;
     const context = vm.createContext({
         console: { warn() {}, error() {} },
+        crypto: { randomUUID: () => `11111111-1111-4111-8111-${String(++uuidCounter).padStart(12, '0')}` },
+        FormData: class {
+            constructor(form) { this.values = form.values || {}; }
+            get(key) { return this.values[key] ?? null; }
+            getAll(key) { return Array.isArray(this.values[key]) ? this.values[key] : []; }
+            has(key) { return key in this.values; }
+        },
         setTimeout: () => 1, clearTimeout() {},
         document: {
             body: { style: {} },

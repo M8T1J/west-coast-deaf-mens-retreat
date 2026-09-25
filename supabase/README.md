@@ -21,7 +21,7 @@ environment values. Never add their values to this repository or browser code.
 - `public-register` accepts a validated, Turnstile-protected public
   registration and creates one pending record idempotently.
 - `admin-registrations` requires a signed-in Supabase user whose email is in
-  `ADMIN_EMAILS`; it lists, edits, verifies, and soft-deletes registrations.
+  `ADMIN_EMAILS`; it lists, creates, edits, verifies, and soft-deletes registrations.
   After a successful new payment verification, it automatically invokes
   `send-registration-email` server-to-server for that registration's outbox row.
 - `send-registration-email` is a server-only, one-job outbox worker. Its source
@@ -29,6 +29,91 @@ environment values. Never add their values to this repository or browser code.
 
 The frontend uses these functions as its registration source of truth. Do not
 put function secrets, database credentials, or access tokens in this directory.
+
+## Admin creation (local implementation; migration required)
+
+`20260922000000_add_admin_registration_creation.sql` adds the server-only
+`admin_registration_requests` receipt table, `admin_create_registration` RPC,
+and `registrations_active_identity_unique` index. Adding these files does not
+apply the migration or deploy any function. The migration depends on the existing
+registrations schema inspected on September 22, 2026. It performs no backfill,
+merging, deletion, or payment verification. If conflicting active identities
+exist when the index is created, the transaction fails without changing them.
+
+Admin POST requests use `{ request_id, registration, admin_reviewed: true }`.
+The registration object accepts first/last name, email, phone, optional videophone,
+address line/city/ZIP, church, emergency name/phone, optional bunk/youth information,
+payment method, and amount due. Other fields, including payment/registration
+status, received amount, source, and audit identities, are rejected. The Edge
+Function checks the same origin, JWT-authenticated user, and `ADMIN_EMAILS` as
+existing admin actions. Only the server supplies the actor UUID to the RPC.
+
+The RPC inserts `source = admin_import`, `registration_status = pending`,
+`payment_status = not_started`, `amount_received = 0`, and `currency = USD`.
+Verification, claimed-payment, and provider fields are null. It derives full
+name/address, records the creator and immutable original-payload fingerprint,
+and stores the admin-review acknowledgement separately from the registrant's
+`payment_understanding` (which remains false). Creation does not call the email
+worker or create a payment-verification outbox event. Received Zelle/money-order
+payments can be explicitly verified afterward using the existing Edit action;
+the current UI does not expose PayPal verification.
+
+The existing unique `client_registration_id` is reused for request UUIDs.
+Same-UUID retries are serialized within the database transaction. Matching
+creator/payload retries return the original registration without updating it;
+changed payloads or actors conflict. A retry for a subsequently deleted record
+returns a conflict instead of recreating it. The receipt and registration commit
+atomically. Only the service role has RPC execution and receipt SELECT/INSERT;
+receipt UPDATE/DELETE and browser access are not granted.
+
+The active identity index applies to public and admin inserts, identity edits,
+and undeletes. It compares trimmed lowercase email and lowercase first/last
+names with collapsed/trimmed whitespace, only where `deleted_at IS NULL`.
+Cancelled, non-deleted records still reserve the identity. Different names may
+share an email. Name edits now require structured first/last names and derive
+`full_name`, so the index inputs cannot silently diverge from the displayed name.
+This rule is for the current retreat; a future multi-event schema must include
+event identity. It cannot identify one person using different names/emails.
+
+The Add Registration form is enabled only after a successful live list load.
+It keeps an uncertain submission's exact payload/UUID in memory across retries
+and Close/reopen, freezes its fields, and blocks double submits. Definitive
+validation failures permit corrections; conflicts require review. Refreshing
+or closing the browser loses the in-memory draft; the database identity index
+still prevents an exact active duplicate. No create draft or registration is
+read from or written to browser storage. Confirmed creation is followed by a
+live reload; a failed reload keeps the dashboard unavailable and explicitly
+reports that creation already succeeded. A duplicate can be reviewed in the
+current 500-row list, or its reference is shown if it is outside that window.
+
+`public-register` still requires successful Turnstile verification before any
+insert. Its only behavior change is a sanitized HTTP 409 for database uniqueness
+conflicts. No public bypass or direct browser database permission is added.
+
+### Offline creation tests
+
+Backend tests mock all I/O, including Turnstile and email. Frontend tests run the
+actual admin script against synthetic DOM/storage/API adapters. No server or
+live function is started. Run from the repository root:
+
+```sh
+deno test --node-modules-dir=none --no-lock --cached-only --deny-net --deny-env --deny-read --deny-write --deny-run --deny-ffi supabase/functions/admin-registrations/ supabase/functions/public-register/index_test.ts
+deno test --node-modules-dir=none --no-lock --cached-only --allow-read=admin-app.js --deny-net --deny-env --deny-write --deny-run --deny-ffi scripts/admin-create_test.js
+# Shared client error metadata (also offline):
+deno test --node-modules-dir=none --no-lock --cached-only --allow-read=supabase-client.js --deny-net --deny-env --deny-write --deny-run --deny-ffi scripts/supabase-client_test.js
+```
+
+The SQL test uses an already-installed local PGlite module (validated with
+0.3.14), a synthetic baseline in `supabase/tests/admin-create-fixture.sql`, and
+an in-memory database. It exercises migration constraints, ACLs, rollback,
+idempotency, duplicate inserts/edits/restoration, and outbox isolation. It never
+connects to Supabase. PGlite serializes its client queries, so queued simultaneous
+calls do not substitute for an independent-connection PostgreSQL race test.
+Do not run the fixture against a project database.
+
+```sh
+deno run --unstable-bare-node-builtins --node-modules-dir=none --no-lock --cached-only --allow-read --allow-env --deny-net --deny-write --deny-run --deny-ffi scripts/admin-create-sql_test.mjs file:///absolute/path/to/pglite/dist/index.js
+```
 
 ## Registration email worker
 
