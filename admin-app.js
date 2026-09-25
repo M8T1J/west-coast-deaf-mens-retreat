@@ -5,7 +5,6 @@ let allRegistrations = [];
 let registrationLoadState = 'unavailable';
 let registrationLoadGeneration = 0;
 let adminCreateAttempt = null;
-let selectedRegistrationKeys = new Set();
 let adminStatusTimer = null;
 let wcdmrDeleteDialogState = null;
 const WCDMR_ADMIN_SESSION_KEY = 'wcdmr_admin_session';
@@ -197,7 +196,6 @@ function lockAdminAccess(message = '') {
     registrationLoadState = 'unavailable';
     updateRegistrationControls();
     allRegistrations = [];
-    selectedRegistrationKeys = new Set();
     displayRegistrations([]);
     updateStats();
     setAdminStatus('');
@@ -273,7 +271,7 @@ function requireLiveRegistrations() {
 
 function updateRegistrationControls() {
     const disabled = registrationLoadState !== 'ready';
-    document.querySelectorAll('[data-requires-live-registrations], #search-box, #select-all-registrations, #edit-save-btn, #edit-verify-payment-btn, #delete-confirm-submit').forEach((control) => {
+    document.querySelectorAll('[data-requires-live-registrations], #search-box, #edit-save-btn, #edit-verify-payment-btn, #delete-confirm-submit').forEach((control) => {
         control.disabled = disabled;
     });
     if (disabled) {
@@ -285,20 +283,10 @@ function updateRegistrationControls() {
         closeDeleteConfirmDialog();
     }
     updateAdminCreateControls();
-    setDeleteSelectedEnabled();
 }
 
 function registrationKey(reg) {
     return String(reg?.id || reg?.timestamp || '');
-}
-
-function setDeleteSelectedEnabled() {
-    const btn = document.getElementById('delete-selected-btn');
-    if (!btn) return;
-    btn.disabled = registrationLoadState !== 'ready' || selectedRegistrationKeys.size === 0;
-    btn.textContent = selectedRegistrationKeys.size === 0
-        ? 'Delete Selected'
-        : `Delete Selected (${selectedRegistrationKeys.size})`;
 }
 
 function setAdminStatus(message, tone = 'info') {
@@ -326,26 +314,6 @@ function setAdminStatus(message, tone = 'info') {
             adminStatusTimer = null;
         }, 5000);
     }
-}
-
-function getVisibleRegistrationKeys() {
-    return Array.from(document.querySelectorAll('#registrations-tbody input[type="checkbox"][data-registration-key]'))
-        .map((cb) => {
-            return String(cb.getAttribute('data-registration-key') || '');
-        })
-        .filter(Boolean);
-}
-
-function setSelectAllCheckboxState(registrations) {
-    const selectAll = document.getElementById('select-all-registrations');
-    if (!selectAll) return;
-    const rows = Array.isArray(registrations) ? registrations : [];
-    const keys = rows.map(registrationKey).filter(Boolean);
-    const selectedCount = keys.filter((k) => selectedRegistrationKeys.has(k)).length;
-    const allCount = keys.length;
-    selectAll.checked = allCount > 0 && selectedCount === allCount;
-    // Indeterminate when some (but not all) visible rows are selected.
-    selectAll.indeterminate = selectedCount > 0 && selectedCount < allCount;
 }
 
 const WCDMR_DEFAULT_FEE_ANCHOR = 245;
@@ -554,7 +522,6 @@ async function loadRegistrations() {
     const generation = ++registrationLoadGeneration;
     registrationLoadState = 'loading';
     allRegistrations = [];
-    selectedRegistrationKeys.clear();
     updateRegistrationControls();
     displayRegistrations();
     updateStats();
@@ -614,9 +581,7 @@ function renderCurrentRegistrationsView() {
 function displayRegistrations(filtered = null) {
     const tbody = document.getElementById('registrations-tbody');
     if (registrationLoadState !== 'ready') {
-        tbody.innerHTML = `<tr><td colspan="10" class="empty-state"><p>${registrationLoadState === 'loading' ? 'Loading live registrations...' : 'Registrations unavailable'}</p></td></tr>`;
-        setSelectAllCheckboxState([]);
-        setDeleteSelectedEnabled();
+        tbody.innerHTML = `<tr><td colspan="9" class="empty-state"><p>${registrationLoadState === 'loading' ? 'Loading live registrations...' : 'Registrations unavailable'}</p></td></tr>`;
         return;
     }
     const registrations = filtered || allRegistrations;
@@ -624,14 +589,12 @@ function displayRegistrations(filtered = null) {
     if (registrations.length === 0) {
         tbody.innerHTML = `
                     <tr>
-                        <td colspan="10" class="empty-state">
+                        <td colspan="9" class="empty-state">
                             <div class="empty-state-icon">📋</div>
                             <p>No synced registrations found yet.</p>
                         </td>
                     </tr>
                 `;
-        setSelectAllCheckboxState(registrations);
-        setDeleteSelectedEnabled();
         return;
     }
 
@@ -647,13 +610,9 @@ function displayRegistrations(filtered = null) {
         const statusClass = reg.status === 'completed' ? 'status-completed' : 'status-pending';
         const statusText = reg.status === 'completed' ? 'Completed' : 'Pending';
         const key = registrationKey(reg);
-        const checked = key && selectedRegistrationKeys.has(key) ? 'checked' : '';
 
         return `
                     <tr style="cursor: pointer;" data-registration-key="${key}">
-                        <td class="registration-select-cell" style="text-align:center;">
-                            <input type="checkbox" ${checked} aria-label="Select registration" data-registration-key="${key}" />
-                        </td>
                         <td>${date}</td>
                         <td><strong>${escapeHtml(reg.fullName || `${reg.firstName || ''} ${reg.lastName || ''}`.trim())}</strong></td>
                         <td>${escapeHtml(reg.email)}</td>
@@ -671,65 +630,6 @@ function displayRegistrations(filtered = null) {
                     </tr>
                 `;
     }).join('');
-
-    setSelectAllCheckboxState(registrations);
-    setDeleteSelectedEnabled();
-}
-
-function toggleRegistrationSelected(event, timestamp) {
-    if (event && typeof event.stopPropagation === 'function') event.stopPropagation();
-    const key = String(timestamp || '');
-    if (!key) return;
-    if (selectedRegistrationKeys.has(key)) {
-        selectedRegistrationKeys.delete(key);
-    } else {
-        selectedRegistrationKeys.add(key);
-    }
-    // Update header checkbox state based on what's currently rendered.
-    const visibleKeys = getVisibleRegistrationKeys();
-    setSelectAllCheckboxState(visibleKeys.map((t) => ({ timestamp: t })));
-    setDeleteSelectedEnabled();
-}
-
-function toggleSelectAllRegistrations(event) {
-    if (event && typeof event.stopPropagation === 'function') event.stopPropagation();
-    const checkbox = event && event.target ? event.target : document.getElementById('select-all-registrations');
-    const checked = Boolean(checkbox && checkbox.checked);
-    const visibleTimestamps = getVisibleRegistrationKeys();
-
-    if (checked) {
-        visibleTimestamps.forEach((ts) => selectedRegistrationKeys.add(String(ts)));
-    } else {
-        visibleTimestamps.forEach((ts) => selectedRegistrationKeys.delete(String(ts)));
-    }
-
-    // Re-render current view to update row checkboxes.
-    // If search filter is active, keep it applied by re-triggering the input handler.
-    renderCurrentRegistrationsView();
-}
-
-async function deleteSelectedRegistrations() {
-    if (!requireLiveRegistrations()) return;
-    const count = selectedRegistrationKeys.size;
-    if (count === 0) {
-        alert('Select at least one registration to delete.');
-        return;
-    }
-    const message =
-        count === 1
-            ? 'Delete 1 selected registration? This cannot be undone.'
-            : `Delete ${count} selected registrations? This cannot be undone.`;
-    openDeleteConfirmDialog({
-        title: count === 1 ? 'Delete selected registration?' : `Delete ${count} registrations?`,
-        message,
-        confirmLabel: count === 1 ? 'Delete registration' : `Delete ${count} registrations`,
-        onConfirm: async () => {
-            const selected = allRegistrations.filter((r) => selectedRegistrationKeys.has(registrationKey(r)));
-            await Promise.all(selected.map((registration) => callAdminRegistrations('DELETE', { id: registration.id })));
-            const loaded = await loadRegistrations();
-            if (loaded) setAdminStatus(count === 1 ? 'Deleted 1 registration.' : `Deleted ${count} registrations.`, 'success');
-        }
-    });
 }
 
 async function deleteRegistration(timestamp) {
@@ -1230,11 +1130,6 @@ function importRegistrationsJSON() {
     setAdminStatus('Imports are disabled until a controlled Supabase migration is available.', 'error');
 }
 
-async function clearAllData() {
-    if (!requireAdminAccess()) return;
-    setAdminStatus('Bulk clearing is disabled. Delete specific registrations instead.', 'error');
-}
-
 async function refreshData() {
     if (!requireAdminAccess()) return;
     setAdminStatus('Refreshing registration list...', 'info');
@@ -1244,12 +1139,6 @@ async function refreshData() {
 const registrationsTbody = document.getElementById('registrations-tbody');
 if (registrationsTbody) {
     registrationsTbody.addEventListener('click', (event) => {
-        const checkbox = event.target.closest('input[type="checkbox"][data-registration-key]');
-        if (checkbox) {
-            event.stopPropagation();
-            return;
-        }
-
         const actionButton = event.target.closest('button[data-registration-action][data-registration-key]');
         if (actionButton) {
             event.stopPropagation();
@@ -1272,21 +1161,10 @@ if (registrationsTbody) {
             }
         }
     });
-
-    registrationsTbody.addEventListener('change', (event) => {
-        const checkbox = event.target.closest('input[type="checkbox"][data-registration-key]');
-        if (!checkbox) return;
-        const key = String(checkbox.getAttribute('data-registration-key') || '');
-        if (!key) return;
-        toggleRegistrationSelected(event, key);
-    });
 }
 
 if (typeof window !== 'undefined') {
     window.importRegistrationsJSON = importRegistrationsJSON;
-    window.toggleRegistrationSelected = toggleRegistrationSelected;
-    window.toggleSelectAllRegistrations = toggleSelectAllRegistrations;
-    window.deleteSelectedRegistrations = deleteSelectedRegistrations;
     window.deleteRegistration = deleteRegistration;
 }
 

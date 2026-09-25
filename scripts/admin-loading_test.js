@@ -15,12 +15,15 @@ export function harness(api) {
     const element = (id) => {
         if (!elements.has(id)) elements.set(id, {
             style: {}, value: '', textContent: '', innerHTML: '', disabled: false,
-            addEventListener() {}, focus() {}, reset() {}, reportValidity() { return true; },
+            listeners: {},
+            addEventListener(type, handler) { this.listeners[type] = handler; },
+            querySelector(selector) { return element(selector.slice(1)); },
+            setAttribute() {}, focus() {}, reset() {}, reportValidity() { return true; },
             open: false, showModal() { this.open = true; }, close() { this.open = false; },
         });
         return elements.get(id);
     };
-    const controls = ['search-box', 'select-all-registrations', 'export-csv', 'export-json', 'edit-save-btn', 'edit-verify-payment-btn', 'delete-confirm-submit', 'add-registration-button'];
+    const controls = ['search-box', 'export-csv', 'export-json', 'edit-save-btn', 'edit-verify-payment-btn', 'delete-confirm-submit', 'add-registration-button'];
     const backup = JSON.stringify([{ fullName: 'Local Only', email: 'local@example.com' }]);
     let storedBackup = backup;
     let writes = 0;
@@ -38,8 +41,9 @@ export function harness(api) {
         },
         setTimeout: () => 1, clearTimeout() {},
         document: {
-            body: { style: {} },
-            getElementById(id) { return id.endsWith('-overlay') ? null : element(id); },
+            body: { style: {}, appendChild(node) { elements.set(node.id, node); } },
+            createElement() { return { ...element('created-dialog'), listeners: {} }; },
+            getElementById(id) { return id.endsWith('-overlay') ? elements.get(id) || null : element(id); },
             querySelectorAll(selector) { return selector.startsWith('[data-requires') ? controls.map(element) : []; },
         },
         sessionStorage: { getItem: () => session, setItem: (_key, value) => { session = value; }, removeItem: () => { session = null; } },
@@ -69,7 +73,7 @@ Deno.test('failed initial load never exposes backup; actions are blocked; login 
     const h = harness(async () => { throw new Error('offline'); });
     await h.context.startup;
     assertUnavailable(h);
-    await h.run("exportToCSV(); exportToJSON(); editRegistration('synthetic-id'); deleteRegistration('synthetic-id'); deleteSelectedRegistrations();");
+    await h.run("exportToCSV(); exportToJSON(); editRegistration('synthetic-id'); deleteRegistration('synthetic-id');");
     await assert.rejects(h.run("verifyManualPayment({id:'synthetic-id'}, 245)"), /unavailable/);
     h.run('renderCurrentRegistrationsView()');
     assertUnavailable(h);
