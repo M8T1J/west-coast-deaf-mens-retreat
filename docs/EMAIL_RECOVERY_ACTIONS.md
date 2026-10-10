@@ -79,6 +79,45 @@ other usage; provider quotas and Supabase availability still apply.
 
 ## Local validation
 
+### Separate manual authentication test
+
+`registration-email-auth-test.yml` is a separate `workflow_dispatch`-only workflow.
+It has no schedule or push trigger, runs only from `main`, and has no user-supplied
+URL, request-body, outbox, or send-mode inputs. Committing it does not execute it.
+The recovery workflow above remains disabled and unchanged.
+
+After separate approval to run the test, select **Registration email authentication
+test (dry run)** in GitHub Actions, select **Run workflow**, and choose `main`.
+Each manual dispatch makes exactly one request. Do not run it until authorized.
+
+The test reads the existing repository Actions secret and sends the literal body
+`{"dry_run":true}` to the fixed worker endpoint. It never adds or updates secrets.
+Missing/malformed credentials fail before HTTP; redirects are rejected and requests
+are not retried. A pass requires HTTP 200 plus `dry_run: true` and `status` equal
+to `preview` or `no_job`. This confirms the worker accepted the credential at test
+time; it does not retrieve or reveal either stored credential, establish provider
+delivery, or enable sending. Other responses produce a sanitized failure.
+
+The existing worker's dry-run path performs database reads only, before any claim,
+send authorization, or email provider call. Its preview may contain personal data;
+the test parses the bounded response only in memory and never prints or saves it.
+Logs contain only a fixed pass/fail message, with no credentials, hashes, personal
+data, response bodies, or exception details. No artifacts or outputs are published.
+
+Offline test command (synthetic credentials; sockets forbidden):
+
+```sh
+PYTHONDONTWRITEBYTECODE=1 python3 scripts/test-registration-email-auth_test.py
+```
+
+Preparation checks: 9 authentication tests, 15 recovery regression tests, and 3
+existing worker dry-run tests passed offline. Workflow YAML and manual/main-only
+guards passed validation. Deno behavioral tests used `--no-check` because Node
+type definitions are not cached. The GitHub test has not been dispatched and
+the live credential match remains unverified until an approved run succeeds.
+
+### Recovery validation
+
 Run the scheduler tests without credentials or external services:
 
 ```sh
