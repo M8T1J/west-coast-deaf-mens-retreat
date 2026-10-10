@@ -127,6 +127,7 @@ supported: the authorization snapshot supplies `USD` as a JSON string.
 | Environment value | Requirement |
 | --- | --- |
 | `REGISTRATION_EMAIL_WORKER_SECRET` | Dedicated, randomly generated bearer credential, at least 32 characters (prefer 32 random bytes encoded as hex). Never reuse a public key or user JWT. |
+| `REGISTRATION_EMAIL_WORKER_SECRET_NEXT` | Optional overlap credential for staged rotation, 32–4000 characters. The worker accepts either valid credential; the admin caller still uses the original. Missing/invalid NEXT is not accepted and does not disable the original. The original secret remains mandatory. Local preparation only: no secret changes or deployment performed. |
 | `REGISTRATION_EMAIL_SEND_ENABLED` | Only the exact string `true` enables sends. Missing or any other value disables them. |
 | `REGISTRATION_EMAIL_ALLOWED_OUTBOX_ID` | Set to the existing queued test row's UUID for the initial controlled test. Requests for any other UUID are rejected; omitted request IDs resolve to this UUID. Removing the restriction enables general queue processing. |
 | `EMAILJS_SERVICE_ID` | Connected sender service ID. |
@@ -196,7 +197,9 @@ enabling a send.
 ### Request and response contract
 
 Only POST with `Content-Type: application/json` and
-`Authorization: Bearer <REGISTRATION_EMAIL_WORKER_SECRET>` is accepted. The
+`Authorization: Bearer <credential>` is accepted, where the credential exactly
+matches the mandatory `REGISTRATION_EMAIL_WORKER_SECRET` or a valid optional
+`REGISTRATION_EMAIL_WORKER_SECRET_NEXT` during rotation. The
 platform JWT check is disabled only for this function; the handler verifies
 its dedicated secret before any database access. There is no browser CORS grant.
 The body is limited to 1 KiB and accepts only an optional UUID `outbox_id` and

@@ -130,14 +130,29 @@ async function input(
   };
 }
 
-function authenticated(request: Request, secret: string): boolean {
+function validWorkerSecret(secret: string): boolean {
+  return secret.length >= 32 && secret.length <= 4000;
+}
+
+function authenticated(
+  request: Request,
+  secret: string,
+  nextSecret: string,
+): boolean {
   const header = request.headers.get("Authorization") || "";
   if (!header.startsWith("Bearer ") || header.length > 4096) return false;
-  // Hash to fixed-length buffers before the native constant-time comparison.
-  return timingSafeEqual(
+  // Hash to fixed-length buffers before native constant-time comparisons.
+  // Evaluate both credentials without short-circuiting on the first match.
+  const supplied = createHash("sha256").update(header.slice(7)).digest();
+  const currentMatches = timingSafeEqual(
     createHash("sha256").update(secret).digest(),
-    createHash("sha256").update(header.slice(7)).digest(),
+    supplied,
   );
+  const nextMatches = timingSafeEqual(
+    createHash("sha256").update(nextSecret).digest(),
+    supplied,
+  );
+  return currentMatches || (validWorkerSecret(nextSecret) && nextMatches);
 }
 
 function deliveryData(registration: Row, registrationId: string) {
@@ -244,10 +259,13 @@ export function createHandler(
       return json({ error: "method_not_allowed" }, 405);
     }
     const secret = deps.env("REGISTRATION_EMAIL_WORKER_SECRET") || "";
-    if (secret.length < 32 || secret.length > 4000) {
+    if (!validWorkerSecret(secret)) {
       return json({ error: "worker_not_configured" }, 503);
     }
-    if (!authenticated(request, secret)) {
+    // Keep the original credential mandatory throughout the overlap. An absent
+    // or invalid optional NEXT never disables the working admin credential.
+    const nextSecret = deps.env("REGISTRATION_EMAIL_WORKER_SECRET_NEXT") || "";
+    if (!authenticated(request, secret, nextSecret)) {
       return json({ error: "unauthorized" }, 401);
     }
 

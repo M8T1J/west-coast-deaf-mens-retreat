@@ -6,6 +6,7 @@ const REG = "22222222-2222-4222-8222-222222222222";
 const TOKEN = "33333333-3333-4333-8333-333333333333";
 const OTHER = "44444444-4444-4444-8444-444444444444";
 const NOW = Date.parse("2026-09-20T20:00:00Z");
+const NEXT_SECRET = "synthetic-next-worker-secret-for-offline-tests-only";
 const ENV: Record<string, string | undefined> = {
   REGISTRATION_EMAIL_WORKER_SECRET:
     "synthetic-worker-secret-for-offline-tests-only",
@@ -225,6 +226,176 @@ Deno.test("unsupported methods and short worker secrets fail closed", async () =
   const bad = harness([], { REGISTRATION_EMAIL_WORKER_SECRET: "short" });
   assert.equal((await bad.run()).status, 503);
   bad.done();
+});
+
+Deno.test("rotation accepts both credentials for read-only dry runs without disclosure", async () => {
+  for (const secret of [ENV.REGISTRATION_EMAIL_WORKER_SECRET!, NEXT_SECRET]) {
+    const h = harness(drySteps(), {
+      REGISTRATION_EMAIL_WORKER_SECRET_NEXT: NEXT_SECRET,
+      REGISTRATION_EMAIL_SEND_ENABLED: "false",
+      EMAILJS_PRIVATE_KEY: undefined,
+    });
+    const result = await h.run({ dry_run: true }, {
+      Authorization: `Bearer ${secret}`,
+    });
+    assert.equal(result.status, 200);
+    assert.equal(result.body.dry_run, true);
+    assert.equal(result.body.status, "preview");
+    assert.ok(h.calls.every((c) => c.init.method === "GET"));
+    assert.ok(!JSON.stringify(result.body).includes(secret));
+    assert.ok(!JSON.stringify(h.calls).includes(secret));
+    h.done();
+  }
+});
+
+Deno.test("rotation optional NEXT length failures preserve current authentication", async () => {
+  for (
+    const next of [undefined, "", "short", "n".repeat(31), "n".repeat(4001)]
+  ) {
+    const h = harness([{
+      path: "/rest/v1/registration_email_outbox",
+      data: [],
+    }], {
+      REGISTRATION_EMAIL_WORKER_SECRET_NEXT: next,
+    });
+    assert.equal((await h.run()).status, 200);
+    h.done();
+    const rejected = harness([], {
+      REGISTRATION_EMAIL_WORKER_SECRET_NEXT: next,
+    });
+    const result = await rejected.run({}, {
+      Authorization: `Bearer ${next || ""}`,
+    });
+    assert.deepEqual(result, { status: 401, body: { error: "unauthorized" } });
+    rejected.done();
+  }
+});
+
+Deno.test("rotation keeps primary credential configuration mandatory", async () => {
+  for (const current of [undefined, "", "short", "c".repeat(4001)]) {
+    const h = harness([], {
+      REGISTRATION_EMAIL_WORKER_SECRET: current,
+      REGISTRATION_EMAIL_WORKER_SECRET_NEXT: NEXT_SECRET,
+    });
+    assert.deepEqual(
+      await h.run({}, { Authorization: `Bearer ${NEXT_SECRET}` }),
+      {
+        status: 503,
+        body: { error: "worker_not_configured" },
+      },
+    );
+    h.done();
+  }
+});
+
+Deno.test("rotation accepts NEXT boundary lengths and identical credentials", async () => {
+  for (
+    const next of [
+      "n".repeat(32),
+      "n".repeat(4000),
+      ENV.REGISTRATION_EMAIL_WORKER_SECRET!,
+    ]
+  ) {
+    const h = harness([{
+      path: "/rest/v1/registration_email_outbox",
+      data: [],
+    }], {
+      REGISTRATION_EMAIL_WORKER_SECRET_NEXT: next,
+    });
+    assert.equal(
+      (await h.run({}, { Authorization: `Bearer ${next}` })).status,
+      200,
+    );
+    h.done();
+  }
+});
+
+Deno.test("rotation rejects invalid bearer headers and unrelated credentials before database access", async () => {
+  for (
+    const header of [
+      "",
+      NEXT_SECRET,
+      `bearer ${NEXT_SECRET}`,
+      `Basic ${NEXT_SECRET}`,
+      `Bearer ${NEXT_SECRET}x`,
+      `Bearer ${NEXT_SECRET.slice(0, -1)}X`,
+      "Bearer synthetic-public-key",
+      "Bearer ordinary-user-jwt",
+      `Bearer ${"x".repeat(4097)}`,
+    ]
+  ) {
+    const h = harness([], {
+      REGISTRATION_EMAIL_WORKER_SECRET_NEXT: NEXT_SECRET,
+    });
+    assert.deepEqual(await h.run({}, { Authorization: header }), {
+      status: 401,
+      body: { error: "unauthorized" },
+    });
+    h.done();
+  }
+});
+
+Deno.test("NEXT credential cannot bypass kill switch, scope, input or provider configuration", async () => {
+  for (
+    const scenario of [
+      {
+        env: { REGISTRATION_EMAIL_SEND_ENABLED: "false" },
+        body: { dry_run: false },
+        code: 503,
+        error: "sending_disabled",
+      },
+      {
+        env: { EMAILJS_PRIVATE_KEY: undefined },
+        body: { dry_run: false },
+        code: 503,
+        error: "email_not_configured",
+      },
+      {
+        env: { REGISTRATION_EMAIL_ALLOWED_OUTBOX_ID: ID },
+        body: { outbox_id: OTHER },
+        code: 403,
+        error: "outbox_not_allowed",
+      },
+      {
+        env: {},
+        body: { email: "override@example.invalid" },
+        code: 400,
+        error: "unexpected_fields",
+      },
+    ]
+  ) {
+    const h = harness([], {
+      ...scenario.env,
+      REGISTRATION_EMAIL_WORKER_SECRET_NEXT: NEXT_SECRET,
+    });
+    assert.deepEqual(
+      await h.run(scenario.body, { Authorization: `Bearer ${NEXT_SECRET}` }),
+      {
+        status: scenario.code,
+        body: { error: scenario.error },
+      },
+    );
+    h.done();
+  }
+});
+
+Deno.test("both rotation credentials use the unchanged fenced send sequence", async () => {
+  for (const secret of [ENV.REGISTRATION_EMAIL_WORKER_SECRET!, NEXT_SECRET]) {
+    const h = harness([claim(), authorize(), email(), complete()], {
+      REGISTRATION_EMAIL_WORKER_SECRET_NEXT: NEXT_SECRET,
+    });
+    const result = await h.run({ dry_run: false }, {
+      Authorization: `Bearer ${secret}`,
+    });
+    assert.equal(result.status, 200);
+    assert.equal(result.body.status, "sent");
+    assert.equal(
+      h.calls.filter((c) => c.url.hostname === "api.emailjs.com").length,
+      1,
+    );
+    assert.ok(!JSON.stringify(h.calls).includes(secret));
+    h.done();
+  }
 });
 
 Deno.test("strict input rejects recipient overrides, bad IDs and nonboolean dry_run", async () => {
