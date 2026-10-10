@@ -1,0 +1,30 @@
+name: Registration email recovery (disabled)
+
+on:
+  workflow_dispatch:
+  # Inactive draft. Enable only after separate review and authorization.
+  # schedule:
+  #   - cron: '2-57/5 * * * *'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: registration-email-recovery
+  cancel-in-progress: false
+
+jobs:
+  recover:
+    # Hard stop: even manual dispatch cannot invoke the worker in this draft.
+    if: ${{ false }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Check out reviewed code
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+      - name: Invoke existing email worker once
+        env:
+          REGISTRATION_EMAIL_WORKER_SECRET: ${{ secrets.REGISTRATION_EMAIL_WORKER_SECRET }}
+        run: python3 scripts/invoke-registration-email.py

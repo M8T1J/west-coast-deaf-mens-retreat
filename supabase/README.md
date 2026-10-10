@@ -138,8 +138,9 @@ supported: the authorization snapshot supplies `USD` as a JSON string.
 No values are supplied by the source code. Keep sending disabled and restrict
 the allowed UUID to the existing test job until the recipient and template have
 been reviewed. The existing queued row is not claimed by deployment or a dry-run.
-Automatic invocation comes from `admin-registrations`; no scheduler or direct
-browser invocation of the worker is installed here.
+Immediate invocation comes from `admin-registrations`. The optional GitHub
+Actions recovery workflow is a **disabled draft**; no database scheduler migration
+is needed. There is no direct browser invocation of the worker.
 
 ### Automatic payment-verification dispatch and diagnostics
 
@@ -267,3 +268,15 @@ deno fmt --check supabase/functions/admin-registrations
 The first type-check may download Node type definitions for Deno's built-in
 `node:crypto` and `node:assert/strict` support; it does not execute the function.
 The tests run with external access denied. No project npm dependency is added.
+
+### Automatic email recovery (GitHub Actions, disabled draft)
+
+The planned Supabase Cron/pg_net migration has been moved outside `migrations/`
+to `archive/pg-net-recovery/`, with a `.sql.disabled` suffix. **Do not deploy it.**
+Supabase Support confirmed hosted pg_net PUBLIC grants cannot be hardened.
+Historical design and isolated test fixtures are retained for reference only.
+
+The replacement is documented in [GitHub Actions email recovery](../docs/EMAIL_RECOVERY_ACTIONS.md).
+It invokes the existing worker every five minutes when separately authorized
+and enabled. Both the schedule and job are currently disabled. No secret has
+been uploaded and no remote configuration has been changed.

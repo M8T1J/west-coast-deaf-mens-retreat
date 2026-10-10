@@ -1,0 +1,371 @@
+-- SUPERSEDED: DO NOT DEPLOY. Hosted pg_net PUBLIC grants cannot be hardened.
+-- Archived outside migrations; the replacement GitHub Actions workflow is disabled.
+begin;
+
+-- Installation is inert: no Vault writes, outbox updates, or HTTP calls.
+-- This migration targets the linked WCDMR project. Activate separately after review.
+create extension if not exists pg_cron with schema pg_catalog;
+create extension if not exists pg_net;
+create extension if not exists supabase_vault;
+
+-- Supabase owns extension objects as supabase_admin. postgres cannot revoke
+-- grants made by that owner. Do NOT attempt ineffective REVOKEs, change owners,
+-- assume a superuser role, or create a privileged bypass. Owner-level hardening
+-- must be done separately before this migration can pass its preconditions.
+-- Fresh extension installs normally fail these checks and roll back completely.
+do $$
+declare
+  v_relation regclass;
+  v_object record;
+  v_role record;
+  v_queue_sequence regclass;
+begin
+  if current_user <> 'postgres' then
+    raise exception 'Email recovery must be installed as postgres' using errcode = '42501';
+  end if;
+
+  -- Include raw Vault storage and all pg_net/Vault relations, not just the
+  -- decrypted view. Check column grants as well as relation grants. PUBLIC
+  -- is an ACL pseudo-role, so inspect it explicitly, not via pg_has_role().
+  foreach v_relation in array array[
+    'vault.secrets'::regclass, 'vault.decrypted_secrets'::regclass,
+    'net.http_request_queue'::regclass, 'net._http_response'::regclass
+  ] loop
+    if v_relation is null then
+      raise exception 'Required email recovery extension object missing' using errcode = '42501';
+    end if;
+  end loop;
+  for v_object in
+    select c.oid, c.relname, c.relkind, n.nspname, c.relowner, c.relacl
+    from pg_class c join pg_namespace n on n.oid = c.relnamespace
+    where n.nspname in ('vault', 'net') and c.relkind in ('r', 'p', 'v', 'm', 'f', 'S')
+  loop
+    if exists (
+      select 1 from aclexplode(coalesce(v_object.relacl,
+        acldefault(case when v_object.relkind = 'S' then 'S'::"char" else 'r'::"char" end, v_object.relowner)))
+      where grantee = 0
+    ) or exists (
+      select 1 from pg_attribute a cross join lateral aclexplode(a.attacl) acl
+      where a.attrelid = v_object.oid and a.attnum > 0 and not a.attisdropped and acl.grantee = 0
+    ) then
+      raise exception 'Unsafe PUBLIC access to %.%; extension owner hardening required', v_object.nspname, v_object.relname
+        using errcode = '42501';
+    end if;
+    -- Conservatively include every membership path, even NOINHERIT roles.
+    -- This catches access reachable by SET ROLE, not just inherited privileges.
+    for v_role in
+      select distinct r.oid, r.rolname from pg_roles r
+      where exists (select 1 from pg_roles client
+        where client.rolname in ('anon', 'authenticated', 'service_role')
+          and (client.oid = r.oid or pg_has_role(client.oid, r.oid, 'MEMBER')))
+    loop
+      if (v_object.relkind = 'S' and has_sequence_privilege(v_role.oid, v_object.oid, 'USAGE,SELECT,UPDATE'))
+        or (v_object.relkind <> 'S' and (
+          has_table_privilege(v_role.oid, v_object.oid, 'SELECT,INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER,MAINTAIN')
+          or has_any_column_privilege(v_role.oid, v_object.oid, 'SELECT,INSERT,UPDATE,REFERENCES')
+        )) then
+        raise exception 'Unsafe role % access to %.%; extension owner hardening required', v_role.rolname, v_object.nspname, v_object.relname
+          using errcode = '42501';
+      end if;
+    end loop;
+  end loop;
+
+  -- Do not leave alternative Vault decryption/mutation or HTTP APIs callable
+  -- through PUBLIC, a client role, or a role that a client can assume. This also
+  -- protects SECURITY DEFINER APIs that could bypass denied table privileges.
+  for v_object in
+    select p.oid, p.proname, p.proowner, p.proacl, n.nspname
+    from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+    where n.nspname in ('vault', 'net')
+  loop
+    if exists (select 1 from aclexplode(coalesce(v_object.proacl, acldefault('f', v_object.proowner))) where grantee = 0) then
+      raise exception 'Unsafe PUBLIC execution of %.%; extension owner hardening required', v_object.nspname, v_object.proname
+        using errcode = '42501';
+    end if;
+    for v_role in
+      select distinct r.oid, r.rolname from pg_roles r
+      where exists (select 1 from pg_roles client
+        where client.rolname in ('anon', 'authenticated', 'service_role')
+          and (client.oid = r.oid or pg_has_role(client.oid, r.oid, 'MEMBER')))
+    loop
+      if has_function_privilege(v_role.oid, v_object.oid, 'EXECUTE') then
+        raise exception 'Unsafe role % execution of %.%; extension owner hardening required', v_role.rolname, v_object.nspname, v_object.proname
+          using errcode = '42501';
+      end if;
+    end loop;
+  end loop;
+
+  -- Denial must not break the postgres-owned scheduler's legitimate access.
+  v_queue_sequence := pg_get_serial_sequence('net.http_request_queue', 'id')::regclass;
+  if not has_schema_privilege('postgres', 'vault', 'USAGE')
+    or not has_schema_privilege('postgres', 'net', 'USAGE')
+    or not has_schema_privilege('postgres', 'cron', 'USAGE')
+    or not has_column_privilege('postgres', 'net.http_request_queue', 'id', 'SELECT')
+    or v_queue_sequence is null
+    or not has_sequence_privilege('postgres', v_queue_sequence, 'USAGE,UPDATE')
+    or not has_table_privilege('postgres', 'public.registration_email_outbox', 'SELECT')
+    or not has_table_privilege('postgres', 'cron.job', 'SELECT')
+    or not has_table_privilege('postgres', 'cron.job_run_details', 'SELECT')
+    or not has_table_privilege('postgres', 'cron.job_run_details', 'DELETE')
+    or not has_function_privilege('postgres', 'net.http_post(text,jsonb,jsonb,jsonb,integer)', 'EXECUTE')
+    or not has_function_privilege('postgres', 'cron.schedule(text,text,text)', 'EXECUTE')
+    or not has_function_privilege('postgres', 'cron.alter_job(bigint,text,text,text,text,boolean)', 'EXECUTE')
+  then
+    raise exception 'Required postgres scheduler privileges missing; extension owner setup required' using errcode = '42501';
+  end if;
+  -- Accept column grants: no raw Vault table access or queue/header SELECT is
+  -- needed. Table-level grants also satisfy has_column_privilege.
+  for v_object in select * from (values
+    ('vault.decrypted_secrets', 'name', 'SELECT'),
+    ('vault.decrypted_secrets', 'decrypted_secret', 'SELECT'),
+    ('net._http_response', 'id', 'SELECT'),
+    ('net._http_response', 'status_code', 'SELECT'),
+    ('net._http_response', 'timed_out', 'SELECT'),
+    ('net._http_response', 'content', 'SELECT'),
+    ('net.http_request_queue', 'method', 'INSERT'),
+    ('net.http_request_queue', 'url', 'INSERT'),
+    ('net.http_request_queue', 'headers', 'INSERT'),
+    ('net.http_request_queue', 'body', 'INSERT'),
+    ('net.http_request_queue', 'timeout_milliseconds', 'INSERT')
+  ) as required(relation_name, column_name, privilege_name)
+  loop
+    if not has_column_privilege('postgres', v_object.relation_name, v_object.column_name, v_object.privilege_name) then
+      raise exception 'Required postgres scheduler column privileges missing' using errcode = '42501';
+    end if;
+  end loop;
+  -- Vault 0.3.1 view and pg_net 0.20.4 http_post dependencies only. The view
+  -- owner supplies raw-table access; its decrypt call still needs EXECUTE.
+  -- Never require Vault encryption/nonce/create/update or unrelated net APIs.
+  for v_object in select unnest(array[
+    'vault._crypto_aead_det_decrypt(bytea,bytea,bigint,bytea,bytea)',
+    'net._urlencode_string(character varying)',
+    'net._encode_url_with_params_array(text,text[])',
+    'net.wake()'
+  ]) as signature
+  loop
+    if to_regprocedure(v_object.signature) is null
+      or not has_function_privilege('postgres', to_regprocedure(v_object.signature), 'EXECUTE') then
+      raise exception 'Required postgres scheduler dependency privileges missing' using errcode = '42501';
+    end if;
+  end loop;
+end;
+$$;
+
+create schema wcdmr_email_private authorization postgres;
+revoke all on schema wcdmr_email_private from public, anon, authenticated, service_role;
+
+-- No headers, credentials, provider bodies, exception text, or personal fields.
+create table wcdmr_email_private.recovery_runs (
+  id bigint generated always as identity primary key,
+  started_at timestamptz not null default clock_timestamp(),
+  finished_at timestamptz,
+  request_id bigint unique,
+  http_status integer check (http_status between 100 and 599),
+  outbox_id uuid,
+  outcome text not null check (outcome in (
+    'pending', 'no_work', 'in_flight', 'configuration_error', 'enqueue_failed',
+    'transport_error', 'response_unknown', 'http_error', 'invalid_response',
+    'sent', 'no_job', 'failed', 'not_authorized', 'reconciliation_required'
+  )),
+  reason text check (reason in (
+    'rate_limited', 'pre_dispatch_failure', 'invalid_registration',
+    'provider_rejected', 'configuration_error', 'quota_exhausted', 'delivery_unknown',
+    'claim_not_owned', 'already_authorized', 'lease_expired', 'attempts_exhausted',
+    'dispatch_throttled', 'failure_update_unconfirmed', 'completion_unconfirmed',
+    'unauthorized', 'worker_not_configured', 'sending_disabled',
+    'email_not_configured', 'invalid_worker_configuration', 'outbox_not_allowed',
+    'database_not_configured', 'database_or_worker_unavailable'
+  ))
+);
+alter table wcdmr_email_private.recovery_runs enable row level security;
+create index recovery_runs_pending_idx on wcdmr_email_private.recovery_runs(started_at)
+  where outcome = 'pending';
+create index recovery_runs_retention_idx on wcdmr_email_private.recovery_runs(started_at);
+
+-- Called only by the postgres-owned Cron job. SECURITY INVOKER is intentional:
+-- this is not an RPC that gives service_role or browser roles access to Vault.
+create function wcdmr_email_private.recover_registration_emails()
+returns void
+language plpgsql
+security invoker
+set search_path = ''
+as $$
+declare
+  v_run record;
+  v_response record;
+  v_body jsonb;
+  v_outcome text;
+  v_reason text;
+  v_outbox uuid;
+  v_status integer;
+  v_secret text;
+  v_secret_count bigint;
+  v_request bigint;
+  v_id bigint;
+  v_now timestamptz := clock_timestamp();
+begin
+  -- Serialize scheduler ticks only. Worker correctness still comes from the
+  -- existing claim/authorization fencing, including concurrent Admin dispatch.
+  if not pg_try_advisory_xact_lock(20260925, 1) then return; end if;
+
+  -- HTTP is asynchronous. Collect only safe fields; never log SQLERRM, headers,
+  -- error_msg, or raw content. A missing HTTP response NEVER requeues an email.
+  for v_run in
+    select id, request_id, started_at from wcdmr_email_private.recovery_runs
+    where outcome = 'pending' order by id limit 20 for update
+  loop
+    select status_code, timed_out, content into v_response
+    from net._http_response where id = v_run.request_id;
+    if not found then
+      if v_run.started_at < v_now - interval '3 minutes' then
+        update wcdmr_email_private.recovery_runs
+        set outcome = 'response_unknown', finished_at = v_now where id = v_run.id;
+      end if;
+      continue;
+    end if;
+    v_body := null;
+    v_outbox := null;
+    v_reason := null;
+    v_status := case when v_response.status_code between 100 and 599
+      then v_response.status_code else null end;
+    if v_response.timed_out is true or v_status is null then
+      v_outcome := 'transport_error';
+    else
+      v_outcome := case when v_status between 200 and 299
+        then 'invalid_response' else 'http_error' end;
+      begin
+        if octet_length(v_response.content) <= 4096 then
+          v_body := v_response.content::jsonb;
+        end if;
+      exception when others then v_body := null;
+      end;
+      if jsonb_typeof(v_body) = 'object' then
+        if v_body->>'outbox_id' ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$' then
+          v_outbox := (v_body->>'outbox_id')::uuid;
+        end if;
+        v_reason := coalesce(v_body->>'reason', v_body->>'error');
+        if v_reason is not null and v_reason not in (
+          'rate_limited', 'pre_dispatch_failure', 'invalid_registration',
+          'provider_rejected', 'configuration_error', 'quota_exhausted', 'delivery_unknown',
+          'claim_not_owned', 'already_authorized', 'lease_expired', 'attempts_exhausted',
+          'dispatch_throttled', 'failure_update_unconfirmed', 'completion_unconfirmed',
+          'unauthorized', 'worker_not_configured', 'sending_disabled',
+          'email_not_configured', 'invalid_worker_configuration', 'outbox_not_allowed',
+          'database_not_configured', 'database_or_worker_unavailable'
+        ) then v_reason := null; end if;
+        if v_body->>'status' = 'reconciliation_required' and v_outbox is not null then
+          v_outcome := 'reconciliation_required';
+        elsif v_status between 200 and 299 then
+          if v_body->>'status' = 'no_job' then v_outcome := 'no_job';
+          elsif v_body->>'status' in ('sent', 'failed', 'not_authorized') and v_outbox is not null then
+            v_outcome := v_body->>'status';
+          end if;
+        end if;
+      end if;
+    end if;
+    update wcdmr_email_private.recovery_runs
+    set outcome = v_outcome, reason = v_reason, outbox_id = v_outbox,
+        http_status = v_status, finished_at = v_now where id = v_run.id;
+  end loop;
+
+  -- Bounded retention, limited to this feature's telemetry and Cron history.
+  delete from wcdmr_email_private.recovery_runs where id in (
+    select id from wcdmr_email_private.recovery_runs
+    where started_at < v_now - interval '30 days' and outcome <> 'pending'
+    order by started_at limit 1000
+  );
+  delete from cron.job_run_details where runid in (
+    select d.runid from cron.job_run_details d join cron.job j on j.jobid = d.jobid
+    where j.jobname = 'wcdmr-registration-email-recovery' and j.username = current_user
+      and d.end_time < v_now - interval '30 days'
+    order by d.end_time limit 1000
+  );
+
+  -- Prevent repeated manual/duplicate ticks from enqueueing a burst of requests.
+  if exists (select 1 from wcdmr_email_private.recovery_runs
+    where started_at > v_now - interval '55 seconds') then return; end if;
+  if exists (select 1 from wcdmr_email_private.recovery_runs where outcome = 'pending') then
+    insert into wcdmr_email_private.recovery_runs(outcome, finished_at) values ('in_flight', v_now);
+    return;
+  end if;
+
+  if not exists (
+    select 1 from public.registration_email_outbox o
+    where o.sent_at is null and (
+      (o.event_type = 'payment_verified' and o.status in ('queued', 'failed')
+        and o.next_attempt_at <= v_now and o.attempts < 5
+        and o.claim_token is null and o.lease_expires_at is null)
+      or (o.status = 'sending' and (o.lease_expires_at is null or o.lease_expires_at <= v_now))
+    )
+  ) then
+    insert into wcdmr_email_private.recovery_runs(outcome, finished_at) values ('no_work', v_now);
+    return;
+  end if;
+
+  -- Expired sending jobs must wake the worker even when there are no due jobs.
+  -- The existing RPC decides safe recovery versus delivery_unknown manual hold.
+  begin
+    select count(*), min(decrypted_secret) into v_secret_count, v_secret
+    from vault.decrypted_secrets where name = 'REGISTRATION_EMAIL_WORKER_SECRET';
+    if v_secret_count <> 1 or v_secret is null or length(v_secret) not between 32 and 4000
+      or v_secret ~ '[[:cntrl:]]' then
+      insert into wcdmr_email_private.recovery_runs(outcome, finished_at) values ('configuration_error', v_now);
+      return;
+    end if;
+  exception when others then
+    insert into wcdmr_email_private.recovery_runs(outcome, finished_at) values ('configuration_error', v_now);
+    return;
+  end;
+
+  insert into wcdmr_email_private.recovery_runs(outcome) values ('pending') returning id into v_id;
+  begin
+    -- Exactly one request, with no outbox_id override and no batching loop.
+    -- The worker claims at most ONE email; it retains its send-enable kill switch.
+    select net.http_post(
+      url := 'https://xauxotzqlrylhrjababc.supabase.co/functions/v1/send-registration-email',
+      headers := jsonb_build_object('Content-Type', 'application/json', 'Authorization', 'Bearer ' || v_secret),
+      body := '{"dry_run":false}'::jsonb,
+      timeout_milliseconds := 90000
+    ) into v_request;
+    if v_request is null then raise exception 'Request not queued'; end if;
+    update wcdmr_email_private.recovery_runs set request_id = v_request where id = v_id;
+  exception when others then
+    -- The subtransaction rolls back any partially queued pg_net request.
+    update wcdmr_email_private.recovery_runs
+    set outcome = 'enqueue_failed', finished_at = v_now where id = v_id;
+  end;
+end;
+$$;
+alter function wcdmr_email_private.recover_registration_emails() owner to postgres;
+
+-- Read-only operational health; outbox state, not HTTP 200, is authoritative.
+create view wcdmr_email_private.recovery_health with (security_invoker = true) as
+select
+  (select max(started_at) from wcdmr_email_private.recovery_runs) as last_tick_at,
+  (select max(started_at) from wcdmr_email_private.recovery_runs where request_id is not null) as last_request_at,
+  count(*) filter (where status in ('queued', 'failed') and sent_at is null
+    and next_attempt_at <= now() and attempts < 5 and claim_token is null and lease_expires_at is null) as due_jobs,
+  min(next_attempt_at) filter (where status in ('queued', 'failed') and sent_at is null
+    and next_attempt_at <= now() and attempts < 5 and claim_token is null and lease_expires_at is null) as oldest_due_at,
+  count(*) filter (where status = 'sending' and sent_at is null
+    and (lease_expires_at is null or lease_expires_at <= now())) as expired_leases,
+  count(*) filter (where status = 'failed' and sent_at is null and next_attempt_at is null) as manual_review_jobs,
+  count(*) filter (where status = 'failed' and sent_at is null and last_error_code = 'delivery_unknown') as delivery_unknown_jobs
+from public.registration_email_outbox;
+
+revoke all on all tables in schema wcdmr_email_private from public, anon, authenticated, service_role;
+revoke all on all sequences in schema wcdmr_email_private from public, anon, authenticated, service_role;
+revoke all on all functions in schema wcdmr_email_private from public, anon, authenticated, service_role;
+
+-- Schedule and deactivate within the same transaction: there is no active window.
+-- No HTTP request can run merely by applying this migration.
+do $$
+declare v_job bigint;
+begin
+  v_job := cron.schedule('wcdmr-registration-email-recovery', '* * * * *',
+    'select wcdmr_email_private.recover_registration_emails();');
+  perform cron.alter_job(v_job, active := false);
+end;
+$$;
+
+commit;
