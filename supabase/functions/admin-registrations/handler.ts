@@ -1,6 +1,7 @@
 import { corsHeaders, jsonResponse, readJson } from "../_shared/http.ts";
 import { createRegistration } from "./create-registration.ts";
 import { sendVerificationEmail } from "./verification-email.ts";
+import { checkWorkerAuthentication } from "./worker-auth-check.ts";
 
 type Dependencies = {
   env: (name: string) => string | undefined;
@@ -96,19 +97,54 @@ export function createHandler(deps: Dependencies) {
   }
 
   return async (request: Request): Promise<Response> => {
+    const url = new URL(request.url);
+    const diagnostic = [
+      "/admin-registrations/email-worker-auth-check",
+      "/functions/v1/admin-registrations/email-worker-auth-check",
+    ].includes(url.pathname);
+    const diagnosticResponse = (passed: boolean, status: number) => {
+      const response = jsonResponse(
+        { result: passed ? "PASS" : "FAIL" },
+        status,
+        origin ?? undefined,
+      );
+      response.headers.set("Cache-Control", "no-store");
+      return response;
+    };
     const configuredOrigin = deps.env("ALLOWED_ORIGIN");
     const origin =
       configuredOrigin && request.headers.get("Origin") === configuredOrigin
         ? configuredOrigin
         : null;
-    if (!origin) return jsonResponse({ error: "Origin not allowed" }, 403);
+    if (!origin) {
+      return diagnostic
+        ? diagnosticResponse(false, 403)
+        : jsonResponse({ error: "Origin not allowed" }, 403);
+    }
     if (request.method === "OPTIONS") {
       return new Response(null, { status: 204, headers: corsHeaders(origin) });
     }
 
-    const authorization = await authorize(request, origin);
-    if (authorization.response) return authorization.response;
+    let authorization;
+    try {
+      authorization = await authorize(request, origin);
+    } catch (error) {
+      if (diagnostic) return diagnosticResponse(false, 503);
+      throw error;
+    }
+    if (authorization.response) {
+      return diagnostic
+        ? diagnosticResponse(false, authorization.response.status)
+        : authorization.response;
+    }
     const { user } = authorization;
+
+    if (diagnostic) {
+      if (request.method !== "GET") return diagnosticResponse(false, 405);
+      if (url.search) return diagnosticResponse(false, 400);
+      const passed = await checkWorkerAuthentication(deps);
+      return diagnosticResponse(passed, passed ? 200 : 503);
+    }
 
     try {
       if (request.method === "GET") {

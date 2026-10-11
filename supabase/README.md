@@ -30,6 +30,33 @@ environment values. Never add their values to this repository or browser code.
 The frontend uses these functions as its registration source of truth. Do not
 put function secrets, database credentials, or access tokens in this directory.
 
+## Admin-to-worker authentication diagnostic (local preparation only)
+
+`GET /functions/v1/admin-registrations/email-worker-auth-check` requires the same
+configured origin, Supabase JWT-authenticated user, and `ADMIN_EMAILS` allowlist
+as other admin operations. Platform JWT verification remains enabled. No browser
+UI or scheduled invocation is added.
+
+The route uses only server-side `REGISTRATION_EMAIL_WORKER_SECRET_NEXT` to POST
+the fixed body `{"dry_run":true}` to the configured project's email worker. It
+accepts no query parameters or client overrides; non-GET requests are rejected
+(the existing CORS preflight remains available). It never calls the admin
+database dependency or the sending helper. Worker dry-runs perform SELECTs only,
+without changing registrations, claiming jobs, or contacting the email provider.
+
+The response body is only `{"result":"PASS"}` (HTTP 200) or
+`{"result":"FAIL"}`. Origin/authentication failures retain HTTP 403/401;
+unsupported methods use 405, query parameters use 400, and configuration or worker
+failures use 503. Responses disable caching with `Cache-Control: no-store`.
+PASS requires worker HTTP 200 with `dry_run: true` and status `preview` or `no_job`.
+Requests disallow redirects, abort after 25 seconds, and cap worker response bodies
+at 4096 bytes. No worker data, credentials, or raw errors are returned or logged.
+
+Offline tests mock every external request, including JWT authentication, and
+cover access restrictions, fixed dry-run requests, sanitization, invalid
+configuration, oversized responses, and the real timeout. This preparation does
+not deploy or invoke a live function, change secrets, or enable scheduling.
+
 ## Admin creation (local implementation; migration required)
 
 `20260922000000_add_admin_registration_creation.sql` adds the server-only
