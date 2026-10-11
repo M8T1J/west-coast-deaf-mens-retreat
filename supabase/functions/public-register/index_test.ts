@@ -10,7 +10,6 @@ Deno.test("public create still requires Turnstile before insert; identity confli
   const calls: string[] = [];
   let turnstileOK = false;
   const env: Record<string, string> = {
-    ALLOWED_ORIGIN: "https://site.invalid",
     SUPABASE_URL: "https://database.invalid",
     SUPABASE_SERVICE_ROLE_KEY: "synthetic-service-role",
     TURNSTILE_SECRET_KEY: "synthetic-turnstile",
@@ -57,14 +56,55 @@ Deno.test("public create still requires Turnstile before insert; identity confli
       amount: 245,
       paymentUnderstanding: true,
     };
-    const run = (value: unknown) =>
+    const run = (value: unknown, origin = "https://www.wcdmr.com") =>
       handler!(
         new Request("https://edge.invalid/public-register", {
           method: "POST",
-          headers: { Origin: "https://site.invalid" },
+          headers: { Origin: origin },
           body: JSON.stringify(value),
         }),
       );
+
+    for (const origin of ["https://www.wcdmr.com", "https://wcdmr.com"]) {
+      const preflight = await handler!(
+        new Request("https://edge.invalid/public-register", {
+          method: "OPTIONS",
+          headers: { Origin: origin },
+        }),
+      );
+      assert.equal(preflight.status, 204);
+      assert.equal(
+        preflight.headers.get("Access-Control-Allow-Origin"),
+        origin,
+      );
+      assert.equal(
+        preflight.headers.get("Access-Control-Allow-Methods"),
+        "POST, OPTIONS",
+      );
+      assert.equal(
+        preflight.headers.get("Access-Control-Allow-Headers"),
+        "Content-Type, apikey",
+      );
+      const validation = await run(body, origin);
+      assert.equal(validation.status, 400);
+      assert.equal(
+        validation.headers.get("Access-Control-Allow-Origin"),
+        origin,
+      );
+    }
+    const unauthorizedPreflight = await handler!(
+      new Request("https://edge.invalid/public-register", {
+        method: "OPTIONS",
+        headers: { Origin: "https://attacker.invalid" },
+      }),
+    );
+    assert.equal(unauthorizedPreflight.status, 403);
+    assert.equal(
+      unauthorizedPreflight.headers.get("Access-Control-Allow-Origin"),
+      null,
+    );
+    assert.equal(calls.length, 0);
+
     assert.equal((await run(body)).status, 400);
     assert.equal(calls.length, 0);
     assert.equal(

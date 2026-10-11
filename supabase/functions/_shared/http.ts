@@ -1,10 +1,14 @@
 const JSON_HEADERS = { "Content-Type": "application/json; charset=utf-8" };
 
-export function allowedOrigin(request: Request): string | null {
-  const configuredOrigin = Deno.env.get("ALLOWED_ORIGIN");
+export function allowedOrigin(
+  request: Request,
+  allowedOrigins?: readonly string[],
+): string | null {
   const requestOrigin = request.headers.get("Origin");
-  if (!configuredOrigin || requestOrigin !== configuredOrigin) return null;
-  return configuredOrigin;
+  const allowed = allowedOrigins ?? [Deno.env.get("ALLOWED_ORIGIN") ?? ""];
+  return requestOrigin && allowed.includes(requestOrigin)
+    ? requestOrigin
+    : null;
 }
 
 export function corsHeaders(origin: string): HeadersInit {

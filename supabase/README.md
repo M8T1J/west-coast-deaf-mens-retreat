@@ -15,6 +15,9 @@ TURNSTILE_SECRET_KEY=<secret>
 
 `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` are server-only function
 environment values. Never add their values to this repository or browser code.
+`public-register` accepts only `https://www.wcdmr.com` and `https://wcdmr.com`;
+`ALLOWED_ORIGIN` continues to restrict the admin function to its configured
+website origin.
 
 ## Functions
 

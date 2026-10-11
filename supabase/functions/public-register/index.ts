@@ -11,6 +11,10 @@ import { databaseRequest, queryValue } from "../_shared/supabase.ts";
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const PAYMENT_METHODS = new Set(["paypal", "zelle", "money_order"]);
+const ALLOWED_REGISTRATION_ORIGINS = [
+  "https://www.wcdmr.com",
+  "https://wcdmr.com",
+] as const;
 
 async function verifyTurnstile(token: string, request: Request): Promise<boolean> {
   const secret = Deno.env.get("TURNSTILE_SECRET_KEY");
@@ -32,7 +36,7 @@ async function verifyTurnstile(token: string, request: Request): Promise<boolean
 }
 
 Deno.serve(async (request) => {
-  const origin = allowedOrigin(request);
+  const origin = allowedOrigin(request, ALLOWED_REGISTRATION_ORIGINS);
   if (!origin) return jsonResponse({ error: "Origin not allowed" }, 403);
   if (request.method === "OPTIONS") {
     const headers = new Headers(corsHeaders(origin));
