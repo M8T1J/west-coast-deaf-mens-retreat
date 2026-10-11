@@ -37,7 +37,7 @@ configured origin, Supabase JWT-authenticated user, and `ADMIN_EMAILS` allowlist
 as other admin operations. Platform JWT verification remains enabled. No browser
 UI or scheduled invocation is added.
 
-The route uses only server-side `REGISTRATION_EMAIL_WORKER_SECRET_NEXT` to POST
+The route uses only server-side `REGISTRATION_EMAIL_WORKER_SECRET` to POST
 the fixed body `{"dry_run":true}` to the configured project's email worker. It
 accepts no query parameters or client overrides; non-GET requests are rejected
 (the existing CORS preflight remains available). It never calls the admin
@@ -167,7 +167,7 @@ supported: the authorization snapshot supplies `USD` as a JSON string.
 | Environment value | Requirement |
 | --- | --- |
 | `REGISTRATION_EMAIL_WORKER_SECRET` | Dedicated, randomly generated bearer credential, at least 32 characters (prefer 32 random bytes encoded as hex). Never reuse a public key or user JWT. |
-| `REGISTRATION_EMAIL_WORKER_SECRET_NEXT` | Staged rotation credential, 32–4000 characters. The worker accepts either valid credential; the admin caller uses NEXT only. Missing/invalid NEXT skips admin email dispatch with a sanitized configuration error, without undoing the saved registration or falling back to the original. The original remains mandatory for the worker. |
+| `REGISTRATION_EMAIL_WORKER_SECRET_NEXT` | Optional staged rotation credential, 32–4000 characters. Worker compatibility still accepts either valid credential. Admin email dispatch and its diagnostic use the original secret name only, with no fallback to NEXT. The original remains mandatory for the worker. Keep NEXT configured until the updated admin is deployed and verified. |
 | `REGISTRATION_EMAIL_SEND_ENABLED` | Only the exact string `true` enables sends. Missing or any other value disables them. |
 | `REGISTRATION_EMAIL_ALLOWED_OUTBOX_ID` | Set to the existing queued test row's UUID for the initial controlled test. Requests for any other UUID are rejected; omitted request IDs resolve to this UUID. Removing the restriction enables general queue processing. |
 | `EMAILJS_SERVICE_ID` | Connected sender service ID. |
@@ -299,13 +299,16 @@ sanitized categories and HTTP statuses, sent-row skips, ordinary edits and
 repeated verification, failed writes, invalid/unauthorized requests, and
 concurrent verification conflicts. Diagnostic cases include HTTP 401/403/429/
 500/503, transport errors, abort errors, invalid JSON, response-read failures,
-and unconfirmed sends. Rotation cases verify NEXT is used even when the original
-is present, absent, or invalid; missing/invalid NEXT never falls back or dispatches.
+and unconfirmed sends. Rotation cases verify the original is used even when NEXT
+is different, absent, empty, or invalid; missing/invalid original never falls back
+to NEXT or dispatches. The diagnostic also fails closed and never falls back.
 The browser JWT and admin allowlist still control admin access, independently of
 the worker credential. They do not start a server or invoke deployed functions.
 
-Step 5 preparation changes only the local admin caller. Deploying it is a separate
-step; these offline checks do not change secrets, enable scheduling, or send email.
+Final rotation Step 2 preparation switches both local admin-to-worker calls back
+to the original secret name after its credential promotion. Worker dual-secret
+compatibility is unchanged. Deployment and subsequent verification are separate
+steps; these offline checks do not change secrets, enable scheduling, or send email.
 
 ```sh
 deno check --node-modules-dir=none --no-lock supabase/functions/admin-registrations/index.ts supabase/functions/admin-registrations/handler_test.ts

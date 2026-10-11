@@ -14,8 +14,8 @@ export async function sendVerificationEmail(id: string, deps: Dependencies) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), 25_000);
   try {
-    // Staged rotation: use NEXT only; never silently fall back to the original.
-    const secret = deps.env("REGISTRATION_EMAIL_WORKER_SECRET_NEXT") || "";
+    // The promoted credential uses the original name; never fall back to NEXT.
+    const secret = deps.env("REGISTRATION_EMAIL_WORKER_SECRET") || "";
     const base = new URL(deps.env("SUPABASE_URL") || "");
     if (
       secret.length < 32 || secret.length > 4000 ||

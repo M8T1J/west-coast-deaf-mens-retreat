@@ -6,7 +6,7 @@ import { createHandler } from "./handler.ts";
 const ID = "11111111-1111-4111-8111-111111111111";
 const JOB = "22222222-2222-4222-8222-222222222222";
 const SECRET = "synthetic-worker-secret-0123456789";
-const ORIGINAL_SECRET = "synthetic-original-secret-9876543210";
+const NEXT_SECRET = "synthetic-next-secret-9876543210";
 const current = {
   id: ID,
   payment_status: "awaiting_manual_verification",
@@ -46,8 +46,8 @@ function harness(options: Options = {}) {
     ALLOWED_ORIGIN: "https://site.invalid",
     ADMIN_EMAILS: "admin@example.com",
     SUPABASE_URL: "https://database.invalid",
-    REGISTRATION_EMAIL_WORKER_SECRET: ORIGINAL_SECRET,
-    REGISTRATION_EMAIL_WORKER_SECRET_NEXT: SECRET,
+    REGISTRATION_EMAIL_WORKER_SECRET: SECRET,
+    REGISTRATION_EMAIL_WORKER_SECRET_NEXT: NEXT_SECRET,
     ...options.env,
   };
   const handler = createHandler({
@@ -134,8 +134,8 @@ function harness(options: Options = {}) {
       const body = await response.json();
       assert.ok(!JSON.stringify(body).includes(SECRET));
       assert.ok(!JSON.stringify(logs).includes(SECRET));
-      assert.ok(!JSON.stringify(body).includes(ORIGINAL_SECRET));
-      assert.ok(!JSON.stringify(logs).includes(ORIGINAL_SECRET));
+      assert.ok(!JSON.stringify(body).includes(NEXT_SECRET));
+      assert.ok(!JSON.stringify(logs).includes(NEXT_SECRET));
       return { status: response.status, body };
     },
   };
@@ -151,28 +151,28 @@ Deno.test("verification commits before scoped worker dispatch and preserves resp
   assert.equal(h.logs.length, 0);
 });
 
-Deno.test("admin dispatch uses NEXT only, independently of the original worker credential", async () => {
-  for (const original of [ORIGINAL_SECRET, undefined, "invalid"]) {
-    const h = harness({
-      env: { REGISTRATION_EMAIL_WORKER_SECRET: original },
-    });
-    assert.deepEqual(await h.run(), { status: 200, body: saved });
-    assert.equal(h.sends(), 1);
-    assert.ok(h.envReads.includes("REGISTRATION_EMAIL_WORKER_SECRET_NEXT"));
-    assert.ok(!h.envReads.includes("REGISTRATION_EMAIL_WORKER_SECRET"));
-    assert.equal(h.logs.length, 0);
-  }
-});
-
-Deno.test("missing or invalid NEXT skips email without falling back or undoing verification", async () => {
-  for (const next of [undefined, "", "x".repeat(31), "x".repeat(4001)]) {
+Deno.test("admin dispatch uses original only, independently of the NEXT worker credential", async () => {
+  for (const next of [NEXT_SECRET, undefined, "", "invalid"]) {
     const h = harness({
       env: { REGISTRATION_EMAIL_WORKER_SECRET_NEXT: next },
     });
     assert.deepEqual(await h.run(), { status: 200, body: saved });
+    assert.equal(h.sends(), 1);
+    assert.ok(h.envReads.includes("REGISTRATION_EMAIL_WORKER_SECRET"));
+    assert.ok(!h.envReads.includes("REGISTRATION_EMAIL_WORKER_SECRET_NEXT"));
+    assert.equal(h.logs.length, 0);
+  }
+});
+
+Deno.test("missing or invalid original skips email without falling back to NEXT or undoing verification", async () => {
+  for (const original of [undefined, "", "x".repeat(31), "x".repeat(4001)]) {
+    const h = harness({
+      env: { REGISTRATION_EMAIL_WORKER_SECRET: original },
+    });
+    assert.deepEqual(await h.run(), { status: 200, body: saved });
     assert.equal(h.sends(), 0);
     assert.equal(h.calls.length, 2);
-    assert.ok(!h.envReads.includes("REGISTRATION_EMAIL_WORKER_SECRET"));
+    assert.ok(!h.envReads.includes("REGISTRATION_EMAIL_WORKER_SECRET_NEXT"));
     assert.deepEqual(h.logs, [[
       "Registration saved; payment verification email not confirmed",
       { registration_id: ID, code: "configuration_error" },
@@ -194,7 +194,7 @@ Deno.test("email failures are sanitized and never undo successful verification",
       { lookupStatus: 500 },
       { jobs: [] },
       { jobs: [{ id: "bad" }] },
-      { env: { REGISTRATION_EMAIL_WORKER_SECRET_NEXT: undefined } },
+      { env: { REGISTRATION_EMAIL_WORKER_SECRET: undefined } },
       { env: { SUPABASE_URL: "https://user:password@database.invalid" } },
     ]
   ) {

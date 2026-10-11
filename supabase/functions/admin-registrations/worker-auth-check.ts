@@ -10,7 +10,7 @@ export async function checkWorkerAuthentication(
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), 25_000);
   try {
-    const secret = deps.env("REGISTRATION_EMAIL_WORKER_SECRET_NEXT") || "";
+    const secret = deps.env("REGISTRATION_EMAIL_WORKER_SECRET") || "";
     const base = new URL(deps.env("SUPABASE_URL") || "");
     if (
       !/^[\x21-\x7e]{32,4000}$/.test(secret) ||

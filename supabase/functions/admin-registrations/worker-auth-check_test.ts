@@ -61,7 +61,7 @@ function harness(options: Options = {}) {
       assert.ok(init?.signal);
       assert.equal(
         new Headers(init?.headers).get("Authorization"),
-        `Bearer ${env.REGISTRATION_EMAIL_WORKER_SECRET_NEXT}`,
+        `Bearer ${env.REGISTRATION_EMAIL_WORKER_SECRET}`,
       );
       assert.equal(
         new Headers(init?.headers).get("Content-Type"),
@@ -154,8 +154,8 @@ Deno.test("diagnostic accepts only confirmed dry-run responses and returns sanit
         "https://site.invalid",
       );
       assert.equal(h.fetches(), 1);
-      assert.ok(h.reads.includes("REGISTRATION_EMAIL_WORKER_SECRET_NEXT"));
-      assert.ok(!h.reads.includes("REGISTRATION_EMAIL_WORKER_SECRET"));
+      assert.ok(h.reads.includes("REGISTRATION_EMAIL_WORKER_SECRET"));
+      assert.ok(!h.reads.includes("REGISTRATION_EMAIL_WORKER_SECRET_NEXT"));
     }
   }
 });
@@ -182,7 +182,7 @@ Deno.test("diagnostic requires permitted origin, browser JWT and admin allowlist
     assert.equal(result.response.status, status);
     assert.deepEqual(result.body, { result: "FAIL" });
     assert.equal(h.fetches(), 0);
-    assert.ok(!h.reads.includes("REGISTRATION_EMAIL_WORKER_SECRET_NEXT"));
+    assert.ok(!h.reads.includes("REGISTRATION_EMAIL_WORKER_SECRET"));
     if (
       request?.origin === null || request?.origin === "https://other.invalid"
     ) {
@@ -233,16 +233,28 @@ Deno.test("diagnostic rejects methods and client overrides without invoking work
   assert.equal(h.fetches(), 0);
 });
 
-Deno.test("diagnostic fails closed on invalid NEXT or server URL without fallback", async () => {
+Deno.test("diagnostic uses original when NEXT is different, missing, empty, or invalid", async () => {
+  for (const next of [NEXT, undefined, "", "invalid"]) {
+    const h = harness({ env: { REGISTRATION_EMAIL_WORKER_SECRET_NEXT: next } });
+    const result = await h.run();
+    assert.equal(result.response.status, 200);
+    assert.deepEqual(result.body, { result: "PASS" });
+    assert.equal(h.fetches(), 1);
+    assert.ok(h.reads.includes("REGISTRATION_EMAIL_WORKER_SECRET"));
+    assert.ok(!h.reads.includes("REGISTRATION_EMAIL_WORKER_SECRET_NEXT"));
+  }
+});
+
+Deno.test("diagnostic fails closed on invalid original or server URL without fallback to NEXT", async () => {
   const configs: Record<string, string | undefined>[] = [
     ...[
       undefined,
       "",
       "x".repeat(31),
       "x".repeat(4001),
-      `${NEXT}\n`,
-      `${NEXT} `,
-    ].map((secret) => ({ REGISTRATION_EMAIL_WORKER_SECRET_NEXT: secret })),
+      `${ORIGINAL}\n`,
+      `${ORIGINAL} `,
+    ].map((secret) => ({ REGISTRATION_EMAIL_WORKER_SECRET: secret })),
     ...[
       undefined,
       "bad",
@@ -259,7 +271,7 @@ Deno.test("diagnostic fails closed on invalid NEXT or server URL without fallbac
     assert.equal(result.response.status, 503);
     assert.deepEqual(result.body, { result: "FAIL" });
     assert.equal(h.fetches(), 0);
-    assert.ok(!h.reads.includes("REGISTRATION_EMAIL_WORKER_SECRET"));
+    assert.ok(!h.reads.includes("REGISTRATION_EMAIL_WORKER_SECRET_NEXT"));
   }
 });
 
