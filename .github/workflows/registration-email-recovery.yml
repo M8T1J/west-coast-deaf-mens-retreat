@@ -1,10 +1,10 @@
-name: Registration email recovery (prepared, disabled)
+name: Registration email recovery (every five minutes)
 
 on:
   workflow_dispatch:
-  # Prepared five-minute UTC cadence. Keep commented until separately authorized.
-  # schedule:
-  #   - cron: '2-57/5 * * * *'
+  # Offset from the top of the hour to reduce scheduling delays.
+  schedule:
+    - cron: '2-57/5 * * * *'
 
 permissions:
   contents: read
@@ -15,8 +15,6 @@ concurrency:
 
 jobs:
   recover:
-    # Hard stop: even manual dispatch cannot invoke the worker in this draft.
-    if: ${{ false }}
     runs-on: ubuntu-latest
     timeout-minutes: 3
     steps:

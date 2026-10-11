@@ -1,20 +1,19 @@
-# Registration email recovery — prepared, disabled GitHub Actions workflow
+# Registration email recovery — scheduled GitHub Actions workflow
 
-Status: prepared, disabled workflow. No active schedule, worker invocation, or
-Supabase production change is part of this preparation.
+Status: enabled on the default branch at a five-minute cadence. Each scheduled
+tick can wake the existing worker, which may send one queued email.
 
 ## Behavior
 
-`.github/workflows/registration-email-recovery.yml` contains a commented-out
-five-minute UTC schedule at minutes 2, 7, 12, …, 57 (`2-57/5 * * * *`). The
-offset avoids the top of the hour. A literal `if: ${{ false }}` disables the
-entire job, including manual dispatch. There are no push or pull-request triggers.
+`.github/workflows/registration-email-recovery.yml` runs at minutes 2, 7, 12, …,
+57 UTC (`2-57/5 * * * *`). The offset avoids the top of the hour. There are no
+push or pull-request triggers.
 GitHub requires schedules on the default branch and supports intervals as short
 as five minutes. Scheduled runs use the latest default-branch commit and may be
 delayed or dropped under load, so this is a best-effort recovery tick, not a
 delivery guarantee. See [GitHub schedule documentation](https://docs.github.com/en/actions/reference/workflows-and-actions/events-that-trigger-workflows#schedule).
 
-When later enabled, each tick runs `scripts/invoke-registration-email.py` once.
+Each scheduled tick runs `scripts/invoke-registration-email.py` once.
 It sends an HTTPS POST to the fixed existing Supabase worker, with
 `{"dry_run":false}` and the dedicated bearer credential. This is a real worker
 wake-up, not a dry-run preview: the worker checks eligibility and can send at most
@@ -57,11 +56,8 @@ credential. This preparation does not read or change it. GitHub and Supabase are
 independent secret stores; future rotations must update both. Follow [GitHub's
 secret documentation](https://docs.github.com/en/actions/how-tos/write-workflows/choose-what-workflows-do/use-secrets).
 
-Before later activation: review the backlog and worker configuration, confirm the
-fixed project URL, validate a controlled test with the existing outbox restriction,
-and review billing. Activation requires separate explicit authorization: enable
-the schedule on the default branch and remove the literal false job guard. Neither
-has been performed. This preparation does not enable a schedule.
+Review the backlog, worker configuration, fixed project URL, and controlled
+outbox restriction periodically. The schedule is active on the default branch.
 Disabling this workflow stops recovery only; the existing Supabase send-enable
 kill switch also governs immediate sends. Never apply the archived pg_net migration.
 

@@ -136,13 +136,13 @@ class SchedulerTests(unittest.TestCase):
         self.assertIn("http_error", message)
         self.assertEqual(transport.calls, 1)
 
-    def test_workflow_stays_inactive_and_scopes_secret(self):
+    def test_workflow_enables_five_minute_schedule_and_scopes_secret(self):
         text = (ROOT / ".github/workflows/registration-email-recovery.yml").read_text()
         active = "\n".join(line for line in text.splitlines() if not line.lstrip().startswith("#"))
-        self.assertNotIn("schedule:", active)
-        self.assertIn("if: ${{ false }}", active)
-        self.assertIn("#   - cron: '2-57/5 * * * *'", text)
-        self.assertIn("Prepared five-minute UTC cadence", text)
+        self.assertIn("schedule:", active)
+        self.assertIn("- cron: '2-57/5 * * * *'", active)
+        self.assertNotIn("if: ${{ false }}", active)
+        self.assertIn("Registration email recovery (every five minutes)", active)
         self.assertIn("${{ secrets.REGISTRATION_EMAIL_WORKER_SECRET }}", active)
         self.assertEqual(active.count("${{ secrets."), 1)
         self.assertIn("permissions:\n  contents: read", active)
