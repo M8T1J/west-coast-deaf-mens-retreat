@@ -14,6 +14,9 @@
         const response = await fetch(`${url}${path}`, {
             method: options.method || 'GET',
             headers,
+            ...(options.redirect ? { redirect: options.redirect } : {}),
+            ...(options.cache ? { cache: options.cache } : {}),
+            ...(options.signal ? { signal: options.signal } : {}),
             body: options.body == null ? undefined : JSON.stringify(options.body)
         });
         const payload = await response.json().catch(() => null);

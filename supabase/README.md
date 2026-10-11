@@ -57,6 +57,19 @@ cover access restrictions, fixed dry-run requests, sanitization, invalid
 configuration, oversized responses, and the real timeout. This preparation does
 not deploy or invoke a live function, change secrets, or enable scheduling.
 
+The temporary **Test Email Connection** button in `/admin/` is local preparation.
+Only a click issues the diagnostic GET, using the current tab's admin JWT; the
+browser supplies the page origin for the server's existing restriction. No worker
+credential enters the browser. The button displays only PASS or FAIL, disables
+repeat clicks during a request, and discards results after logout or a login
+change. It disallows redirects and caching and aborts after 30 seconds. It does
+not refresh, create, edit, or verify registrations, call the worker directly, or
+enable any scheduled task.
+
+```sh
+deno test --no-check --node-modules-dir=none --no-lock --cached-only --allow-read=admin-app.js,admin/index.html,supabase-client.js --deny-net --deny-env --deny-write --deny-run --deny-ffi scripts/admin-email-connection_test.js scripts/admin-create_test.js scripts/admin-delete_test.js scripts/supabase-client_test.js
+```
+
 ## Admin creation (local implementation; migration required)
 
 `20260922000000_add_admin_registration_creation.sql` adds the server-only

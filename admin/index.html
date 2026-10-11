@@ -134,6 +134,8 @@
                 <input type="text" id="search-box" class="search-box" placeholder="Search by name, email, or church...">
                 <button class="btn btn-primary" data-requires-live-registrations disabled onclick="openAddRegistration()">Add Registration</button>
                 <button class="btn btn-primary" onclick="refreshData()">Refresh</button>
+                <button class="btn btn-outline" id="test-email-connection-btn" type="button" disabled aria-describedby="email-connection-result">Test Email Connection</button>
+                <span id="email-connection-result" role="status" aria-live="polite" aria-atomic="true"></span>
                 <button class="btn btn-outline" id="admin-logout-btn" type="button">Lock Admin</button>
                 <button class="btn btn-outline" data-requires-live-registrations disabled onclick="exportToCSV()">Export to CSV</button>
                 <button class="btn btn-outline" data-requires-live-registrations disabled onclick="exportToJSON()">Export to JSON</button>

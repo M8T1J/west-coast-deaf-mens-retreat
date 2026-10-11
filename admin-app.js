@@ -6,6 +6,7 @@ let registrationLoadState = 'unavailable';
 let registrationLoadGeneration = 0;
 let adminCreateAttempt = null;
 let adminStatusTimer = null;
+let adminEmailConnectionAttempt = null;
 let wcdmrDeleteDialogState = null;
 const WCDMR_ADMIN_SESSION_KEY = 'wcdmr_admin_session';
 
@@ -48,6 +49,7 @@ function writeAdminSession(session) {
     } catch {
         /* ignore */
     }
+    resetAdminEmailConnection();
 }
 
 function clearAdminSession() {
@@ -188,6 +190,7 @@ async function sha256Hex(value) {
 
 function lockAdminAccess(message = '') {
     clearAdminSession();
+    resetAdminEmailConnection();
     adminCreateAttempt = null;
     const createDialog = document.getElementById('add-registration-dialog');
     if (createDialog?.open) createDialog.close();
@@ -251,6 +254,12 @@ async function initializeAdminAccess() {
         logoutBtn.addEventListener('click', () => {
             lockAdminAccess('Admin locked. Sign in to reopen registrations.');
         });
+    }
+
+    const emailTestBtn = document.getElementById('test-email-connection-btn');
+    if (emailTestBtn) {
+        emailTestBtn.addEventListener('click', testAdminEmailConnection);
+        emailTestBtn.disabled = !hasValidAdminSession();
     }
 
     if (hasValidAdminSession()) {
@@ -441,6 +450,50 @@ function isValidSupabaseRegistrationCollection(rows) {
 }
 
 function adminAccessToken() { return readAdminSession()?.access_token || ''; }
+
+// Temporary diagnostic control: no registration request or sending endpoint.
+function resetAdminEmailConnection() {
+    adminEmailConnectionAttempt?.controller.abort();
+    adminEmailConnectionAttempt = null;
+    const result = document.getElementById('email-connection-result');
+    const button = document.getElementById('test-email-connection-btn');
+    if (result) result.textContent = '';
+    if (button) button.disabled = !hasValidAdminSession();
+}
+
+async function testAdminEmailConnection() {
+    if (adminEmailConnectionAttempt) return;
+    const result = document.getElementById('email-connection-result');
+    const button = document.getElementById('test-email-connection-btn');
+    if (!result || !button) return;
+    result.textContent = '';
+    if (!hasValidAdminSession() || !window.wcdmrSupabase) {
+        result.textContent = 'FAIL';
+        button.disabled = !hasValidAdminSession();
+        return;
+    }
+    const attempt = { token: adminAccessToken(), controller: new AbortController() };
+    adminEmailConnectionAttempt = attempt;
+    button.disabled = true;
+    const timer = setTimeout(() => attempt.controller.abort(), 30_000);
+    let outcome = 'FAIL';
+    try {
+        const payload = await window.wcdmrSupabase.callFunction('admin-registrations/email-worker-auth-check', {
+            method: 'GET', accessToken: attempt.token,
+            redirect: 'error', cache: 'no-store', signal: attempt.controller.signal
+        });
+        if (!attempt.controller.signal.aborted && payload?.result === 'PASS' && Object.keys(payload).length === 1) outcome = 'PASS';
+    } catch {
+        // Do not display or log raw errors, responses, headers, or tokens.
+    } finally {
+        clearTimeout(timer);
+        if (adminEmailConnectionAttempt === attempt) {
+            result.textContent = hasValidAdminSession() && adminAccessToken() === attempt.token ? outcome : 'FAIL';
+            adminEmailConnectionAttempt = null;
+            button.disabled = !hasValidAdminSession();
+        }
+    }
+}
 
 async function callAdminRegistrations(method, body) {
     if (method !== 'GET' && !requireLiveRegistrations()) throw new Error('Live registrations unavailable.');
