@@ -1,14 +1,18 @@
-# Registration email recovery — disabled GitHub Actions draft
+# Registration email recovery — prepared, disabled GitHub Actions workflow
 
-Status: disabled implementation, prepared for source-control review. No active
-schedule, secret upload, worker invocation, or Supabase production change.
+Status: prepared, disabled workflow. No active schedule, worker invocation, or
+Supabase production change is part of this preparation.
 
 ## Behavior
 
-`.github/workflows/registration-email-recovery.yml` has a commented-out schedule
-at minutes 2, 7, 12, …, 57 UTC (`2-57/5 * * * *`). The offset avoids the top of
-the hour. A literal `if: ${{ false }}` also disables the entire job, including
-manual dispatch. There are no push or pull-request triggers.
+`.github/workflows/registration-email-recovery.yml` contains a commented-out
+five-minute UTC schedule at minutes 2, 7, 12, …, 57 (`2-57/5 * * * *`). The
+offset avoids the top of the hour. A literal `if: ${{ false }}` disables the
+entire job, including manual dispatch. There are no push or pull-request triggers.
+GitHub requires schedules on the default branch and supports intervals as short
+as five minutes. Scheduled runs use the latest default-branch commit and may be
+delayed or dropped under load, so this is a best-effort recovery tick, not a
+delivery guarantee. See [GitHub schedule documentation](https://docs.github.com/en/actions/reference/workflows-and-actions/events-that-trigger-workflows#schedule).
 
 When later enabled, each tick runs `scripts/invoke-registration-email.py` once.
 It sends an HTTPS POST to the fixed existing Supabase worker, with
@@ -48,16 +52,16 @@ commit, uses only `contents: read`, and does not persist its GitHub credential.
 Anyone able to change trusted workflow/code can potentially access its secret;
 restrict repository write access and review changes accordingly.
 
-No real secret has been read or uploaded during this local work. After separate
-authorization, add it through GitHub **Settings → Secrets and variables → Actions
-→ New repository secret**, directly from the approved credential source. Do not
-paste it into chat or a shell command. GitHub and Supabase are independent secret
-stores; rotations must update both. Follow [GitHub's secret documentation](https://docs.github.com/en/actions/how-tos/write-workflows/choose-what-workflows-do/use-secrets).
+The repository Actions secret is already configured from the approved worker
+credential. This preparation does not read or change it. GitHub and Supabase are
+independent secret stores; future rotations must update both. Follow [GitHub's
+secret documentation](https://docs.github.com/en/actions/how-tos/write-workflows/choose-what-workflows-do/use-secrets).
 
 Before later activation: review the backlog and worker configuration, confirm the
 fixed project URL, validate a controlled test with the existing outbox restriction,
-and review billing. Only after approval, remove the literal false job guard and
-uncomment the schedule on the default branch. Neither step has been performed.
+and review billing. Activation requires separate explicit authorization: enable
+the schedule on the default branch and remove the literal false job guard. Neither
+has been performed. This preparation does not enable a schedule.
 Disabling this workflow stops recovery only; the existing Supabase send-enable
 kill switch also governs immediate sends. Never apply the archived pg_net migration.
 

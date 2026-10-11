@@ -1,8 +1,8 @@
-name: Registration email recovery (disabled)
+name: Registration email recovery (prepared, disabled)
 
 on:
   workflow_dispatch:
-  # Inactive draft. Enable only after separate review and authorization.
+  # Prepared five-minute UTC cadence. Keep commented until separately authorized.
   # schedule:
   #   - cron: '2-57/5 * * * *'
 

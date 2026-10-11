@@ -142,11 +142,27 @@ class SchedulerTests(unittest.TestCase):
         self.assertNotIn("schedule:", active)
         self.assertIn("if: ${{ false }}", active)
         self.assertIn("#   - cron: '2-57/5 * * * *'", text)
+        self.assertIn("Prepared five-minute UTC cadence", text)
         self.assertIn("${{ secrets.REGISTRATION_EMAIL_WORKER_SECRET }}", active)
+        self.assertEqual(active.count("${{ secrets."), 1)
+        self.assertIn("permissions:\n  contents: read", active)
         self.assertIn("cancel-in-progress: false", active)
+        self.assertIn("timeout-minutes: 3", active)
+        self.assertIn("actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683", active)
         self.assertIn("persist-credentials: false", active)
         self.assertNotIn("SUPABASE_SERVICE_ROLE_KEY", active)
         self.assertNotIn("pull_request", active)
+        self.assertNotIn("push:", active)
+
+    def test_recovery_request_is_one_fixed_non_redirecting_send_attempt(self):
+        self.assertTrue(worker.WORKER_URL.startswith("https://xauxotzqlrylhrjababc.supabase.co/"))
+        self.assertEqual(worker.MAX_RESPONSE_BYTES, 4096)
+        source = (ROOT / "scripts/invoke-registration-email.py").read_text()
+        self.assertIn("NoRedirect()", source)
+        self.assertIn("opener.open(request, timeout=90)", source)
+        self.assertIn("data=b'{\"dry_run\":false}'", source)
+        self.assertNotIn("retry(", source)
+        self.assertNotIn("sleep(", source)
 
     def test_unsafe_migration_is_outside_deployment_directory(self):
         name = "20260925000000_add_registration_email_recovery.sql"
