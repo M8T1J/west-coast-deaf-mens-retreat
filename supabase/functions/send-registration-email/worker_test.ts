@@ -102,6 +102,7 @@ function harness(
     body: Record<string, unknown> | undefined;
   }[] = [];
   const errors: string[] = [];
+  const envReads: string[] = [];
   const mockFetch: typeof fetch = async (input, init) => {
     const url = new URL(String(input));
     const step = steps[calls.length];
@@ -147,7 +148,10 @@ function harness(
     );
   };
   const handler = createHandler({
-    env: (key) => env[key],
+    env: (key) => {
+      envReads.push(key);
+      return env[key];
+    },
     fetch: mockFetch,
     now: () => NOW,
     sleep: () => Promise.resolve(),
@@ -177,6 +181,7 @@ function harness(
     handler,
     done() {
       assert.deepEqual(errors, []);
+      assert.ok(!envReads.includes("REGISTRATION_EMAIL_WORKER_SECRET_NEXT"));
       assert.equal(calls.length, steps.length);
     },
   };
@@ -228,10 +233,11 @@ Deno.test("unsupported methods and short worker secrets fail closed", async () =
   bad.done();
 });
 
-Deno.test("rotation accepts both credentials for read-only dry runs without disclosure", async () => {
-  for (const secret of [ENV.REGISTRATION_EMAIL_WORKER_SECRET!, NEXT_SECRET]) {
+Deno.test("original credential authenticates read-only dry runs with NEXT present or absent", async () => {
+  for (const next of [undefined, NEXT_SECRET]) {
+    const secret = ENV.REGISTRATION_EMAIL_WORKER_SECRET!;
     const h = harness(drySteps(), {
-      REGISTRATION_EMAIL_WORKER_SECRET_NEXT: NEXT_SECRET,
+      REGISTRATION_EMAIL_WORKER_SECRET_NEXT: next,
       REGISTRATION_EMAIL_SEND_ENABLED: "false",
       EMAILJS_PRIVATE_KEY: undefined,
     });
@@ -248,9 +254,18 @@ Deno.test("rotation accepts both credentials for read-only dry runs without disc
   }
 });
 
-Deno.test("rotation optional NEXT length failures preserve current authentication", async () => {
+Deno.test("NEXT is ignored and distinct NEXT credentials are rejected before external access", async () => {
   for (
-    const next of [undefined, "", "short", "n".repeat(31), "n".repeat(4001)]
+    const next of [
+      undefined,
+      "",
+      "short",
+      "n".repeat(31),
+      "n".repeat(32),
+      NEXT_SECRET,
+      "n".repeat(4000),
+      "n".repeat(4001),
+    ]
   ) {
     const h = harness([{
       path: "/rest/v1/registration_email_outbox",
@@ -271,7 +286,7 @@ Deno.test("rotation optional NEXT length failures preserve current authenticatio
   }
 });
 
-Deno.test("rotation keeps primary credential configuration mandatory", async () => {
+Deno.test("original credential remains mandatory even when NEXT is valid", async () => {
   for (const current of [undefined, "", "short", "c".repeat(4001)]) {
     const h = harness([], {
       REGISTRATION_EMAIL_WORKER_SECRET: current,
@@ -288,9 +303,9 @@ Deno.test("rotation keeps primary credential configuration mandatory", async () 
   }
 });
 
-Deno.test("rotation accepts NEXT boundary lengths and identical credentials", async () => {
+Deno.test("original boundary lengths authenticate while identical NEXT is ignored", async () => {
   for (
-    const next of [
+    const original of [
       "n".repeat(32),
       "n".repeat(4000),
       ENV.REGISTRATION_EMAIL_WORKER_SECRET!,
@@ -300,17 +315,18 @@ Deno.test("rotation accepts NEXT boundary lengths and identical credentials", as
       path: "/rest/v1/registration_email_outbox",
       data: [],
     }], {
-      REGISTRATION_EMAIL_WORKER_SECRET_NEXT: next,
+      REGISTRATION_EMAIL_WORKER_SECRET: original,
+      REGISTRATION_EMAIL_WORKER_SECRET_NEXT: original,
     });
     assert.equal(
-      (await h.run({}, { Authorization: `Bearer ${next}` })).status,
+      (await h.run({}, { Authorization: `Bearer ${original}` })).status,
       200,
     );
     h.done();
   }
 });
 
-Deno.test("rotation rejects invalid bearer headers and unrelated credentials before database access", async () => {
+Deno.test("invalid bearer headers and unrelated credentials are rejected before database access", async () => {
   for (
     const header of [
       "",
@@ -335,7 +351,7 @@ Deno.test("rotation rejects invalid bearer headers and unrelated credentials bef
   }
 });
 
-Deno.test("NEXT credential cannot bypass kill switch, scope, input or provider configuration", async () => {
+Deno.test("original credential cannot bypass kill switch, scope, input or provider configuration", async () => {
   for (
     const scenario of [
       {
@@ -369,7 +385,9 @@ Deno.test("NEXT credential cannot bypass kill switch, scope, input or provider c
       REGISTRATION_EMAIL_WORKER_SECRET_NEXT: NEXT_SECRET,
     });
     assert.deepEqual(
-      await h.run(scenario.body, { Authorization: `Bearer ${NEXT_SECRET}` }),
+      await h.run(scenario.body, {
+        Authorization: `Bearer ${ENV.REGISTRATION_EMAIL_WORKER_SECRET}`,
+      }),
       {
         status: scenario.code,
         body: { error: scenario.error },
@@ -379,10 +397,11 @@ Deno.test("NEXT credential cannot bypass kill switch, scope, input or provider c
   }
 });
 
-Deno.test("both rotation credentials use the unchanged fenced send sequence", async () => {
-  for (const secret of [ENV.REGISTRATION_EMAIL_WORKER_SECRET!, NEXT_SECRET]) {
+Deno.test("original credential preserves fenced send sequence with NEXT present or absent", async () => {
+  for (const next of [undefined, NEXT_SECRET]) {
+    const secret = ENV.REGISTRATION_EMAIL_WORKER_SECRET!;
     const h = harness([claim(), authorize(), email(), complete()], {
-      REGISTRATION_EMAIL_WORKER_SECRET_NEXT: NEXT_SECRET,
+      REGISTRATION_EMAIL_WORKER_SECRET_NEXT: next,
     });
     const result = await h.run({ dry_run: false }, {
       Authorization: `Bearer ${secret}`,

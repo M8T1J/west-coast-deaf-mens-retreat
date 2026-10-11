@@ -167,7 +167,7 @@ supported: the authorization snapshot supplies `USD` as a JSON string.
 | Environment value | Requirement |
 | --- | --- |
 | `REGISTRATION_EMAIL_WORKER_SECRET` | Dedicated, randomly generated bearer credential, at least 32 characters (prefer 32 random bytes encoded as hex). Never reuse a public key or user JWT. |
-| `REGISTRATION_EMAIL_WORKER_SECRET_NEXT` | Optional staged rotation credential, 32–4000 characters. Worker compatibility still accepts either valid credential. Admin email dispatch and its diagnostic use the original secret name only, with no fallback to NEXT. The original remains mandatory for the worker. Keep NEXT configured until the updated admin is deployed and verified. |
+| `REGISTRATION_EMAIL_WORKER_SECRET_NEXT` | Retired temporary name. The local worker and both admin callers neither read nor accept it as a separate credential. Leave the hosted secret unchanged until the Step 3 deployment and diagnostic checks below are authorized and complete. |
 | `REGISTRATION_EMAIL_SEND_ENABLED` | Only the exact string `true` enables sends. Missing or any other value disables them. |
 | `REGISTRATION_EMAIL_ALLOWED_OUTBOX_ID` | Set to the existing queued test row's UUID for the initial controlled test. Requests for any other UUID are rejected; omitted request IDs resolve to this UUID. Removing the restriction enables general queue processing. |
 | `EMAILJS_SERVICE_ID` | Connected sender service ID. |
@@ -238,8 +238,7 @@ enabling a send.
 
 Only POST with `Content-Type: application/json` and
 `Authorization: Bearer <credential>` is accepted, where the credential exactly
-matches the mandatory `REGISTRATION_EMAIL_WORKER_SECRET` or a valid optional
-`REGISTRATION_EMAIL_WORKER_SECRET_NEXT` during rotation. The
+matches the mandatory `REGISTRATION_EMAIL_WORKER_SECRET`. The
 platform JWT check is disabled only for this function; the handler verifies
 its dedicated secret before any database access. There is no browser CORS grant.
 The body is limited to 1 KiB and accepts only an optional UUID `outbox_id` and
@@ -305,10 +304,36 @@ to NEXT or dispatches. The diagnostic also fails closed and never falls back.
 The browser JWT and admin allowlist still control admin access, independently of
 the worker credential. They do not start a server or invoke deployed functions.
 
-Final rotation Step 2 preparation switches both local admin-to-worker calls back
-to the original secret name after its credential promotion. Worker dual-secret
-compatibility is unchanged. Deployment and subsequent verification are separate
-steps; these offline checks do not change secrets, enable scheduling, or send email.
+Final rotation Step 2 switched both admin-to-worker calls back to the original
+secret name after its credential promotion. Step 3 local preparation removes the
+worker's dual-secret compatibility while retaining the original credential's
+constant-time comparison and all email protections. Offline worker cases verify
+that NEXT is never read, a distinct NEXT credential is rejected before external
+access, and original authentication and the fenced send sequence work with NEXT
+present or absent. No hosted secret is removed by these tests.
+
+### Step 3 rollout plan (requires separate authorization)
+
+1. Commit the reviewed worker changes and passing offline tests. The promoted
+   original credential and admin version 22 diagnostic PASS are prerequisites.
+2. Deploy only `send-registration-email`, preserving its disabled platform JWT
+   verification (`--no-verify-jwt`). Do not alter sending flags or scheduling.
+3. Use the current authorized admin session to run the diagnostic once. Continue
+   only on PASS; it uses the original credential and hardcoded `dry_run: true`.
+4. Remove only the hosted `REGISTRATION_EMAIL_WORKER_SECRET_NEXT` secret, using
+   `supabase secrets unset REGISTRATION_EMAIL_WORKER_SECRET_NEXT --project-ref xauxotzqlrylhrjababc`.
+   Verify its name is absent and the original secret digest is unchanged, without
+   displaying any credential or digest. Do not change the GitHub Actions secret.
+5. Run the read-only admin diagnostic again to confirm PASS after removal.
+
+If a diagnostic fails, stop before further changes. Keep the promoted original
+credential and existing email settings; review the failure without sending a test
+email or changing registrations. Removing NEXT cannot revoke that same value when
+it is also the promoted original; a distinct obsolete value is rejected.
+
+These are instructions for a later authorized rollout, not actions performed by
+Step 3 preparation. The temporary dashboard button and diagnostic remain available
+for these checks; their removal is separate from worker credential cleanup.
 
 ```sh
 deno check --node-modules-dir=none --no-lock supabase/functions/admin-registrations/index.ts supabase/functions/admin-registrations/handler_test.ts
