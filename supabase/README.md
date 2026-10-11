@@ -127,7 +127,7 @@ supported: the authorization snapshot supplies `USD` as a JSON string.
 | Environment value | Requirement |
 | --- | --- |
 | `REGISTRATION_EMAIL_WORKER_SECRET` | Dedicated, randomly generated bearer credential, at least 32 characters (prefer 32 random bytes encoded as hex). Never reuse a public key or user JWT. |
-| `REGISTRATION_EMAIL_WORKER_SECRET_NEXT` | Optional overlap credential for staged rotation, 32–4000 characters. The worker accepts either valid credential; the admin caller still uses the original. Missing/invalid NEXT is not accepted and does not disable the original. The original secret remains mandatory. Local preparation only: no secret changes or deployment performed. |
+| `REGISTRATION_EMAIL_WORKER_SECRET_NEXT` | Staged rotation credential, 32–4000 characters. The worker accepts either valid credential; the admin caller uses NEXT only. Missing/invalid NEXT skips admin email dispatch with a sanitized configuration error, without undoing the saved registration or falling back to the original. The original remains mandatory for the worker. |
 | `REGISTRATION_EMAIL_SEND_ENABLED` | Only the exact string `true` enables sends. Missing or any other value disables them. |
 | `REGISTRATION_EMAIL_ALLOWED_OUTBOX_ID` | Set to the existing queued test row's UUID for the initial controlled test. Requests for any other UUID are rejected; omitted request IDs resolve to this UUID. Removing the restriction enables general queue processing. |
 | `EMAILJS_SERVICE_ID` | Connected sender service ID. |
@@ -259,7 +259,13 @@ sanitized categories and HTTP statuses, sent-row skips, ordinary edits and
 repeated verification, failed writes, invalid/unauthorized requests, and
 concurrent verification conflicts. Diagnostic cases include HTTP 401/403/429/
 500/503, transport errors, abort errors, invalid JSON, response-read failures,
-and unconfirmed sends. They do not start a server or invoke deployed functions.
+and unconfirmed sends. Rotation cases verify NEXT is used even when the original
+is present, absent, or invalid; missing/invalid NEXT never falls back or dispatches.
+The browser JWT and admin allowlist still control admin access, independently of
+the worker credential. They do not start a server or invoke deployed functions.
+
+Step 5 preparation changes only the local admin caller. Deploying it is a separate
+step; these offline checks do not change secrets, enable scheduling, or send email.
 
 ```sh
 deno check --node-modules-dir=none --no-lock supabase/functions/admin-registrations/index.ts supabase/functions/admin-registrations/handler_test.ts

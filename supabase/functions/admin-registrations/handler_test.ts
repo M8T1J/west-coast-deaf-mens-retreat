@@ -6,6 +6,7 @@ import { createHandler } from "./handler.ts";
 const ID = "11111111-1111-4111-8111-111111111111";
 const JOB = "22222222-2222-4222-8222-222222222222";
 const SECRET = "synthetic-worker-secret-0123456789";
+const ORIGINAL_SECRET = "synthetic-original-secret-9876543210";
 const current = {
   id: ID,
   payment_status: "awaiting_manual_verification",
@@ -33,25 +34,33 @@ type Options = {
   workerResponse?: () => Response;
   env?: Record<string, string | undefined>;
   user?: { id: string; email: string } | null;
+  origin?: string;
 };
 function harness(options: Options = {}) {
   const calls: string[] = [];
   const logs: unknown[] = [];
+  const envReads: string[] = [];
   let patches = 0;
   let sends = 0;
   const env: Record<string, string | undefined> = {
     ALLOWED_ORIGIN: "https://site.invalid",
     ADMIN_EMAILS: "admin@example.com",
     SUPABASE_URL: "https://database.invalid",
-    REGISTRATION_EMAIL_WORKER_SECRET: SECRET,
+    REGISTRATION_EMAIL_WORKER_SECRET: ORIGINAL_SECRET,
+    REGISTRATION_EMAIL_WORKER_SECRET_NEXT: SECRET,
     ...options.env,
   };
   const handler = createHandler({
-    env: (key) => env[key],
-    authenticatedUser: async () =>
-      options.user === undefined
+    env: (key) => {
+      envReads.push(key);
+      return env[key];
+    },
+    authenticatedUser: async (authorization) => {
+      assert.equal(authorization, "Bearer browser-token");
+      return options.user === undefined
         ? { id: "admin", email: "admin@example.com" }
-        : options.user,
+        : options.user;
+    },
     log: (...args) => logs.push(args),
     databaseRequest: async (path, init) => {
       calls.push(path);
@@ -103,6 +112,7 @@ function harness(options: Options = {}) {
   return {
     calls,
     logs,
+    envReads,
     sends: () => sends,
     run: async (
       changes: unknown = { payment_status: "verified" },
@@ -112,7 +122,7 @@ function harness(options: Options = {}) {
         new Request("https://edge.invalid/admin-registrations", {
           method,
           headers: {
-            Origin: env.ALLOWED_ORIGIN!,
+            Origin: options.origin ?? env.ALLOWED_ORIGIN!,
             Authorization: "Bearer browser-token",
             "Content-Type": "application/json",
           },
@@ -124,6 +134,8 @@ function harness(options: Options = {}) {
       const body = await response.json();
       assert.ok(!JSON.stringify(body).includes(SECRET));
       assert.ok(!JSON.stringify(logs).includes(SECRET));
+      assert.ok(!JSON.stringify(body).includes(ORIGINAL_SECRET));
+      assert.ok(!JSON.stringify(logs).includes(ORIGINAL_SECRET));
       return { status: response.status, body };
     },
   };
@@ -137,6 +149,35 @@ Deno.test("verification commits before scoped worker dispatch and preserves resp
     h.calls[1].includes("&payment_status=eq.awaiting_manual_verification"),
   );
   assert.equal(h.logs.length, 0);
+});
+
+Deno.test("admin dispatch uses NEXT only, independently of the original worker credential", async () => {
+  for (const original of [ORIGINAL_SECRET, undefined, "invalid"]) {
+    const h = harness({
+      env: { REGISTRATION_EMAIL_WORKER_SECRET: original },
+    });
+    assert.deepEqual(await h.run(), { status: 200, body: saved });
+    assert.equal(h.sends(), 1);
+    assert.ok(h.envReads.includes("REGISTRATION_EMAIL_WORKER_SECRET_NEXT"));
+    assert.ok(!h.envReads.includes("REGISTRATION_EMAIL_WORKER_SECRET"));
+    assert.equal(h.logs.length, 0);
+  }
+});
+
+Deno.test("missing or invalid NEXT skips email without falling back or undoing verification", async () => {
+  for (const next of [undefined, "", "x".repeat(31), "x".repeat(4001)]) {
+    const h = harness({
+      env: { REGISTRATION_EMAIL_WORKER_SECRET_NEXT: next },
+    });
+    assert.deepEqual(await h.run(), { status: 200, body: saved });
+    assert.equal(h.sends(), 0);
+    assert.equal(h.calls.length, 2);
+    assert.ok(!h.envReads.includes("REGISTRATION_EMAIL_WORKER_SECRET"));
+    assert.deepEqual(h.logs, [[
+      "Registration saved; payment verification email not confirmed",
+      { registration_id: ID, code: "configuration_error" },
+    ]]);
+  }
 });
 
 Deno.test("email failures are sanitized and never undo successful verification", async () => {
@@ -153,7 +194,7 @@ Deno.test("email failures are sanitized and never undo successful verification",
       { lookupStatus: 500 },
       { jobs: [] },
       { jobs: [{ id: "bad" }] },
-      { env: { REGISTRATION_EMAIL_WORKER_SECRET: undefined } },
+      { env: { REGISTRATION_EMAIL_WORKER_SECRET_NEXT: undefined } },
       { env: { SUPABASE_URL: "https://user:password@database.invalid" } },
     ]
   ) {
@@ -274,6 +315,11 @@ Deno.test("unauthorized and invalid requests never write or dispatch", async () 
   for (
     const [options, changes, status] of [
       [{ user: null }, { payment_status: "verified" }, 401],
+      [
+        { origin: "https://other.invalid" },
+        { payment_status: "verified" },
+        403,
+      ],
       [{ user: { id: "other", email: "other@example.com" } }, {}, 403],
       [{}, { payment_status: "verified", amount_received: 0 }, 400],
       [{}, { payment_status: "invalid" }, 400],
