@@ -3,6 +3,77 @@ const GOOGLE_FORM_URL = 'https://docs.google.com/forms/d/e/YOUR_FORM_ID/formResp
 const USE_GOOGLE_FORM = false;
 const WCDMR_REGISTRATION_STORAGE_KEY = 'wcdmr_registrations';
 const WCDMR_REGISTRATION_BACKUP_STORAGE_KEY = 'wcdmr_registrations_backup';
+const WCDMR_REGISTRATION_CLIENT_ID_KEY = 'wcdmr_registration_client_id';
+const REGISTRATION_UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+let inMemoryRegistrationClientId = '';
+let inMemoryRegistrationIdentity = '';
+
+function getOrCreateRegistrationClientId(createId, identity) {
+    const normalizedEmail = String(identity?.email || '').trim().toLowerCase();
+    const normalizedName = String(identity?.fullName || `${identity?.firstName || ''} ${identity?.lastName || ''}`).trim().replace(/\s+/g, ' ').toLowerCase();
+    const matchesIdentity = (row) => normalizedEmail && normalizedName &&
+        String(row?.email || '').trim().toLowerCase() === normalizedEmail &&
+        String(row?.fullName || `${row?.firstName || ''} ${row?.lastName || ''}`).trim().replace(/\s+/g, ' ').toLowerCase() === normalizedName;
+
+    try {
+        const savedId = localStorage.getItem(WCDMR_REGISTRATION_CLIENT_ID_KEY);
+        const pendingDrafts = mergeLocalRegistrations(
+            readStoredRegistrations(WCDMR_REGISTRATION_STORAGE_KEY),
+            readStoredRegistrations(WCDMR_REGISTRATION_BACKUP_STORAGE_KEY)
+        );
+        const matchingDraft = pendingDrafts.find((row) =>
+            (row.registrationId === savedId || matchesIdentity(row)) &&
+            row.submissionConfirmed !== true && REGISTRATION_UUID_PATTERN.test(row.registrationId || '') &&
+            matchesIdentity(row)
+        );
+        if (matchingDraft) {
+            inMemoryRegistrationClientId = matchingDraft.registrationId;
+            inMemoryRegistrationIdentity = `${normalizedEmail}|${normalizedName}`;
+            try { localStorage.setItem(WCDMR_REGISTRATION_CLIENT_ID_KEY, matchingDraft.registrationId); } catch { /* In-memory retry remains available. */ }
+            return matchingDraft.registrationId;
+        }
+        if (normalizedEmail && normalizedName && REGISTRATION_UUID_PATTERN.test(savedId || '') && inMemoryRegistrationClientId === savedId && inMemoryRegistrationIdentity === `${normalizedEmail}|${normalizedName}`) {
+            inMemoryRegistrationClientId = savedId;
+            return savedId;
+        }
+    } catch { /* Storage may be unavailable; use an in-memory ID for this submission. */ }
+
+    if (normalizedEmail && normalizedName && REGISTRATION_UUID_PATTERN.test(inMemoryRegistrationClientId) && inMemoryRegistrationIdentity === `${normalizedEmail}|${normalizedName}`) return inMemoryRegistrationClientId;
+    const id = createId();
+    inMemoryRegistrationClientId = id;
+    inMemoryRegistrationIdentity = `${normalizedEmail}|${normalizedName}`;
+    try { localStorage.setItem(WCDMR_REGISTRATION_CLIENT_ID_KEY, id); } catch { /* Keep the generated ID on the draft object. */ }
+    return id;
+}
+
+function markRegistrationClientIdConfirmed(id) {
+    if (!id) return;
+    for (const key of [WCDMR_REGISTRATION_STORAGE_KEY, WCDMR_REGISTRATION_BACKUP_STORAGE_KEY]) {
+        const rows = readStoredRegistrations(key);
+        let changed = false;
+        for (const row of rows) {
+            if (row.registrationId === id) {
+                row.submissionConfirmed = true;
+                changed = true;
+            }
+        }
+        if (changed) {
+            try { localStorage.setItem(key, JSON.stringify(rows)); } catch { /* A confirmed result still clears the retry key below. */ }
+        }
+    }
+}
+
+function clearRegistrationClientId(expectedId) {
+    if (!expectedId || inMemoryRegistrationClientId === expectedId) {
+        inMemoryRegistrationClientId = '';
+        inMemoryRegistrationIdentity = '';
+    }
+    try {
+        if (!expectedId || localStorage.getItem(WCDMR_REGISTRATION_CLIENT_ID_KEY) === expectedId) {
+            localStorage.removeItem(WCDMR_REGISTRATION_CLIENT_ID_KEY);
+        }
+    } catch { /* Storage cleanup cannot turn a confirmed registration into a failure. */ }
+}
 
 function safeParseRegistrations(rawValue) {
     try {
@@ -64,7 +135,7 @@ async function storeRegistrationData(formData, paymentId = '') {
     if (!window.wcdmrSupabase) throw new Error('Registration service is unavailable. Your draft was saved in this browser.');
 
     try {
-        return await window.wcdmrSupabase.callFunction('public-register', {
+        const result = await window.wcdmrSupabase.callFunction('public-register', {
             method: 'POST',
             body: {
                 clientRegistrationId: formData.registrationId,
@@ -87,6 +158,12 @@ async function storeRegistrationData(formData, paymentId = '') {
                 turnstileToken
             }
         });
+        // Keep the key on errors or ambiguous responses so a retry is idempotent.
+        if (result && typeof result.id === 'string' && result.id) {
+            markRegistrationClientIdConfirmed(formData.registrationId);
+            clearRegistrationClientId(formData.registrationId);
+        }
+        return result;
     } catch (error) {
         // A token may be one-time use even when the database request failed.
         // Reset it so the visitor can retry without losing the saved draft.
@@ -110,6 +187,7 @@ async function completeRegistration(formData, paymentId = '') {
 async function submitToGoogleForm() { return false; }
 
 if (typeof window !== 'undefined') {
+    window.wcdmrGetOrCreateRegistrationClientId = getOrCreateRegistrationClientId;
     window.completeRegistration = completeRegistration;
     window.storeRegistrationData = storeRegistrationData;
     window.submitToGoogleForm = submitToGoogleForm;

@@ -275,7 +275,9 @@ function createRegistrationId() {
 function ensureRegistrationDraftIdentity(formData) {
     if (!formData || typeof formData !== 'object') return formData;
     if (!formData.registrationId) {
-        formData.registrationId = createRegistrationId();
+        formData.registrationId = typeof window.wcdmrGetOrCreateRegistrationClientId === 'function'
+            ? window.wcdmrGetOrCreateRegistrationClientId(createRegistrationId, formData)
+            : createRegistrationId();
     }
     if (!formData.timestamp) {
         formData.timestamp = Date.now();
