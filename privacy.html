@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="Privacy policy for West Coast Deaf Men's Retreat registration, payment verification, and prepared encrypted backups.">
+    <title>Privacy Policy | WCDMR</title>
+    <link rel="stylesheet" href="styles.css">
+    <style>
+        .privacy-header { background: var(--primary-dark); color: white; padding: 1.25rem 1.5rem; }
+        .privacy-header-inner { max-width: 1080px; margin: auto; display: flex; justify-content: space-between; align-items: center; gap: 1rem; flex-wrap: wrap; }
+        .privacy-brand { color: white; text-decoration: none; font-size: 1.2rem; font-weight: 700; }
+        .privacy-header nav { display: flex; gap: 1.25rem; }
+        .privacy-header nav a { color: white; text-underline-offset: .25em; }
+        .privacy-main { max-width: 1080px; margin: auto; padding: 3rem 1.5rem; }
+        .privacy-intro { max-width: 760px; margin-bottom: 2rem; }
+        .privacy-intro h1 { font-size: clamp(2rem, 5vw, 3rem); line-height: 1.15; color: var(--primary-dark); margin-bottom: 1rem; }
+        .privacy-layout { display: grid; grid-template-columns: 220px minmax(0, 1fr); gap: 2.5rem; align-items: start; }
+        .privacy-toc { position: sticky; top: 1.5rem; }
+        .privacy-toc h2 { font-size: 1rem; margin-bottom: .75rem; }
+        .privacy-toc ol { list-style: none; padding: 0; }
+        .privacy-toc li { margin-bottom: .65rem; }
+        .privacy-toc a, .privacy-content a, .privacy-footer a { color: var(--primary-color); text-underline-offset: .2em; }
+        .privacy-content { background: white; border: 1px solid #d3dce8; border-radius: .65rem; padding: 2rem; }
+        .privacy-content section + section { margin-top: 2rem; padding-top: 1.5rem; border-top: 1px solid #d3dce8; }
+        .privacy-content h2 { font-size: 1.4rem; line-height: 1.3; color: var(--primary-dark); margin-bottom: .85rem; }
+        .privacy-content p + p { margin-top: .85rem; }
+        .privacy-content ul { padding-left: 1.4rem; margin: .85rem 0; }
+        .privacy-content li { margin-bottom: .6rem; }
+        .privacy-content section { scroll-margin-top: 1.5rem; }
+        .privacy-footer { max-width: 1080px; margin: auto; padding: 0 1.5rem 2rem; color: var(--text-light); }
+        :focus-visible { outline: 3px solid #b45a00; outline-offset: 4px; }
+        @media (max-width: 720px) {
+            .privacy-main { padding: 2rem 1rem; }
+            .privacy-layout { grid-template-columns: 1fr; gap: 1.5rem; }
+            .privacy-toc { position: static; }
+            .privacy-content { padding: 1.25rem; }
+        }
+        @media print {
+            .privacy-header, .privacy-toc, .privacy-footer, .skip-link { display: none; }
+            .privacy-layout { display: block; }
+            .privacy-main, .privacy-content { padding: 0; border: 0; }
+            body { background: white; }
+        }
+    </style>
+</head>
+<body>
+    <a class="skip-link" href="#main-content">Skip to privacy policy</a>
+    <header class="privacy-header">
+        <div class="privacy-header-inner">
+            <a class="privacy-brand" href="index.html">West Coast Deaf Men's Retreat</a>
+            <nav aria-label="Main navigation">
+                <a href="index.html">Home</a>
+                <a href="index.html#registration">Registration</a>
+            </nav>
+        </div>
+    </header>
+    <main class="privacy-main" id="main-content">
+        <div class="privacy-intro">
+            <h1>Privacy Policy</h1>
+            <p>This policy describes how the WCDMR registration system handles information and distinguishes prepared backup features from active practices.</p>
+        </div>
+        <div class="privacy-layout">
+            <nav class="privacy-toc" aria-label="Policy sections">
+                <h2>On this page</h2>
+                <ol>
+                    <li><a href="#registration-information">Registration information</a></li>
+                    <li><a href="#payments">Payment verification</a></li>
+                    <li><a href="#access">Data access and services</a></li>
+                    <li><a href="#browser-storage">Browser storage</a></li>
+                    <li><a href="#backups">Encrypted backups</a></li>
+                    <li><a href="#retention">Retention and removal</a></li>
+                    <li><a href="#contact">Contact</a></li>
+                </ol>
+            </nav>
+            <article class="privacy-content" aria-label="Privacy policy">
+                <section id="registration-information">
+                    <h2>1. Registration information</h2>
+                    <p>The form collects your name, email, text phone number, mailing address, church name, emergency contact name and phone number, accommodation selections, fee amount, payment method, and payment acknowledgement. Optional fields include videophone and youth information. Accommodation selections may indicate CPAP outlet or medication refrigeration needs.</p>
+                    <p>The system also records registration references, submission times, registration and payment status, and organizer changes. These details support registration, accommodation requests, payment review, and registration-related messages.</p>
+                </section>
+                <section id="payments">
+                    <h2>2. Payment verification</h2>
+                    <p>PayPal checkout takes place on PayPal. Zelle payments take place through your banking service; money orders are reviewed by organizers. The registration form does not collect card numbers or online banking passwords.</p>
+                    <p>Registration records can include amounts due and received, transaction or payer references, verification notes, and verification times. A PayPal return or submitted payment claim does not by itself verify payment. Organizer verification controls payment confirmation.</p>
+                </section>
+                <section id="access">
+                    <h2>3. Data access and services</h2>
+                    <p>Registration records are stored through Supabase. The organizer interface requires sign-in and an approved administrator account to view, edit, verify, remove, or export registrations. Organizers can download registration exports.</p>
+                    <p>EmailJS processes information included in attendee emails and organizer notifications. Organizer notifications can include contact, emergency contact, accommodation, youth, and payment details. Cloudflare Turnstile supports abuse prevention; verification sends a challenge response and, when available, an IP address to Cloudflare. Payment services handle information you provide to them under their own policies.</p>
+                </section>
+                <section id="browser-storage">
+                    <h2>4. Browser storage</h2>
+                    <p>The site keeps registration drafts and local safety copies in your browser, including submitted details. It also uses temporary session storage during payment handling. Local copies have no fixed time-based expiry. Clearing this site's browser data removes those local copies, but does not remove server records or emails. Avoid registering on a shared device.</p>
+                </section>
+                <section id="backups">
+                    <h2>5. Google Drive encrypted backups</h2>
+                    <p>Google Drive backup setup is prepared; automated registration backups are not active. The prepared process encrypts database exports with age before sending only encrypted archives to an app-authorized private Drive folder. It checks sharing permissions and upload integrity. Daily backups during registration season and a final backup afterward are prepared but not enabled.</p>
+                    <p>The recovery design keeps the private decryption key separate from Google Drive, in macOS Keychain and encrypted offline recovery media. The backup runner uses only the public encryption recipient. This encryption applies to backup archives, not to every registration copy, email, or browser record.</p>
+                </section>
+                <section id="retention">
+                    <h2>6. Retention and removal</h2>
+                    <p>No fixed automatic retention period is currently enforced for registration records or encrypted Drive backups. Organizer removal hides a record from the active list rather than permanently erasing it. It does not erase browser copies, emails, downloaded exports, or any earlier backup. The prepared backup process does not automatically delete Drive archives.</p>
+                    <p>Contact WCDMR to ask about your information, corrections, or removal. This site does not offer self-service access or permanent deletion, and this policy does not promise a deletion deadline.</p>
+                </section>
+                <section id="contact">
+                    <h2>7. Contact</h2>
+                    <p>For privacy or registration questions, email the WCDMR team at <a href="mailto:wcdeafmr@gmail.com">wcdeafmr@gmail.com</a>. Do not include passwords, payment card details, OAuth credentials, or encryption keys in your message.</p>
+                </section>
+            </article>
+        </div>
+    </main>
+    <footer class="privacy-footer">
+        <p>West Coast Deaf Men's Retreat · <a href="index.html">Return to WCDMR</a></p>
+    </footer>
+</body>
+</html>
